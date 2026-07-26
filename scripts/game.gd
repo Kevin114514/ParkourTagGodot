@@ -79,9 +79,13 @@ func _ready() -> void:
 	_show_title("选择模式开始游戏")
 
 func _process(delta: float) -> void:
-	if Input.is_action_just_pressed("quit_room") and _is_in_network_room():
-		_leave_room("已退出房间。")
-		return
+	if Input.is_action_just_pressed("quit_room"):
+		if game_mode == "single":
+			_show_title("已返回标题界面。")
+			return
+		if _is_in_network_room():
+			_leave_room("已退出房间。")
+			return
 
 	if Input.is_action_just_pressed("toggle_debug"):
 		_toggle_debug_mode()
@@ -116,8 +120,10 @@ func _process(delta: float) -> void:
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
 	var mode_text := "单人模式" if game_mode == "single" else "联机一打一：" + _local_role_text()
-	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开"
-	if game_mode != "single":
+	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开  F3 碰撞箱:%s" % ["开" if debug_mode else "关"]
+	if game_mode == "single":
+		controls_text += "  Q 回标题"
+	else:
 		controls_text += "  Q 退出房间"
 	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n距离：%04.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, controls_text]
 
