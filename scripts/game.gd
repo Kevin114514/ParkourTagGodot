@@ -38,6 +38,7 @@ var map_description_label: Label
 var lobby_role_label: Label
 var switch_role_button: Button
 var start_game_button: Button
+var setup_controls: Array[Control] = []
 var menu_controls: Array[Control] = []
 var lobby_controls: Array[Control] = []
 var map_page_controls: Array[Control] = []
@@ -164,11 +165,10 @@ func _build_title_ui() -> void:
 	win_time_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	win_time_row.add_theme_constant_override("separation", 10)
 	box.add_child(win_time_row)
-	menu_controls.append(win_time_row)
-	lobby_controls.append(win_time_row)
+	setup_controls.append(win_time_row)
 
 	var win_time_label := Label.new()
-	win_time_label.text = "逃跑者坚持"
+	win_time_label.text = "胜利时间"
 	win_time_row.add_child(win_time_label)
 
 	win_time_spinbox = SpinBox.new()
@@ -176,17 +176,20 @@ func _build_title_ui() -> void:
 	win_time_spinbox.max_value = 600.0
 	win_time_spinbox.step = 5.0
 	win_time_spinbox.value = win_time_seconds
-	win_time_spinbox.suffix = "秒胜利"
-	win_time_spinbox.custom_minimum_size = Vector2(150.0, 0.0)
+	win_time_spinbox.suffix = " 秒"
+	win_time_spinbox.custom_minimum_size = Vector2(120.0, 0.0)
 	win_time_spinbox.value_changed.connect(Callable(self, "_on_win_time_changed"))
 	win_time_row.add_child(win_time_spinbox)
+
+	var win_time_hint := Label.new()
+	win_time_hint.text = "逃跑者坚持到即胜"
+	win_time_row.add_child(win_time_hint)
 
 	var map_row := HBoxContainer.new()
 	map_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	map_row.add_theme_constant_override("separation", 10)
 	box.add_child(map_row)
-	menu_controls.append(map_row)
-	lobby_controls.append(map_row)
+	setup_controls.append(map_row)
 
 	map_summary_label = Label.new()
 	map_summary_label.text = "当前地图：%s" % map_name
@@ -287,6 +290,10 @@ func _build_title_ui() -> void:
 	_set_map_page_visible(false)
 	_update_map_ui()
 
+func _set_setup_visible(is_visible: bool) -> void:
+	for control in setup_controls:
+		control.visible = is_visible
+
 func _set_menu_visible(is_visible: bool) -> void:
 	for control in menu_controls:
 		control.visible = is_visible
@@ -304,6 +311,7 @@ func _show_map_page() -> void:
 		return
 	map_page_return_mode = "lobby" if game_mode == "lobby" else "menu"
 	map_preview_index = selected_map_index
+	_set_setup_visible(false)
 	_set_menu_visible(false)
 	_set_lobby_visible(false)
 	_set_map_page_visible(true)
@@ -313,6 +321,7 @@ func _show_map_page() -> void:
 
 func _close_map_page() -> void:
 	_set_map_page_visible(false)
+	_set_setup_visible(true)
 	if map_page_return_mode == "lobby":
 		_set_lobby_visible(true)
 		_update_lobby_ui()
@@ -381,6 +390,7 @@ func _show_title(message: String) -> void:
 		hud_layer.visible = false
 	if center_label != null:
 		center_label.text = ""
+	_set_setup_visible(true)
 	_set_menu_visible(true)
 	_set_lobby_visible(false)
 	_set_map_page_visible(false)
@@ -442,6 +452,10 @@ func _start_client_game() -> void:
 		return
 	multiplayer.multiplayer_peer = peer
 	game_mode = "waiting"
+	_set_setup_visible(false)
+	_set_menu_visible(false)
+	_set_lobby_visible(false)
+	_set_map_page_visible(false)
 	title_status.text = "正在连接 %s:%d ..." % [ip, PORT]
 
 func _on_peer_connected(peer_id: int) -> void:
@@ -475,6 +489,7 @@ func _enter_lobby(message: String) -> void:
 		title_layer.visible = true
 	if hud_layer != null:
 		hud_layer.visible = false
+	_set_setup_visible(true)
 	_set_menu_visible(false)
 	_set_lobby_visible(true)
 	_set_map_page_visible(false)
