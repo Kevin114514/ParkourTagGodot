@@ -3,8 +3,11 @@ extends Node3D
 const PlayerScript = preload("res://scripts/player.gd")
 const TaggerScript = preload("res://scripts/tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
+const MapLoader = preload("res://scripts/map_loader.gd")
 const PORT = 24591
 const VOID_Y = -12.0
+const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
+const USER_MAP_PATH = "user://maps/current_map.json"
 
 var player
 var tagger
@@ -29,13 +32,18 @@ var remote_peer_id := 0
 var host_is_runner := true
 var win_time_seconds := 60.0
 var is_leaving_room := false
+var map_root: Node3D
+var map_name := "默认地图"
+var active_map_path := ""
+var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
+var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
 func _ready() -> void:
 	randomize()
 	_ensure_input_actions()
 	_connect_multiplayer_signals()
 	_setup_world()
-	_build_arena()
+	_load_active_map()
 	_build_hud()
 	_build_title_ui()
 	_show_title("选择模式开始游戏")
@@ -78,7 +86,7 @@ func _process(delta: float) -> void:
 	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开"
 	if game_mode != "single":
 		controls_text += "  Q 退出房间"
-	hud_label.text = "%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n距离：%04.1f 米\n%s" % [mode_text, time_alive, int(win_time_seconds), distance, controls_text]
+	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n距离：%04.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, controls_text]
 
 	if (game_mode == "single" or game_mode == "host") and time_alive >= win_time_seconds:
 		_on_runner_survived()
@@ -418,13 +426,13 @@ func _spawn_single_characters() -> void:
 	player = CharacterBody3D.new()
 	player.name = "Runner"
 	player.set_script(PlayerScript)
-	player.global_position = Vector3(-23.0, 0.12, 22.0)
+	player.global_position = runner_spawn_position
 	add_child(player)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "Tagger"
 	tagger.set_script(TaggerScript)
-	tagger.global_position = Vector3(23.0, 0.12, -22.0)
+	tagger.global_position = tagger_spawn_position
 	add_child(tagger)
 	tagger.target = player
 
@@ -436,14 +444,14 @@ func _spawn_network_characters(client_id: int) -> void:
 	player.name = "NetworkRunner"
 	player.set_script(NetworkActorScript)
 	player.configure("runner", runner_peer_id)
-	player.global_position = Vector3(-23.0, 0.12, 22.0)
+	player.global_position = runner_spawn_position
 	add_child(player)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "NetworkTagger"
 	tagger.set_script(NetworkActorScript)
 	tagger.configure("tagger", tagger_peer_id)
-	tagger.global_position = Vector3(23.0, 0.12, -22.0)
+	tagger.global_position = tagger_spawn_position
 	add_child(tagger)
 
 func _clear_characters() -> void:
@@ -547,6 +555,34 @@ func _setup_world() -> void:
 	sun.light_energy = 2.1
 	sun.rotation_degrees = Vector3(-48.0, 35.0, 0.0)
 	add_child(sun)
+
+func _load_active_map() -> void:
+	if map_root != null and is_instance_valid(map_root):
+		map_root.queue_free()
+		map_root = null
+	for map_path in _map_search_paths():
+		if not FileAccess.file_exists(map_path):
+			continue
+		var result: Dictionary = MapLoader.load_map(self, map_path)
+		if bool(result.get("ok", false)):
+			map_root = result.get("map_root", null) as Node3D
+			map_name = String(result.get("name", "自定义地图"))
+			active_map_path = map_path
+			runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
+			tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
+			return
+		push_warning("地图加载失败：%s" % String(result.get("error", map_path)))
+	_build_arena()
+	map_name = "内置备用地图"
+	active_map_path = "legacy_builtin"
+
+func _map_search_paths() -> Array[String]:
+	var paths: Array[String] = [USER_MAP_PATH]
+	var executable_dir := OS.get_executable_path().get_base_dir()
+	if not executable_dir.is_empty():
+		paths.append(executable_dir.path_join("maps").path_join("current_map.json"))
+	paths.append(DEFAULT_MAP_PATH)
+	return paths
 
 func _build_hud() -> void:
 	hud_layer = CanvasLayer.new()

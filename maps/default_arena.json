@@ -1,0 +1,62 @@
+{
+  "format_version": 1,
+  "name": "默认跑酷竞技场",
+  "runner_spawn": [-23.0, 0.12, 22.0],
+  "tagger_spawn": [23.0, 0.12, -22.0],
+  "objects": [
+    {"type":"box","name":"Ground","position":[0.0,-0.15,0.0],"size":[64.0,0.3,64.0],"color":[0.16,0.18,0.2]},
+    {"type":"box","name":"NorthWall","position":[0.0,1.6,-32.0],"size":[64.0,3.2,0.8],"color":[0.09,0.1,0.12]},
+    {"type":"box","name":"SouthWall","position":[0.0,1.6,32.0],"size":[64.0,3.2,0.8],"color":[0.09,0.1,0.12]},
+    {"type":"box","name":"WestWall","position":[-32.0,1.6,0.0],"size":[0.8,3.2,64.0],"color":[0.09,0.1,0.12]},
+    {"type":"box","name":"EastWall","position":[32.0,1.6,0.0],"size":[0.8,3.2,64.0],"color":[0.09,0.1,0.12]},
+
+    {"type":"box","name":"RampA","position":[-18.0,1.75,-14.0],"size":[9.0,0.55,11.0],"color":[0.35,0.38,0.42],"rotation_degrees":[18.0,0.0,0.0]},
+    {"type":"box","name":"RampAPlatform","position":[-18.0,3.38,-7.0],"size":[10.5,0.55,5.5],"color":[0.25,0.28,0.33]},
+    {"type":"box","name":"RampB","position":[17.0,1.55,12.0],"size":[8.0,0.5,10.0],"color":[0.33,0.36,0.41],"rotation_degrees":[-17.0,12.0,0.0]},
+    {"type":"box","name":"RampBPlatform","position":[18.3,3.0,5.8],"size":[9.0,0.5,5.0],"color":[0.25,0.28,0.33],"rotation_degrees":[0.0,12.0,0.0]},
+    {"type":"box","name":"CenterSlope","position":[0.0,1.25,0.0],"size":[11.0,0.5,8.0],"color":[0.31,0.34,0.39],"rotation_degrees":[0.0,0.0,-14.0]},
+
+    {"type":"box","name":"SlalomWall0","position":[-21.0,0.9,6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,8.0,0.0]},
+    {"type":"box","name":"SlalomWall1","position":[-15.0,0.9,-6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,-8.0,0.0]},
+    {"type":"box","name":"SlalomWall2","position":[-9.0,0.9,6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,8.0,0.0]},
+    {"type":"box","name":"SlalomWall3","position":[-3.0,0.9,-6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,-8.0,0.0]},
+    {"type":"box","name":"SlalomWall4","position":[3.0,0.9,6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,8.0,0.0]},
+    {"type":"box","name":"SlalomWall5","position":[9.0,0.9,-6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,-8.0,0.0]},
+    {"type":"box","name":"SlalomWall6","position":[15.0,0.9,6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,8.0,0.0]},
+    {"type":"box","name":"SlalomWall7","position":[21.0,0.9,-6.5],"size":[1.2,1.8,8.0],"color":[0.48,0.29,0.16],"rotation_degrees":[0.0,-8.0,0.0]},
+
+    {"type":"box","name":"VaultBlock0","position":[-26.0,0.55,-24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,-15.0,0.0]},
+    {"type":"box","name":"VaultBlock1","position":[-16.0,0.55,-24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,0.0,0.0]},
+    {"type":"box","name":"VaultBlock2","position":[-6.0,0.55,-24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,15.0,0.0]},
+    {"type":"box","name":"VaultBlock3","position":[4.0,0.55,-24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,-15.0,0.0]},
+    {"type":"box","name":"VaultBlock4","position":[14.0,0.55,-24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,0.0,0.0]},
+    {"type":"box","name":"VaultBlock5","position":[24.0,0.55,-24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,15.0,0.0]},
+    {"type":"box","name":"VaultBlock6","position":[-26.0,0.55,24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,-15.0,0.0]},
+    {"type":"box","name":"VaultBlock7","position":[-16.0,0.55,24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,0.0,0.0]},
+    {"type":"box","name":"VaultBlock8","position":[-6.0,0.55,24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,15.0,0.0]},
+    {"type":"box","name":"VaultBlock9","position":[4.0,0.55,24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,-15.0,0.0]},
+    {"type":"box","name":"VaultBlock10","position":[14.0,0.55,24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,0.0,0.0]},
+    {"type":"box","name":"VaultBlock11","position":[24.0,0.55,24.0],"size":[3.2,1.1,1.4],"color":[0.18,0.42,0.46],"rotation_degrees":[0.0,15.0,0.0]},
+
+    {"type":"box","name":"Pillar0","position":[19.0,1.25,0.0],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar1","position":[15.371,1.25,11.168],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar2","position":[5.871,1.25,18.070],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar3","position":[-5.871,1.25,18.070],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar4","position":[-15.371,1.25,11.168],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar5","position":[-19.0,1.25,0.0],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar6","position":[-15.371,1.25,-11.168],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar7","position":[-5.871,1.25,-18.070],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar8","position":[5.871,1.25,-18.070],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+    {"type":"box","name":"Pillar9","position":[15.371,1.25,-11.168],"size":[1.8,2.5,1.8],"color":[0.42,0.42,0.48]},
+
+    {"type":"box","name":"BalanceBeam1","position":[-6.0,2.35,-20.0],"size":[13.0,0.45,1.25],"color":[0.55,0.45,0.24],"rotation_degrees":[0.0,18.0,0.0]},
+    {"type":"box","name":"BalanceBeam2","position":[8.0,2.1,21.0],"size":[14.0,0.45,1.25],"color":[0.55,0.45,0.24],"rotation_degrees":[0.0,-22.0,0.0]},
+    {"type":"box","name":"BridgeBlock1","position":[-4.5,1.15,-15.0],"size":[3.5,2.3,2.0],"color":[0.32,0.24,0.2]},
+    {"type":"box","name":"BridgeBlock2","position":[2.5,1.15,-18.0],"size":[3.5,2.3,2.0],"color":[0.32,0.24,0.2]},
+    {"type":"box","name":"BridgeBlock3","position":[11.5,1.05,16.5],"size":[3.2,2.1,2.0],"color":[0.32,0.24,0.2]},
+    {"type":"box","name":"BridgeBlock4","position":[3.5,1.05,18.5],"size":[3.2,2.1,2.0],"color":[0.32,0.24,0.2]},
+
+    {"type":"box","name":"StartPad","position":[-23.0,0.03,22.0],"size":[4.0,0.08,4.0],"color":[0.0,0.32,0.75]},
+    {"type":"box","name":"TaggerPad","position":[23.0,0.03,-22.0],"size":[4.0,0.08,4.0],"color":[0.75,0.05,0.02]}
+  ]
+}
