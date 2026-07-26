@@ -1,0 +1,16 @@
+# Godot local/editor data
+.godot/
+.import/
+export.cfg
+
+# Exported builds
+build/
+*.zip
+*.exe
+*.pck
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
