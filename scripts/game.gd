@@ -62,6 +62,9 @@ var selected_map_index := 0
 var map_preview_index := 0
 var selected_map_path := DEFAULT_MAP_PATH
 var map_page_return_mode := "menu"
+var debug_mode := false
+var debug_obstacle_material: StandardMaterial3D
+var debug_actor_material: StandardMaterial3D
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
@@ -79,6 +82,9 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("quit_room") and _is_in_network_room():
 		_leave_room("已退出房间。")
 		return
+
+	if Input.is_action_just_pressed("toggle_debug"):
+		_toggle_debug_mode()
 
 	if game_mode == "title" or game_mode == "waiting" or game_mode == "lobby":
 		return
@@ -592,6 +598,8 @@ func _start_network_round(client_id: int) -> void:
 	hud_layer.visible = true
 	center_label.text = ""
 	_spawn_network_characters(client_id)
+	if debug_mode:
+		_refresh_debug_collision_shapes()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _spawn_single_characters() -> void:
@@ -744,6 +752,8 @@ func _load_active_map() -> bool:
 	map_name = "内置备用地图"
 	active_map_path = "legacy_builtin"
 	_update_map_ui()
+	if debug_mode:
+		_refresh_debug_collision_shapes()
 	return true
 
 func _load_map_from_path(map_path: String) -> bool:
@@ -762,6 +772,8 @@ func _load_map_from_path(map_path: String) -> bool:
 	runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
 	tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
 	_update_map_ui()
+	if debug_mode:
+		_refresh_debug_collision_shapes()
 	return true
 
 func _clear_map() -> void:
@@ -777,6 +789,114 @@ func _map_search_paths() -> Array[String]:
 	if not executable_dir.is_empty():
 		paths.append(executable_dir.path_join("maps").path_join("current_map.json"))
 	return paths
+
+func _toggle_debug_mode() -> void:
+	debug_mode = not debug_mode
+	_refresh_debug_collision_shapes()
+	if title_status != null and title_layer != null and title_layer.visible:
+		title_status.text = "Debug Mode：%s。按 F3 可切换碰撞箱显示。" % ["开启" if debug_mode else "关闭"]
+
+func _refresh_debug_collision_shapes() -> void:
+	_ensure_debug_materials()
+	_update_debug_collision_shapes(self)
+
+func _ensure_debug_materials() -> void:
+	if debug_obstacle_material == null:
+		debug_obstacle_material = StandardMaterial3D.new()
+		debug_obstacle_material.albedo_color = Color(0.1, 0.75, 1.0, 0.28)
+		debug_obstacle_material.emission_enabled = true
+		debug_obstacle_material.emission = Color(0.05, 0.55, 1.0)
+		debug_obstacle_material.emission_energy_multiplier = 0.28
+		debug_obstacle_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		debug_obstacle_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		debug_obstacle_material.no_depth_test = true
+	if debug_actor_material == null:
+		debug_actor_material = StandardMaterial3D.new()
+		debug_actor_material.albedo_color = Color(1.0, 0.35, 0.08, 0.38)
+		debug_actor_material.emission_enabled = true
+		debug_actor_material.emission = Color(1.0, 0.22, 0.0)
+		debug_actor_material.emission_energy_multiplier = 0.35
+		debug_actor_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		debug_actor_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		debug_actor_material.no_depth_test = true
+
+func _update_debug_collision_shapes(node: Node) -> void:
+	if node is CollisionShape3D:
+		_sync_debug_collision_shape(node as CollisionShape3D)
+	for child in node.get_children():
+		if child.get_meta("debug_collision_visual", false):
+			continue
+		_update_debug_collision_shapes(child)
+
+func _sync_debug_collision_shape(collision: CollisionShape3D) -> void:
+	var visual := collision.get_node_or_null("DebugCollisionVisual") as MeshInstance3D
+	if not debug_mode or collision.disabled or collision.shape == null:
+		if visual != null:
+			visual.visible = false
+		return
+
+	var mesh := _debug_mesh_from_shape(collision.shape)
+	if mesh == null:
+		if visual != null:
+			visual.visible = false
+		return
+
+	if visual == null:
+		visual = MeshInstance3D.new()
+		visual.name = "DebugCollisionVisual"
+		visual.set_meta("debug_collision_visual", true)
+		visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		collision.add_child(visual)
+	visual.transform = Transform3D.IDENTITY
+	visual.mesh = mesh
+	visual.material_override = debug_actor_material if _is_actor_collision(collision) else debug_obstacle_material
+	visual.visible = true
+
+func _debug_mesh_from_shape(shape: Shape3D) -> Mesh:
+	if shape is BoxShape3D:
+		var box_shape := shape as BoxShape3D
+		var box_mesh := BoxMesh.new()
+		box_mesh.size = box_shape.size
+		return box_mesh
+	if shape is SphereShape3D:
+		var sphere_shape := shape as SphereShape3D
+		var sphere_mesh := SphereMesh.new()
+		sphere_mesh.radius = sphere_shape.radius
+		sphere_mesh.height = sphere_shape.radius * 2.0
+		return sphere_mesh
+	if shape is CylinderShape3D:
+		var cylinder_shape := shape as CylinderShape3D
+		var cylinder_mesh := CylinderMesh.new()
+		cylinder_mesh.top_radius = cylinder_shape.radius
+		cylinder_mesh.bottom_radius = cylinder_shape.radius
+		cylinder_mesh.height = cylinder_shape.height
+		return cylinder_mesh
+	if shape is CapsuleShape3D:
+		var capsule_shape := shape as CapsuleShape3D
+		var capsule_mesh := CapsuleMesh.new()
+		capsule_mesh.radius = capsule_shape.radius
+		capsule_mesh.height = capsule_shape.height
+		return capsule_mesh
+	if shape is ConcavePolygonShape3D:
+		var concave_shape := shape as ConcavePolygonShape3D
+		var faces := concave_shape.get_faces()
+		if faces.size() < 3:
+			return null
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = faces
+		var array_mesh := ArrayMesh.new()
+		array_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		return array_mesh
+	return null
+
+func _is_actor_collision(collision: CollisionShape3D) -> bool:
+	var current: Node = collision
+	while current != null:
+		if current is CharacterBody3D:
+			return true
+		current = current.get_parent()
+	return false
 
 func _build_hud() -> void:
 	hud_layer = CanvasLayer.new()
@@ -885,6 +1005,7 @@ func _ensure_input_actions() -> void:
 	_bind_key("jump", KEY_SPACE)
 	_bind_key("restart", KEY_R)
 	_bind_key("quit_room", KEY_Q)
+	_bind_key("toggle_debug", KEY_F3)
 
 func _bind_key(action_name: String, keycode: int) -> void:
 	if not InputMap.has_action(action_name):
