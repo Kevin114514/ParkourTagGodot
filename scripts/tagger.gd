@@ -3,15 +3,17 @@ extends CharacterBody3D
 var target: Node3D
 var chase_speed := 7.8
 var acceleration := 22.0
-var jump_velocity := 8.0
+var jump_velocity := 7.4
 var gravity := ProjectSettings.get_setting("physics/3d/default_gravity") as float
 var is_active := true
+const MAX_UPWARD_VELOCITY := 7.4
+const JUMP_COOLDOWN := 0.42
 
 var avoid_sign := 1.0
 var avoid_timer := 0.0
 var stuck_timer := 0.0
 var last_position := Vector3.ZERO
-var ledge_snap_cooldown := 0.0
+var jump_cooldown := 0.0
 var descent_dir := Vector3.ZERO
 var descent_repath_timer := 0.0
 var spawn_position := Vector3.ZERO
@@ -30,7 +32,9 @@ func _physics_process(delta: float) -> void:
 	if global_position.y < VOID_Y:
 		_respawn()
 
-	ledge_snap_cooldown = maxf(ledge_snap_cooldown - delta, 0.0)
+	jump_cooldown = maxf(jump_cooldown - delta, 0.0)
+	if velocity.y > MAX_UPWARD_VELOCITY:
+		velocity.y = MAX_UPWARD_VELOCITY
 	if not is_active or target == null:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
@@ -78,13 +82,12 @@ func _physics_process(delta: float) -> void:
 		elif blocked or stuck_timer > 0.28 or flat_distance < 2.2:
 			if _try_climb_ledge(move_dir, vertical_gap):
 				stuck_timer = 0.0
-			elif is_on_floor():
-				velocity.y = maxf(velocity.y, jump_velocity)
+			elif _request_jump(jump_velocity):
+				stuck_timer = 0.0
 		else:
 			stuck_timer = 0.0
 	elif blocked or stuck_timer > 0.45:
-		if is_on_floor():
-			velocity.y = jump_velocity
+		_request_jump(jump_velocity)
 		var side := Vector3(-move_dir.z, 0.0, move_dir.x) * avoid_sign
 		if side.length_squared() < 0.01:
 			side = Vector3(avoid_sign, 0.0, 0.0)
@@ -93,6 +96,8 @@ func _physics_process(delta: float) -> void:
 		stuck_timer = 0.0
 
 	_apply_gravity(delta)
+	if velocity.y > MAX_UPWARD_VELOCITY:
+		velocity.y = MAX_UPWARD_VELOCITY
 	velocity.x = move_toward(velocity.x, move_dir.x * chase_speed, acceleration * delta)
 	velocity.z = move_toward(velocity.z, move_dir.z * chase_speed, acceleration * delta)
 
@@ -105,6 +110,7 @@ func _respawn() -> void:
 	global_position = spawn_position
 	velocity = Vector3.ZERO
 	stuck_timer = 0.0
+	jump_cooldown = 0.0
 	descent_dir = Vector3.ZERO
 	descent_repath_timer = 0.0
 	last_position = global_position
@@ -197,13 +203,20 @@ func _escape_from_under_dir() -> Vector3:
 		away = global_transform.basis.z
 	return away.normalized()
 
+func _request_jump(strength: float) -> bool:
+	if not is_on_floor() or jump_cooldown > 0.0:
+		return false
+	velocity.y = clampf(maxf(velocity.y, strength), 0.0, MAX_UPWARD_VELOCITY)
+	jump_cooldown = JUMP_COOLDOWN
+	return true
+
 func _try_climb_ledge(dir: Vector3, vertical_gap: float) -> bool:
-	if dir.length_squared() < 0.01:
+	if dir.length_squared() < 0.01 or not is_on_floor() or jump_cooldown > 0.0:
 		return false
 
 	dir = dir.normalized()
 	var space := get_world_3d().direct_space_state
-	var highest_allowed: float = target.global_position.y + 0.55
+	var highest_allowed: float = target.global_position.y + 0.45
 	var probe_distances := PackedFloat32Array([0.65, 1.05, 1.45, 1.85, 2.25])
 	for probe_distance in probe_distances:
 		var ray_xz: Vector3 = global_position + dir * probe_distance
@@ -219,17 +232,13 @@ func _try_climb_ledge(dir: Vector3, vertical_gap: float) -> bool:
 		var hit_position: Vector3 = hit["position"]
 		var hit_normal: Vector3 = hit["normal"]
 		var height_delta: float = hit_position.y - global_position.y
-		if hit_normal.y < 0.65 or height_delta < 0.35 or hit_position.y > highest_allowed:
+		if hit_normal.y < 0.72 or height_delta < 0.35 or height_delta > 1.85 or hit_position.y > highest_allowed:
 			continue
 
-		velocity.y = maxf(velocity.y, jump_velocity + clampf(height_delta * 0.9, 0.2, 1.8))
-		velocity.x = dir.x * chase_speed * 1.08
-		velocity.z = dir.z * chase_speed * 1.08
-
-		var horizontal_delta: float = Vector2(hit_position.x - global_position.x, hit_position.z - global_position.z).length()
-		if ledge_snap_cooldown <= 0.0 and horizontal_delta < 0.85 and height_delta < 2.7:
-			global_position.y = maxf(global_position.y, hit_position.y + 0.08)
-			ledge_snap_cooldown = 0.22
+		if not _request_jump(jump_velocity):
+			return false
+		velocity.x = dir.x * chase_speed * 1.03
+		velocity.z = dir.z * chase_speed * 1.03
 		return true
 
 	return false
