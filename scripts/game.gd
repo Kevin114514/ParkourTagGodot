@@ -18,6 +18,11 @@ const OFFICIAL_MAPS = [
 		"name": "圆环障碍训练场",
 		"path": "res://maps/ring_training.json",
 		"description": "节奏更快的官方地图：圆柱、球体、环形绕行路线和中场高台更多。"
+	},
+	{
+		"name": "双层别墅追逐战",
+		"path": "res://maps/two_story_villa.json",
+		"description": "开放首层、中庭与二层环廊组成的多路线别墅；三条坡道让追逐能在上下层持续转换。"
 	}
 ]
 

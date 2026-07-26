@@ -23,6 +23,7 @@ func _ready() -> void:
 	collision_layer = 4
 	collision_mask = 1
 	floor_max_angle = deg_to_rad(50.0)
+	spawn_position = global_position
 	floor_snap_length = 0.45
 	avoid_sign = 1.0 if randf() > 0.5 else -1.0
 	last_position = global_position
