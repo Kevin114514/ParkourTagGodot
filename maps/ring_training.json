@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "name": "圆环障碍训练场",
+  "runner_spawn": [-18.0, 0.12, 18.0],
+  "tagger_spawn": [18.0, 0.12, -18.0],
+  "objects": [
+    {"type":"box","name":"Ground","position":[0.0,-0.15,0.0],"size":[54.0,0.3,54.0],"color":[0.14,0.16,0.2]},
+    {"type":"box","name":"NorthWall","position":[0.0,1.6,-27.0],"size":[54.0,3.2,0.8],"color":[0.08,0.09,0.12]},
+    {"type":"box","name":"SouthWall","position":[0.0,1.6,27.0],"size":[54.0,3.2,0.8],"color":[0.08,0.09,0.12]},
+    {"type":"box","name":"WestWall","position":[-27.0,1.6,0.0],"size":[0.8,3.2,54.0],"color":[0.08,0.09,0.12]},
+    {"type":"box","name":"EastWall","position":[27.0,1.6,0.0],"size":[0.8,3.2,54.0],"color":[0.08,0.09,0.12]},
+
+    {"type":"cylinder","name":"CenterTower","position":[0.0,2.0,0.0],"radius":3.0,"height":4.0,"color":[0.34,0.35,0.42]},
+    {"type":"box","name":"CenterTop","position":[0.0,4.25,0.0],"size":[9.0,0.5,9.0],"color":[0.25,0.27,0.34],"rotation_degrees":[0.0,45.0,0.0]},
+    {"type":"box","name":"RampToTopA","position":[-7.0,2.15,-2.8],"size":[12.0,0.5,4.0],"color":[0.35,0.38,0.42],"rotation_degrees":[0.0,0.0,-18.0]},
+    {"type":"box","name":"RampToTopB","position":[7.0,2.15,2.8],"size":[12.0,0.5,4.0],"color":[0.35,0.38,0.42],"rotation_degrees":[0.0,0.0,18.0]},
+
+    {"type":"sphere","name":"NorthBall","position":[0.0,1.0,-15.0],"radius":1.0,"color":[0.2,0.52,0.82]},
+    {"type":"sphere","name":"SouthBall","position":[0.0,1.0,15.0],"radius":1.0,"color":[0.2,0.52,0.82]},
+    {"type":"sphere","name":"WestBall","position":[-15.0,1.0,0.0],"radius":1.0,"color":[0.2,0.52,0.82]},
+    {"type":"sphere","name":"EastBall","position":[15.0,1.0,0.0],"radius":1.0,"color":[0.2,0.52,0.82]},
+
+    {"type":"cylinder","name":"Pillar0","position":[20.0,1.5,0.0],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar1","position":[14.14,1.5,14.14],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar2","position":[0.0,1.5,20.0],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar3","position":[-14.14,1.5,14.14],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar4","position":[-20.0,1.5,0.0],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar5","position":[-14.14,1.5,-14.14],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar6","position":[0.0,1.5,-20.0],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+    {"type":"cylinder","name":"Pillar7","position":[14.14,1.5,-14.14],"radius":0.7,"height":3.0,"color":[0.45,0.45,0.52]},
+
+    {"type":"box","name":"RingBeamNorth","position":[0.0,1.15,-10.5],"size":[18.0,0.5,1.4],"color":[0.55,0.45,0.24]},
+    {"type":"box","name":"RingBeamSouth","position":[0.0,1.15,10.5],"size":[18.0,0.5,1.4],"color":[0.55,0.45,0.24]},
+    {"type":"box","name":"RingBeamWest","position":[-10.5,1.15,0.0],"size":[1.4,0.5,18.0],"color":[0.55,0.45,0.24]},
+    {"type":"box","name":"RingBeamEast","position":[10.5,1.15,0.0],"size":[1.4,0.5,18.0],"color":[0.55,0.45,0.24]},
+
+    {"type":"capsule","name":"LowCapsuleA","position":[-8.0,0.85,16.0],"radius":0.45,"height":1.7,"color":[0.18,0.48,0.46],"rotation_degrees":[0.0,0.0,90.0]},
+    {"type":"capsule","name":"LowCapsuleB","position":[8.0,0.85,-16.0],"radius":0.45,"height":1.7,"color":[0.18,0.48,0.46],"rotation_degrees":[0.0,0.0,90.0]},
+    {"type":"box","name":"StartPad","position":[-18.0,0.03,18.0],"size":[4.0,0.08,4.0],"color":[0.0,0.32,0.75]},
+    {"type":"box","name":"TaggerPad","position":[18.0,0.03,-18.0],"size":[4.0,0.08,4.0],"color":[0.75,0.05,0.02]}
+  ]
+}

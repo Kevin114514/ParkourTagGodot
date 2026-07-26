@@ -8,6 +8,18 @@ const PORT = 24591
 const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
+const OFFICIAL_MAPS = [
+	{
+		"name": "默认跑酷竞技场",
+		"path": "res://maps/default_arena.json",
+		"description": "综合地图：斜坡、挡板、低障碍、平台和平衡木都有，适合正式对局。"
+	},
+	{
+		"name": "圆环障碍训练场",
+		"path": "res://maps/ring_training.json",
+		"description": "节奏更快的官方地图：圆柱、球体、环形绕行路线和中场高台更多。"
+	}
+]
 
 var player
 var tagger
@@ -19,11 +31,16 @@ var title_status: Label
 var ip_input: LineEdit
 var win_time_row: HBoxContainer
 var win_time_spinbox: SpinBox
+var map_summary_label: Label
+var map_select_button: Button
+var map_list: ItemList
+var map_description_label: Label
 var lobby_role_label: Label
 var switch_role_button: Button
 var start_game_button: Button
 var menu_controls: Array[Control] = []
 var lobby_controls: Array[Control] = []
+var map_page_controls: Array[Control] = []
 var time_alive := 0.0
 var caught := false
 var game_mode := "title"
@@ -35,6 +52,10 @@ var is_leaving_room := false
 var map_root: Node3D
 var map_name := "默认地图"
 var active_map_path := ""
+var selected_map_index := 0
+var map_preview_index := 0
+var selected_map_path := DEFAULT_MAP_PATH
+var map_page_return_mode := "menu"
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
@@ -67,7 +88,7 @@ func _process(delta: float) -> void:
 			_start_single_game()
 		elif game_mode == "host" and remote_peer_id != 0:
 			_start_network_round(remote_peer_id)
-			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds)
+			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index)
 		return
 
 	if caught:
@@ -160,6 +181,22 @@ func _build_title_ui() -> void:
 	win_time_spinbox.value_changed.connect(Callable(self, "_on_win_time_changed"))
 	win_time_row.add_child(win_time_spinbox)
 
+	var map_row := HBoxContainer.new()
+	map_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	map_row.add_theme_constant_override("separation", 10)
+	box.add_child(map_row)
+	menu_controls.append(map_row)
+	lobby_controls.append(map_row)
+
+	map_summary_label = Label.new()
+	map_summary_label.text = "当前地图：%s" % map_name
+	map_row.add_child(map_summary_label)
+
+	map_select_button = Button.new()
+	map_select_button.text = "选择官方地图"
+	map_select_button.pressed.connect(Callable(self, "_show_map_page"))
+	map_row.add_child(map_select_button)
+
 	var single_button := Button.new()
 	single_button.text = "单人模式：逃跑者 VS AI 抓人者"
 	single_button.pressed.connect(Callable(self, "_start_single_game"))
@@ -203,12 +240,52 @@ func _build_title_ui() -> void:
 	box.add_child(start_game_button)
 	lobby_controls.append(start_game_button)
 
+	var map_page_title := Label.new()
+	map_page_title.text = "官方地图列表"
+	map_page_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	map_page_title.add_theme_font_size_override("font_size", 28)
+	box.add_child(map_page_title)
+	map_page_controls.append(map_page_title)
+
+	map_list = ItemList.new()
+	map_list.custom_minimum_size = Vector2(460.0, 190.0)
+	map_list.item_selected.connect(Callable(self, "_on_map_item_selected"))
+	for map_info in OFFICIAL_MAPS:
+		map_list.add_item(String(map_info.get("name", "官方地图")))
+	map_list.select(selected_map_index)
+	box.add_child(map_list)
+	map_page_controls.append(map_list)
+
+	map_description_label = Label.new()
+	map_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	map_description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(map_description_label)
+	map_page_controls.append(map_description_label)
+
+	var map_page_buttons := HBoxContainer.new()
+	map_page_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	map_page_buttons.add_theme_constant_override("separation", 10)
+	box.add_child(map_page_buttons)
+	map_page_controls.append(map_page_buttons)
+
+	var use_map_button := Button.new()
+	use_map_button.text = "使用选中地图"
+	use_map_button.pressed.connect(Callable(self, "_confirm_map_selection"))
+	map_page_buttons.add_child(use_map_button)
+
+	var back_map_button := Button.new()
+	back_map_button.text = "返回"
+	back_map_button.pressed.connect(Callable(self, "_close_map_page"))
+	map_page_buttons.add_child(back_map_button)
+
 	title_status = Label.new()
 	title_status.text = ""
 	title_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(title_status)
 	_set_lobby_visible(false)
+	_set_map_page_visible(false)
+	_update_map_ui()
 
 func _set_menu_visible(is_visible: bool) -> void:
 	for control in menu_controls:
@@ -218,10 +295,71 @@ func _set_lobby_visible(is_visible: bool) -> void:
 	for control in lobby_controls:
 		control.visible = is_visible
 
+func _set_map_page_visible(is_visible: bool) -> void:
+	for control in map_page_controls:
+		control.visible = is_visible
+
+func _show_map_page() -> void:
+	if game_mode == "lobby" and not multiplayer.is_server():
+		return
+	map_page_return_mode = "lobby" if game_mode == "lobby" else "menu"
+	map_preview_index = selected_map_index
+	_set_menu_visible(false)
+	_set_lobby_visible(false)
+	_set_map_page_visible(true)
+	_update_map_ui()
+	if title_status != null:
+		title_status.text = "从官方地图列表中选择本局地图。"
+
+func _close_map_page() -> void:
+	_set_map_page_visible(false)
+	if map_page_return_mode == "lobby":
+		_set_lobby_visible(true)
+		_update_lobby_ui()
+	else:
+		_set_menu_visible(true)
+		_update_map_ui()
+	if title_status != null:
+		title_status.text = "当前地图：%s" % map_name
+
+func _on_map_item_selected(index: int) -> void:
+	map_preview_index = index
+	_update_map_ui()
+
+func _confirm_map_selection() -> void:
+	if _select_official_map(map_preview_index, true):
+		_close_map_page()
+
+func _select_official_map(index: int, should_sync: bool) -> bool:
+	if index < 0 or index >= OFFICIAL_MAPS.size():
+		return false
+	selected_map_index = index
+	selected_map_path = String(OFFICIAL_MAPS[index].get("path", DEFAULT_MAP_PATH))
+	var loaded := _load_active_map()
+	_update_map_ui()
+	if title_status != null:
+		title_status.text = "已选择官方地图：%s" % map_name if loaded else "地图加载失败，已保留当前选择。"
+	if loaded and should_sync and game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "地图已切换为：%s，等待房主开始游戏。" % map_name)
+	return loaded
+
+func _update_map_ui() -> void:
+	if map_summary_label != null:
+		map_summary_label.text = "当前地图：%s" % map_name
+	if map_select_button != null:
+		map_select_button.disabled = game_mode == "lobby" and not multiplayer.is_server()
+	if map_list != null and OFFICIAL_MAPS.size() > 0:
+		if map_preview_index < 0 or map_preview_index >= OFFICIAL_MAPS.size():
+			map_preview_index = selected_map_index
+		map_list.select(map_preview_index)
+	if map_description_label != null and map_preview_index >= 0 and map_preview_index < OFFICIAL_MAPS.size():
+		var info: Dictionary = OFFICIAL_MAPS[map_preview_index]
+		map_description_label.text = "%s\n%s" % [String(info.get("name", "官方地图")), String(info.get("description", ""))]
+
 func _on_win_time_changed(value: float) -> void:
 	win_time_seconds = value
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
 	_update_lobby_ui()
 
 func _refresh_win_time_from_ui() -> void:
@@ -245,6 +383,8 @@ func _show_title(message: String) -> void:
 		center_label.text = ""
 	_set_menu_visible(true)
 	_set_lobby_visible(false)
+	_set_map_page_visible(false)
+	_update_map_ui()
 	if win_time_row != null:
 		win_time_row.visible = true
 	if win_time_spinbox != null:
@@ -258,6 +398,10 @@ func _start_single_game() -> void:
 	_refresh_win_time_from_ui()
 	_close_network()
 	_clear_characters()
+	if not _load_active_map():
+		if title_status != null:
+			title_status.text = "地图加载失败，无法开始游戏。"
+		return
 	game_mode = "single"
 	caught = false
 	time_alive = 0.0
@@ -306,7 +450,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	remote_peer_id = peer_id
 	network_started = true
 	_enter_lobby("玩家已加入。双方可在房间内切换角色，房主点击开始游戏。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	if is_leaving_room:
@@ -333,6 +477,7 @@ func _enter_lobby(message: String) -> void:
 		hud_layer.visible = false
 	_set_menu_visible(false)
 	_set_lobby_visible(true)
+	_set_map_page_visible(false)
 	if title_status != null:
 		title_status.text = message
 	_update_lobby_ui()
@@ -343,7 +488,7 @@ func _update_lobby_ui() -> void:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "抓人者" if local_role == "逃跑者" else "逃跑者"
-	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds)]
+	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n地图：%s\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds), map_name]
 	if win_time_spinbox != null:
 		win_time_spinbox.editable = multiplayer.is_server()
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -352,13 +497,14 @@ func _update_lobby_ui() -> void:
 		start_game_button.disabled = not multiplayer.is_server() or remote_peer_id == 0
 	if switch_role_button != null:
 		switch_role_button.visible = true
+	_update_map_ui()
 
 func _return_to_lobby_after_round() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	host_is_runner = not host_is_runner
-	_enter_lobby("上一局结束，已自动交换追/被追。房主可继续切换角色或开始下一局。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, "上一局结束，已自动交换追/被追。等待房主开始下一局。")
+	_enter_lobby("上一局结束，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "上一局结束，已自动交换追/被追。等待房主开始下一局。")
 
 func _local_lobby_role_text() -> String:
 	var is_host := multiplayer.is_server()
@@ -372,7 +518,7 @@ func _toggle_lobby_roles() -> void:
 		host_is_runner = not host_is_runner
 		_update_lobby_ui()
 		if remote_peer_id != 0:
-			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, "角色已切换，等待房主开始游戏。")
+			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "角色已切换，等待房主开始游戏。")
 	else:
 		rpc_id(1, "_rpc_request_role_switch")
 
@@ -381,7 +527,7 @@ func _start_lobby_game() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	_start_network_round(remote_peer_id)
-	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds)
+	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_role_switch() -> void:
@@ -389,22 +535,24 @@ func _rpc_request_role_switch() -> void:
 		return
 	host_is_runner = not host_is_runner
 	_update_lobby_ui()
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, "角色已切换，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "角色已切换，等待房主开始游戏。")
 
 @rpc("call_remote", "reliable")
-func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, message: String) -> void:
+func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, message: String) -> void:
 	host_is_runner = new_host_is_runner
 	win_time_seconds = new_win_time_seconds
+	_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
 	network_started = true
 	_enter_lobby(message)
 
 @rpc("call_remote", "reliable")
-func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float) -> void:
+func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int) -> void:
 	remote_peer_id = client_id
 	host_is_runner = new_host_is_runner
 	win_time_seconds = new_win_time_seconds
+	_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
 	network_started = true
@@ -412,6 +560,10 @@ func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_
 
 func _start_network_round(client_id: int) -> void:
 	_clear_characters()
+	if not _load_active_map():
+		if title_status != null:
+			title_status.text = "地图加载失败，无法开始联机游戏。"
+		return
 	game_mode = "host" if multiplayer.is_server() else "client"
 	caught = false
 	time_alive = 0.0
@@ -556,32 +708,54 @@ func _setup_world() -> void:
 	sun.rotation_degrees = Vector3(-48.0, 35.0, 0.0)
 	add_child(sun)
 
-func _load_active_map() -> void:
-	if map_root != null and is_instance_valid(map_root):
-		map_root.queue_free()
-		map_root = null
+func _load_active_map() -> bool:
+	if _load_map_from_path(selected_map_path):
+		return true
 	for map_path in _map_search_paths():
-		if not FileAccess.file_exists(map_path):
+		if map_path == selected_map_path:
 			continue
-		var result: Dictionary = MapLoader.load_map(self, map_path)
-		if bool(result.get("ok", false)):
-			map_root = result.get("map_root", null) as Node3D
-			map_name = String(result.get("name", "自定义地图"))
-			active_map_path = map_path
-			runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
-			tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
-			return
-		push_warning("地图加载失败：%s" % String(result.get("error", map_path)))
+		if _load_map_from_path(map_path):
+			return true
+	_clear_map()
+	map_root = Node3D.new()
+	map_root.name = "LegacyBuiltinMap"
+	add_child(map_root)
 	_build_arena()
 	map_name = "内置备用地图"
 	active_map_path = "legacy_builtin"
+	_update_map_ui()
+	return true
+
+func _load_map_from_path(map_path: String) -> bool:
+	if map_path.is_empty() or not FileAccess.file_exists(map_path):
+		return false
+	_clear_map()
+	runner_spawn_position = Vector3(-23.0, 0.12, 22.0)
+	tagger_spawn_position = Vector3(23.0, 0.12, -22.0)
+	var result: Dictionary = MapLoader.load_map(self, map_path)
+	if not bool(result.get("ok", false)):
+		push_warning("地图加载失败：%s" % String(result.get("error", map_path)))
+		return false
+	map_root = result.get("map_root", null) as Node3D
+	map_name = String(result.get("name", "官方地图"))
+	active_map_path = map_path
+	runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
+	tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
+	_update_map_ui()
+	return true
+
+func _clear_map() -> void:
+	if map_root != null and is_instance_valid(map_root):
+		if map_root.get_parent() != null:
+			map_root.get_parent().remove_child(map_root)
+		map_root.queue_free()
+	map_root = null
 
 func _map_search_paths() -> Array[String]:
-	var paths: Array[String] = [USER_MAP_PATH]
+	var paths: Array[String] = [DEFAULT_MAP_PATH, USER_MAP_PATH]
 	var executable_dir := OS.get_executable_path().get_base_dir()
 	if not executable_dir.is_empty():
 		paths.append(executable_dir.path_join("maps").path_join("current_map.json"))
-	paths.append(DEFAULT_MAP_PATH)
 	return paths
 
 func _build_hud() -> void:
@@ -654,7 +828,10 @@ func _add_box(name: String, position: Vector3, size: Vector3, color: Color, rota
 	body.name = name
 	body.position = position
 	body.rotation = rotation
-	add_child(body)
+	if map_root != null and is_instance_valid(map_root):
+		map_root.add_child(body)
+	else:
+		add_child(body)
 
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
