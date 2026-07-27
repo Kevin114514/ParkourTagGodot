@@ -13,8 +13,10 @@ var gravity := ProjectSettings.get_setting("physics/3d/default_gravity") as floa
 var mouse_sensitivity := 0.0024
 var is_control_locked := false
 var is_active := true
+var camera_mode := "third_person"
 
 var camera_pivot: Node3D
+var camera: Camera3D
 var coyote_timer := 0.0
 var skin_id := "default"
 var local_control := false
@@ -58,7 +60,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseMotion and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED and camera_pivot != null:
 		rotate_y(-event.relative.x * mouse_sensitivity)
-		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x - event.relative.y * mouse_sensitivity, deg_to_rad(-38.0), deg_to_rad(24.0))
+		var min_pitch := deg_to_rad(-80.0) if camera_mode == "first_person" else deg_to_rad(-38.0)
+		var max_pitch := deg_to_rad(80.0) if camera_mode == "first_person" else deg_to_rad(24.0)
+		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x - event.relative.y * mouse_sensitivity, min_pitch, max_pitch)
 
 func _physics_process(delta: float) -> void:
 	if local_control and role == "tagger" and global_position.y < VOID_Y:
@@ -76,6 +80,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
 		_apply_gravity(delta)
 		move_and_slide()
+		_update_camera_collision()
 		_send_state(delta)
 		return
 
@@ -218,12 +223,60 @@ func _add_camera() -> void:
 	camera_pivot.rotation.x = deg_to_rad(-11.0)
 	add_child(camera_pivot)
 
-	var camera := Camera3D.new()
+	camera = Camera3D.new()
 	camera.name = "Camera3D"
 	camera.current = true
 	camera.fov = 72.0
-	camera.position = Vector3(0.0, 0.0, 6.0)
 	camera_pivot.add_child(camera)
+	_apply_camera_mode()
+
+func set_camera_mode(new_mode: String) -> void:
+	camera_mode = new_mode if new_mode == "first_person" else "third_person"
+	_apply_camera_mode()
+
+func _apply_camera_mode() -> void:
+	if local_control:
+		_set_local_visuals_visible(camera_mode != "first_person")
+	if camera_pivot == null or camera == null:
+		return
+	if camera_mode == "first_person":
+		camera_pivot.position = Vector3(0.0, 1.55, -0.08)
+		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x, deg_to_rad(-70.0), deg_to_rad(70.0))
+		camera.position = Vector3.ZERO
+		camera.near = 0.03
+	else:
+		camera_pivot.position = Vector3(0.0, 1.55, 0.0)
+		camera.position = Vector3(0.0, 0.0, 6.0)
+		camera.near = 0.08
+		_update_camera_collision()
+
+func _update_camera_collision() -> void:
+	if camera_mode != "third_person" or camera_pivot == null or camera == null:
+		return
+	var desired_distance := 6.0
+	var min_distance := 0.55
+	var from := camera_pivot.global_position
+	var to := from + camera_pivot.global_transform.basis.z.normalized() * desired_distance
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var distance := desired_distance
+	if not hit.is_empty():
+		distance = clampf(from.distance_to(hit["position"]) - 0.18, min_distance, desired_distance)
+	camera.position = Vector3(0.0, 0.0, distance)
+
+func _set_local_visuals_visible(is_visible: bool) -> void:
+	for child in get_children():
+		_set_visual_tree_visible(child, is_visible)
+
+func _set_visual_tree_visible(node: Node, is_visible: bool) -> void:
+	if node == camera_pivot:
+		return
+	if node is VisualInstance3D:
+		(node as VisualInstance3D).visible = is_visible
+	for child in node.get_children():
+		_set_visual_tree_visible(child, is_visible)
 
 func _material(color: Color, roughness: float = 0.7, texture: Texture2D = null) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
