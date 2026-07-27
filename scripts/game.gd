@@ -5,6 +5,7 @@ const TaggerScript = preload("res://scripts/tagger.gd")
 const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
+const SkinAPI = preload("res://scripts/skin_api.gd")
 const PORT = 24591
 const USE_RL_POLICY_TAGGER := true
 const VOID_Y = -12.0
@@ -47,10 +48,14 @@ var map_summary_label: Label
 var map_select_button: Button
 var map_list: ItemList
 var map_description_label: Label
-var skin_summary_label: Label
-var skin_option: OptionButton
-var refresh_skins_button: Button
-var camera_mode_option: OptionButton
+var settings_display_mode_option: OptionButton
+var runner_skin_option: OptionButton
+var tagger_skin_option: OptionButton
+var runner_skin_preview: TextureRect
+var tagger_skin_preview: TextureRect
+var runner_skin_preview_label: Label
+var tagger_skin_preview_label: Label
+var available_skin_ids: Array[String] = []
 var lobby_role_label: Label
 var switch_role_button: Button
 var start_game_button: Button
@@ -58,6 +63,7 @@ var setup_controls: Array[Control] = []
 var menu_controls: Array[Control] = []
 var lobby_controls: Array[Control] = []
 var map_page_controls: Array[Control] = []
+var settings_controls: Array[Control] = []
 var time_alive := 0.0
 var caught := false
 var ai_catch_cooldown := 0.0
@@ -75,26 +81,21 @@ var selected_map_index := 0
 var map_preview_index := 0
 var selected_map_path := DEFAULT_MAP_PATH
 var map_page_return_mode := "menu"
-var available_skins: Array[Dictionary] = []
-var selected_skin_index := 0
-var selected_skin_file := ""
-var selected_skin_name := "默认皮肤"
-var selected_camera_mode := "third_person"
-var host_skin_file := ""
-var client_skin_file := ""
 var debug_mode := false
 var debug_obstacle_material: StandardMaterial3D
 var debug_actor_material: StandardMaterial3D
+@export var runner_skin_id := "badge2"
+@export var tagger_skin_id := "default"
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
 func _ready() -> void:
 	randomize()
+	_ensure_default_fullscreen()
 	_ensure_input_actions()
 	_connect_multiplayer_signals()
 	_setup_world()
 	_load_active_map()
-	_scan_skins()
 	_build_hud()
 	_build_title_ui()
 	_show_title("选择模式开始游戏")
@@ -125,7 +126,7 @@ func _process(delta: float) -> void:
 			_start_single_game()
 		elif game_mode == "host" and remote_peer_id != 0:
 			_start_network_round(remote_peer_id)
-			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode)
+			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id)
 		return
 
 	if caught:
@@ -148,7 +149,7 @@ func _process(delta: float) -> void:
 		controls_text += "  Q 回标题"
 	else:
 		controls_text += "  Q 退出房间"
-	hud_label.text = "%s\n地图：%s\n皮肤：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, selected_skin_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
+	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
 
 	if (game_mode == "single" or game_mode == "host") and time_alive >= win_time_seconds:
 		_on_runner_survived()
@@ -333,41 +334,93 @@ func _build_title_ui() -> void:
 	box.add_child(skin_row)
 	setup_controls.append(skin_row)
 
-	skin_summary_label = Label.new()
-	skin_summary_label.text = "皮肤"
-	_apply_label_style(skin_summary_label)
-	skin_row.add_child(skin_summary_label)
+	var runner_skin_label := Label.new()
+	runner_skin_label.text = "逃跑者皮肤"
+	_apply_label_style(runner_skin_label)
+	skin_row.add_child(runner_skin_label)
 
-	skin_option = OptionButton.new()
-	skin_option.custom_minimum_size = Vector2(230.0, 42.0)
-	_style_button(skin_option, Color(0.94, 0.36, 0.72), Color(0.48, 0.12, 0.36))
-	skin_option.item_selected.connect(Callable(self, "_on_skin_selected"))
-	skin_row.add_child(skin_option)
+	runner_skin_option = OptionButton.new()
+	runner_skin_option.custom_minimum_size = Vector2(130.0, 42.0)
+	_style_button(runner_skin_option, Color(0.15, 0.61, 1.0), Color(0.06, 0.29, 0.58))
+	runner_skin_option.item_selected.connect(Callable(self, "_on_runner_skin_selected"))
+	skin_row.add_child(runner_skin_option)
 
-	refresh_skins_button = Button.new()
-	refresh_skins_button.text = "刷新皮肤"
-	_style_button(refresh_skins_button, Color(0.18, 0.7, 0.78), Color(0.08, 0.34, 0.42))
-	refresh_skins_button.pressed.connect(Callable(self, "_refresh_skin_list"))
-	skin_row.add_child(refresh_skins_button)
+	var tagger_skin_label := Label.new()
+	tagger_skin_label.text = "抓人者皮肤"
+	_apply_label_style(tagger_skin_label)
+	skin_row.add_child(tagger_skin_label)
 
-	var camera_row := HBoxContainer.new()
-	camera_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	camera_row.add_theme_constant_override("separation", 10)
-	box.add_child(camera_row)
-	setup_controls.append(camera_row)
+	tagger_skin_option = OptionButton.new()
+	tagger_skin_option.custom_minimum_size = Vector2(130.0, 42.0)
+	_style_button(tagger_skin_option, Color(1.0, 0.52, 0.17), Color(0.64, 0.23, 0.06))
+	tagger_skin_option.item_selected.connect(Callable(self, "_on_tagger_skin_selected"))
+	skin_row.add_child(tagger_skin_option)
 
-	var camera_mode_label := Label.new()
-	camera_mode_label.text = "视角"
-	_apply_label_style(camera_mode_label)
-	camera_row.add_child(camera_mode_label)
+	_refresh_skin_options()
 
-	camera_mode_option = OptionButton.new()
-	camera_mode_option.custom_minimum_size = Vector2(230.0, 42.0)
-	camera_mode_option.add_item("第三人称", 0)
-	camera_mode_option.add_item("第一人称", 1)
-	_style_button(camera_mode_option, Color(0.36, 0.5, 1.0), Color(0.14, 0.2, 0.58))
-	camera_mode_option.item_selected.connect(Callable(self, "_on_camera_mode_selected"))
-	camera_row.add_child(camera_mode_option)
+	var preview_row := HBoxContainer.new()
+	preview_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	preview_row.add_theme_constant_override("separation", 18)
+	box.add_child(preview_row)
+	setup_controls.append(preview_row)
+
+	var runner_preview_card := PanelContainer.new()
+	runner_preview_card.custom_minimum_size = Vector2(170.0, 200.0)
+	runner_preview_card.add_theme_stylebox_override("panel", _cartoon_style(Color(0.86, 0.95, 1.0, 0.96), Color(0.06, 0.29, 0.58), 3, 16, Vector2(0.0, 4.0), 10))
+	preview_row.add_child(runner_preview_card)
+
+	var runner_preview_box := VBoxContainer.new()
+	runner_preview_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	runner_preview_box.add_theme_constant_override("separation", 8)
+	runner_preview_card.add_child(runner_preview_box)
+
+	var runner_preview_title := Label.new()
+	runner_preview_title.text = "逃跑者预览"
+	runner_preview_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_apply_label_style(runner_preview_title, Color(0.16, 0.27, 0.48), 2)
+	runner_preview_box.add_child(runner_preview_title)
+
+	runner_skin_preview = TextureRect.new()
+	runner_skin_preview.custom_minimum_size = Vector2(116.0, 116.0)
+	runner_skin_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	runner_skin_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	runner_skin_preview.self_modulate = Color(0.96, 0.98, 1.0, 1.0)
+	runner_preview_box.add_child(runner_skin_preview)
+
+	runner_skin_preview_label = Label.new()
+	runner_skin_preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_apply_label_style(runner_skin_preview_label, Color(0.2, 0.24, 0.38), 1)
+	runner_preview_box.add_child(runner_skin_preview_label)
+
+	var tagger_preview_card := PanelContainer.new()
+	tagger_preview_card.custom_minimum_size = Vector2(170.0, 200.0)
+	tagger_preview_card.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.93, 0.87, 0.96), Color(0.64, 0.23, 0.06), 3, 16, Vector2(0.0, 4.0), 10))
+	preview_row.add_child(tagger_preview_card)
+
+	var tagger_preview_box := VBoxContainer.new()
+	tagger_preview_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	tagger_preview_box.add_theme_constant_override("separation", 8)
+	tagger_preview_card.add_child(tagger_preview_box)
+
+	var tagger_preview_title := Label.new()
+	tagger_preview_title.text = "抓人者预览"
+	tagger_preview_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_apply_label_style(tagger_preview_title, Color(0.44, 0.17, 0.1), 2)
+	tagger_preview_box.add_child(tagger_preview_title)
+
+	tagger_skin_preview = TextureRect.new()
+	tagger_skin_preview.custom_minimum_size = Vector2(116.0, 116.0)
+	tagger_skin_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tagger_skin_preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tagger_skin_preview.self_modulate = Color(1.0, 0.97, 0.92, 1.0)
+	tagger_preview_box.add_child(tagger_skin_preview)
+
+	tagger_skin_preview_label = Label.new()
+	tagger_skin_preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_apply_label_style(tagger_skin_preview_label, Color(0.33, 0.2, 0.16), 1)
+	tagger_preview_box.add_child(tagger_skin_preview_label)
+
+	_update_skin_previews()
 
 	var single_button := Button.new()
 	single_button.text = "单人模式：逃跑者 VS AI 抓人者"
@@ -397,6 +450,20 @@ func _build_title_ui() -> void:
 	join_button.pressed.connect(Callable(self, "_start_client_game"))
 	box.add_child(join_button)
 	menu_controls.append(join_button)
+
+	var settings_button := Button.new()
+	settings_button.text = "设置"
+	_style_button(settings_button, Color(0.18, 0.58, 0.78), Color(0.06, 0.28, 0.42))
+	settings_button.pressed.connect(Callable(self, "_show_settings_page"))
+	box.add_child(settings_button)
+	menu_controls.append(settings_button)
+
+	var quit_button := Button.new()
+	quit_button.text = "退出游戏"
+	_style_button(quit_button, Color(0.93, 0.45, 0.45), Color(0.56, 0.12, 0.12))
+	quit_button.pressed.connect(Callable(self, "_quit_game"))
+	box.add_child(quit_button)
+	menu_controls.append(quit_button)
 
 	lobby_role_label = Label.new()
 	lobby_role_label.text = ""
@@ -463,6 +530,48 @@ func _build_title_ui() -> void:
 	back_map_button.pressed.connect(Callable(self, "_close_map_page"))
 	map_page_buttons.add_child(back_map_button)
 
+	var settings_title := Label.new()
+	settings_title.text = "设置"
+	settings_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settings_title.add_theme_font_size_override("font_size", 32)
+	_apply_label_style(settings_title, Color(0.18, 0.22, 0.45), 3)
+	box.add_child(settings_title)
+	settings_controls.append(settings_title)
+
+	var display_mode_row := HBoxContainer.new()
+	display_mode_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	display_mode_row.add_theme_constant_override("separation", 10)
+	box.add_child(display_mode_row)
+	settings_controls.append(display_mode_row)
+
+	var display_mode_label := Label.new()
+	display_mode_label.text = "显示模式"
+	_apply_label_style(display_mode_label)
+	display_mode_row.add_child(display_mode_label)
+
+	settings_display_mode_option = OptionButton.new()
+	settings_display_mode_option.custom_minimum_size = Vector2(150.0, 42.0)
+	_style_button(settings_display_mode_option, Color(0.15, 0.61, 1.0), Color(0.06, 0.29, 0.58))
+	settings_display_mode_option.add_item("全屏")
+	settings_display_mode_option.add_item("窗口")
+	settings_display_mode_option.item_selected.connect(Callable(self, "_on_display_mode_selected"))
+	display_mode_row.add_child(settings_display_mode_option)
+
+	var settings_hint := Label.new()
+	settings_hint.text = "当前只支持切换全屏 / 窗口模式。"
+	settings_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	settings_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_apply_label_style(settings_hint, Color(0.24, 0.25, 0.34), 1)
+	box.add_child(settings_hint)
+	settings_controls.append(settings_hint)
+
+	var back_settings_button := Button.new()
+	back_settings_button.text = "返回主页"
+	_style_button(back_settings_button, Color(0.93, 0.45, 0.45), Color(0.56, 0.12, 0.12))
+	back_settings_button.pressed.connect(Callable(self, "_close_settings_page"))
+	box.add_child(back_settings_button)
+	settings_controls.append(back_settings_button)
+
 	title_status = Label.new()
 	title_status.text = ""
 	title_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -471,9 +580,9 @@ func _build_title_ui() -> void:
 	box.add_child(title_status)
 	_set_lobby_visible(false)
 	_set_map_page_visible(false)
+	_set_settings_page_visible(false)
 	_update_map_ui()
-	_update_skin_ui()
-	_update_camera_mode_ui()
+	_update_display_mode_ui()
 
 func _set_setup_visible(is_visible: bool) -> void:
 	for control in setup_controls:
@@ -491,6 +600,44 @@ func _set_map_page_visible(is_visible: bool) -> void:
 	for control in map_page_controls:
 		control.visible = is_visible
 
+func _set_settings_page_visible(is_visible: bool) -> void:
+	for control in settings_controls:
+		control.visible = is_visible
+
+func _show_settings_page() -> void:
+	_set_setup_visible(false)
+	_set_menu_visible(false)
+	_set_lobby_visible(false)
+	_set_map_page_visible(false)
+	_set_settings_page_visible(true)
+	_update_display_mode_ui()
+	if title_status != null:
+		title_status.text = "调整游戏设置。"
+
+func _close_settings_page() -> void:
+	_set_settings_page_visible(false)
+	_set_setup_visible(true)
+	_set_menu_visible(true)
+	_update_map_ui()
+	if title_status != null:
+		title_status.text = "选择模式开始游戏"
+
+func _is_fullscreen_mode() -> bool:
+	var mode := DisplayServer.window_get_mode()
+	return mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+
+func _update_display_mode_ui() -> void:
+	if settings_display_mode_option == null:
+		return
+	settings_display_mode_option.select(0 if _is_fullscreen_mode() else 1)
+
+func _on_display_mode_selected(index: int) -> void:
+	var use_fullscreen := index == 0
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if use_fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
+	_update_display_mode_ui()
+	if title_status != null:
+		title_status.text = "已切换为：%s。" % ["全屏" if use_fullscreen else "窗口"]
+
 func _show_map_page() -> void:
 	if game_mode == "lobby" and not multiplayer.is_server():
 		return
@@ -499,6 +646,7 @@ func _show_map_page() -> void:
 	_set_setup_visible(false)
 	_set_menu_visible(false)
 	_set_lobby_visible(false)
+	_set_settings_page_visible(false)
 	_set_map_page_visible(true)
 	_update_map_ui()
 	if title_status != null:
@@ -534,7 +682,7 @@ func _select_official_map(index: int, should_sync: bool) -> bool:
 	if title_status != null:
 		title_status.text = "已选择官方地图：%s" % map_name if loaded else "地图加载失败，已保留当前选择。"
 	if loaded and should_sync and game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "地图已切换为：%s，等待房主开始游戏。" % map_name)
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "地图已切换为：%s，等待房主开始游戏。" % map_name)
 	return loaded
 
 func _update_map_ui() -> void:
@@ -550,150 +698,69 @@ func _update_map_ui() -> void:
 		var info: Dictionary = OFFICIAL_MAPS[map_preview_index]
 		map_description_label.text = "%s\n%s" % [String(info.get("name", "官方地图")), String(info.get("description", ""))]
 
-func _refresh_skin_list() -> void:
-	_scan_skins()
-	_update_skin_ui()
-	if title_status != null:
-		title_status.text = "已刷新 skins 文件夹，当前皮肤：%s" % selected_skin_name
-
-func _scan_skins() -> void:
-	var previous_file := selected_skin_file
-	available_skins.clear()
-	available_skins.append({"name": "默认皮肤", "file_name": "", "path": ""})
-	var seen := {"": true}
-	for skin_dir in _skin_search_dirs():
-		_scan_skin_dir(skin_dir, seen)
-	selected_skin_index = 0
-	selected_skin_file = ""
-	selected_skin_name = "默认皮肤"
-	if not previous_file.is_empty():
-		for i in range(available_skins.size()):
-			if String(available_skins[i].get("file_name", "")) == previous_file:
-				selected_skin_index = i
-				selected_skin_file = previous_file
-				selected_skin_name = String(available_skins[i].get("name", "默认皮肤"))
-				break
-	_sync_local_skin_file()
-
-func _skin_search_dirs() -> Array[String]:
-	var dirs: Array[String] = ["res://skins", "user://skins"]
-	var executable_dir := OS.get_executable_path().get_base_dir()
-	if not executable_dir.is_empty():
-		dirs.append(executable_dir.path_join("skins"))
-	return dirs
-
-func _scan_skin_dir(dir_path: String, seen: Dictionary) -> void:
-	var dir := DirAccess.open(dir_path)
-	if dir == null:
-		return
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while not file_name.is_empty():
-		if not dir.current_is_dir() and _is_supported_skin_file(file_name) and not seen.has(file_name):
-			seen[file_name] = true
-			available_skins.append({
-				"name": file_name.get_basename(),
-				"file_name": file_name,
-				"path": dir_path.path_join(file_name)
-			})
-		file_name = dir.get_next()
-	dir.list_dir_end()
-
-func _is_supported_skin_file(file_name: String) -> bool:
-	var ext := file_name.get_extension().to_lower()
-	return ext == "png" or ext == "jpg" or ext == "jpeg" or ext == "webp"
-
-func _on_skin_selected(index: int) -> void:
-	if index < 0 or index >= available_skins.size():
-		return
-	selected_skin_index = index
-	selected_skin_file = String(available_skins[index].get("file_name", ""))
-	selected_skin_name = String(available_skins[index].get("name", "默认皮肤"))
-	_sync_local_skin_file()
-	_update_skin_ui()
-	_apply_current_skin_to_local_actor()
-	if title_status != null:
-		title_status.text = "已选择皮肤：%s" % selected_skin_name
-
-func _sync_local_skin_file() -> void:
-	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
-		client_skin_file = selected_skin_file
-		if game_mode == "lobby" or game_mode == "client":
-			rpc_id(1, "_rpc_update_client_skin", client_skin_file)
-	else:
-		host_skin_file = selected_skin_file
-		if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
-			rpc("_rpc_sync_skin_files", host_skin_file, client_skin_file)
-
-func _update_skin_ui() -> void:
-	if skin_summary_label != null:
-		skin_summary_label.text = "皮肤：%s" % selected_skin_name
-	if skin_option != null:
-		skin_option.clear()
-		for skin in available_skins:
-			skin_option.add_item(String(skin.get("name", "默认皮肤")))
-		if selected_skin_index >= 0 and selected_skin_index < available_skins.size():
-			skin_option.select(selected_skin_index)
-
-func _on_camera_mode_selected(index: int) -> void:
-	if game_mode == "lobby" and not multiplayer.is_server():
-		_update_camera_mode_ui()
-		return
-	selected_camera_mode = "first_person" if index == 1 else "third_person"
-	_update_camera_mode_ui()
-	_apply_camera_mode_to_local_actor()
-	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "房主已切换视角为：%s，等待房主开始游戏。" % _camera_mode_display_name())
-	if title_status != null:
-		title_status.text = "已选择视角：%s" % _camera_mode_display_name()
-
-func _update_camera_mode_ui() -> void:
-	if camera_mode_option != null:
-		camera_mode_option.select(1 if selected_camera_mode == "first_person" else 0)
-		camera_mode_option.disabled = game_mode == "lobby" and not multiplayer.is_server()
-
-func _camera_mode_display_name() -> String:
-	return "第一人称" if selected_camera_mode == "first_person" else "第三人称"
-
-func _apply_camera_mode_to_local_actor() -> void:
-	var local_peer := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 1
-	for actor in [player, tagger]:
-		if actor == null or not is_instance_valid(actor) or not actor.has_method("set_camera_mode"):
-			continue
-		if game_mode == "single" and actor == player:
-			actor.set_camera_mode(selected_camera_mode)
-		elif game_mode != "single" and actor.get("owner_peer_id") == local_peer:
-			actor.set_camera_mode(selected_camera_mode)
-
-func _resolve_skin_file(file_name: String) -> String:
-	if file_name.is_empty():
-		return ""
-	for skin in available_skins:
-		if String(skin.get("file_name", "")) == file_name:
-			return String(skin.get("path", ""))
-	return ""
-
-func _apply_current_skin_to_local_actor() -> void:
-	var local_peer := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 1
-	var skin_path := _resolve_skin_file(selected_skin_file)
-	for actor in [player, tagger]:
-		if actor == null or not is_instance_valid(actor) or not actor.has_method("apply_skin"):
-			continue
-		if game_mode == "single":
-			if actor == player:
-				actor.apply_skin(skin_path)
-		elif actor.get("owner_peer_id") == local_peer:
-			actor.apply_skin(skin_path)
-
 func _on_win_time_changed(value: float) -> void:
 	win_time_seconds = value
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
 	_update_lobby_ui()
 
 func _refresh_win_time_from_ui() -> void:
 	if win_time_spinbox != null:
 		win_time_seconds = win_time_spinbox.value
+
+func _refresh_skin_options() -> void:
+	available_skin_ids = SkinAPI.list_available_skin_ids()
+	if available_skin_ids.is_empty():
+		available_skin_ids = ["default"]
+	if not available_skin_ids.has(runner_skin_id):
+		runner_skin_id = "default"
+	if not available_skin_ids.has(tagger_skin_id):
+		tagger_skin_id = "default"
+
+	if runner_skin_option != null:
+		runner_skin_option.clear()
+		for skin in available_skin_ids:
+			runner_skin_option.add_item(skin)
+		var idx := available_skin_ids.find(runner_skin_id)
+		runner_skin_option.select(maxi(idx, 0))
+
+	if tagger_skin_option != null:
+		tagger_skin_option.clear()
+		for skin in available_skin_ids:
+			tagger_skin_option.add_item(skin)
+		var idx2 := available_skin_ids.find(tagger_skin_id)
+		tagger_skin_option.select(maxi(idx2, 0))
+
+	_update_skin_previews()
+
+func _update_skin_previews() -> void:
+	if runner_skin_preview != null:
+		runner_skin_preview.texture = SkinAPI.get_skin_preview_texture(runner_skin_id, "runner")
+	if runner_skin_preview_label != null:
+		runner_skin_preview_label.text = "当前：%s" % runner_skin_id
+
+	if tagger_skin_preview != null:
+		tagger_skin_preview.texture = SkinAPI.get_skin_preview_texture(tagger_skin_id, "tagger")
+	if tagger_skin_preview_label != null:
+		tagger_skin_preview_label.text = "当前：%s" % tagger_skin_id
+
+func _on_runner_skin_selected(index: int) -> void:
+	if index < 0 or index >= available_skin_ids.size():
+		return
+	runner_skin_id = available_skin_ids[index]
+	_update_skin_previews()
+	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "皮肤已更新，等待房主开始游戏。")
+	_update_lobby_ui()
+
+func _on_tagger_skin_selected(index: int) -> void:
+	if index < 0 or index >= available_skin_ids.size():
+		return
+	tagger_skin_id = available_skin_ids[index]
+	_update_skin_previews()
+	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "皮肤已更新，等待房主开始游戏。")
+	_update_lobby_ui()
 
 func _show_title(message: String) -> void:
 	_close_network()
@@ -703,6 +770,7 @@ func _show_title(message: String) -> void:
 	remote_peer_id = 0
 	host_is_runner = true
 	caught = false
+	ai_catch_cooldown = 0.0
 	time_alive = 0.0
 	if title_layer != null:
 		title_layer.visible = true
@@ -714,13 +782,15 @@ func _show_title(message: String) -> void:
 	_set_menu_visible(true)
 	_set_lobby_visible(false)
 	_set_map_page_visible(false)
+	_set_settings_page_visible(false)
 	_update_map_ui()
+	_update_display_mode_ui()
+	_refresh_skin_options()
 	if win_time_row != null:
 		win_time_row.visible = true
 	if win_time_spinbox != null:
 		win_time_spinbox.editable = true
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
-	_update_camera_mode_ui()
 	if title_status != null:
 		title_status.text = message
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -735,13 +805,12 @@ func _start_single_game() -> void:
 		return
 	game_mode = "single"
 	caught = false
+	ai_catch_cooldown = 0.0
 	time_alive = 0.0
 	title_layer.visible = false
 	hud_layer.visible = true
 	center_label.text = ""
 	_spawn_single_characters()
-	_apply_current_skin_to_local_actor()
-	_apply_camera_mode_to_local_actor()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _start_host_game() -> void:
@@ -774,13 +843,16 @@ func _start_client_game() -> void:
 		title_status.text = "连接失败，错误码：%s" % error
 		return
 	multiplayer.multiplayer_peer = peer
-	_sync_local_skin_file()
 	game_mode = "waiting"
 	_set_setup_visible(false)
 	_set_menu_visible(false)
 	_set_lobby_visible(false)
 	_set_map_page_visible(false)
+	_set_settings_page_visible(false)
 	title_status.text = "正在连接 %s:%d ..." % [ip, PORT]
+
+func _quit_game() -> void:
+	get_tree().quit()
 
 func _on_peer_connected(peer_id: int) -> void:
 	if not multiplayer.is_server() or network_started:
@@ -788,8 +860,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	remote_peer_id = peer_id
 	network_started = true
 	_enter_lobby("玩家已加入。双方可在房间内切换角色，房主点击开始游戏。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
-	rpc("_rpc_sync_skin_files", host_skin_file, client_skin_file)
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	if is_leaving_room:
@@ -800,7 +871,6 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _on_connected_to_server() -> void:
 	game_mode = "lobby"
 	_enter_lobby("已连接房主，等待房主同步房间信息...")
-	_sync_local_skin_file()
 
 func _on_connection_failed() -> void:
 	_show_title("连接失败，请检查 IP、防火墙或房主是否已创建房间。")
@@ -820,6 +890,8 @@ func _enter_lobby(message: String) -> void:
 	_set_menu_visible(false)
 	_set_lobby_visible(true)
 	_set_map_page_visible(false)
+	_set_settings_page_visible(false)
+	_refresh_skin_options()
 	if title_status != null:
 		title_status.text = message
 	_update_lobby_ui()
@@ -830,9 +902,7 @@ func _update_lobby_ui() -> void:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "抓人者" if local_role == "逃跑者" else "逃跑者"
-	var local_skin := _skin_display_name(host_skin_file if multiplayer.is_server() else client_skin_file)
-	var other_skin := _skin_display_name(client_skin_file if multiplayer.is_server() else host_skin_file)
-	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n你的皮肤：%s\n对方皮肤：%s\n胜利时间：%d 秒\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, local_skin, other_skin, int(win_time_seconds), map_name, _camera_mode_display_name()]
+	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n地图：%s\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds), map_name]
 	if win_time_spinbox != null:
 		win_time_spinbox.editable = multiplayer.is_server()
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -842,8 +912,6 @@ func _update_lobby_ui() -> void:
 	if switch_role_button != null:
 		switch_role_button.visible = true
 	_update_map_ui()
-	_update_skin_ui()
-	_update_camera_mode_ui()
 
 func _schedule_return_to_lobby_after_round() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
@@ -858,9 +926,8 @@ func _return_to_lobby_after_round() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	host_is_runner = not host_is_runner
-	_enter_lobby("上一局结算完成，已自动交换追/被追。房主可继续切换角色、地图、皮肤或开始下一局。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
-	rpc("_rpc_sync_skin_files", host_skin_file, client_skin_file)
+	_enter_lobby("上一局结算完成，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
 
 func _local_lobby_role_text() -> String:
 	var is_host := multiplayer.is_server()
@@ -874,17 +941,16 @@ func _toggle_lobby_roles() -> void:
 		host_is_runner = not host_is_runner
 		_update_lobby_ui()
 		if remote_peer_id != 0:
-			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "角色已切换，等待房主开始游戏。")
+			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "角色已切换，等待房主开始游戏。")
 	else:
 		rpc_id(1, "_rpc_request_role_switch")
 
 func _start_lobby_game() -> void:
 	_refresh_win_time_from_ui()
-	_sync_local_skin_file()
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	_start_network_round(remote_peer_id)
-	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode)
+	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_role_switch() -> void:
@@ -892,13 +958,14 @@ func _rpc_request_role_switch() -> void:
 		return
 	host_is_runner = not host_is_runner
 	_update_lobby_ui()
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, selected_camera_mode, "角色已切换，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "角色已切换，等待房主开始游戏。")
 
 @rpc("call_remote", "reliable")
-func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_camera_mode: String, message: String) -> void:
+func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, message: String) -> void:
 	host_is_runner = new_host_is_runner
 	win_time_seconds = new_win_time_seconds
-	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
+	runner_skin_id = new_runner_skin_id
+	tagger_skin_id = new_tagger_skin_id
 	_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -906,43 +973,17 @@ func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_
 	_enter_lobby(message)
 
 @rpc("call_remote", "reliable")
-func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_camera_mode: String) -> void:
+func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String) -> void:
 	remote_peer_id = client_id
 	host_is_runner = new_host_is_runner
 	win_time_seconds = new_win_time_seconds
-	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
+	runner_skin_id = new_runner_skin_id
+	tagger_skin_id = new_tagger_skin_id
 	_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
 	network_started = true
 	_start_network_round(client_id)
-
-@rpc("any_peer", "reliable")
-func _rpc_update_client_skin(file_name: String) -> void:
-	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
-		return
-	client_skin_file = file_name
-	_update_lobby_ui()
-	_apply_network_skins()
-	rpc("_rpc_sync_skin_files", host_skin_file, client_skin_file)
-
-@rpc("call_remote", "reliable")
-func _rpc_sync_skin_files(new_host_skin_file: String, new_client_skin_file: String) -> void:
-	host_skin_file = new_host_skin_file
-	client_skin_file = new_client_skin_file
-	_update_lobby_ui()
-	_apply_network_skins()
-
-func _skin_display_name(file_name: String) -> String:
-	return "默认皮肤" if file_name.is_empty() else file_name.get_basename()
-
-func _apply_network_skins() -> void:
-	for actor in [player, tagger]:
-		if actor == null or not is_instance_valid(actor) or not actor.has_method("apply_skin"):
-			continue
-		var peer_id: int = int(actor.get("owner_peer_id"))
-		var file_name := host_skin_file if peer_id == 1 else client_skin_file
-		actor.apply_skin(_resolve_skin_file(file_name))
 
 func _start_network_round(client_id: int) -> void:
 	round_transition_token += 1
@@ -960,8 +1001,6 @@ func _start_network_round(client_id: int) -> void:
 	hud_layer.visible = true
 	center_label.text = ""
 	_spawn_network_characters(client_id)
-	_apply_network_skins()
-	_apply_camera_mode_to_local_actor()
 	if debug_mode:
 		_refresh_debug_collision_shapes()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -970,14 +1009,16 @@ func _spawn_single_characters() -> void:
 	player = CharacterBody3D.new()
 	player.name = "Runner"
 	player.set_script(PlayerScript)
-	player.global_position = runner_spawn_position
+	player.skin_id = runner_skin_id
 	add_child(player)
+	player.global_position = _grounded_spawn_position(runner_spawn_position)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "Tagger"
 	tagger.set_script(RLPolicyTaggerScript if USE_RL_POLICY_TAGGER else TaggerScript)
-	tagger.global_position = tagger_spawn_position
+	tagger.skin_id = tagger_skin_id
 	add_child(tagger)
+	tagger.global_position = _grounded_spawn_position(tagger_spawn_position)
 	tagger.target = player
 
 func _spawn_network_characters(client_id: int) -> void:
@@ -987,16 +1028,16 @@ func _spawn_network_characters(client_id: int) -> void:
 	player = CharacterBody3D.new()
 	player.name = "NetworkRunner"
 	player.set_script(NetworkActorScript)
-	player.configure("runner", runner_peer_id)
-	player.global_position = runner_spawn_position
+	player.configure("runner", runner_peer_id, runner_skin_id)
 	add_child(player)
+	player.global_position = _grounded_spawn_position(runner_spawn_position)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "NetworkTagger"
 	tagger.set_script(NetworkActorScript)
-	tagger.configure("tagger", tagger_peer_id)
-	tagger.global_position = tagger_spawn_position
+	tagger.configure("tagger", tagger_peer_id, tagger_skin_id)
 	add_child(tagger)
+	tagger.global_position = _grounded_spawn_position(tagger_spawn_position)
 
 func _clear_characters() -> void:
 	if player != null and is_instance_valid(player):
@@ -1037,6 +1078,23 @@ func _tagger_peer_id() -> int:
 	if remote_peer_id == 0:
 		return 1
 	return remote_peer_id if host_is_runner else 1
+
+func _ensure_default_fullscreen() -> void:
+	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_FULLSCREEN:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+func _grounded_spawn_position(base_position: Vector3) -> Vector3:
+	if get_world_3d() == null:
+		return base_position
+	var from := base_position + Vector3.UP * 6.0
+	var to := base_position + Vector3.DOWN * 20.0
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return base_position
+	var point := hit.get("position", base_position) as Vector3
+	return point + Vector3.UP * 0.08
 
 func _request_local_catch_attempt() -> void:
 	if tagger == null or not is_instance_valid(tagger):

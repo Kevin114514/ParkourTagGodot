@@ -4,6 +4,8 @@ class_name SkinAPI
 const DEFAULT_SKIN_ID := "default"
 const RESOURCE_SKIN_ROOT := "res://skins"
 const USER_SKIN_ROOT := "user://skins"
+const GENERATED_PREVIEW_SKIN_IDS := ["badge2", "default", "neon"]
+const PREVIEW_TEXTURE_SIZE := 256
 
 static func load_role_skin(role: String, skin_id: String = DEFAULT_SKIN_ID) -> Dictionary:
 	var safe_role := role.strip_edges().to_lower()
@@ -147,27 +149,178 @@ static func load_skin_texture(skin_id: String, relative_path: String) -> Texture
 	return null
 
 static func get_skin_preview_texture(skin_id: String, role: String = "runner") -> Texture2D:
-	var manifest := _load_skin_manifest(skin_id)
-	if manifest.is_empty():
-		return null
+	var requested_id := skin_id.strip_edges()
+	if requested_id.is_empty():
+		requested_id = DEFAULT_SKIN_ID
 
-	var role_data := _extract_role_data(manifest, role)
+	var safe_role := role.strip_edges().to_lower()
+	if safe_role.is_empty():
+		safe_role = "runner"
+
+	var manifest := _load_skin_manifest(requested_id)
+	if manifest.is_empty():
+		return _create_generated_skin_preview_texture(requested_id, safe_role)
+
+	if GENERATED_PREVIEW_SKIN_IDS.has(requested_id):
+		var generated_builtin := _create_generated_skin_preview_texture(requested_id, safe_role)
+		if generated_builtin != null:
+			return generated_builtin
+
+	var role_data := _extract_role_data(manifest, safe_role)
 	var preview_rel := String(role_data.get("preview_texture", manifest.get("preview_texture", "")))
 	if not preview_rel.is_empty():
-		var preview_tex := load_skin_texture(skin_id, preview_rel)
+		var preview_tex := load_skin_texture(requested_id, preview_rel)
 		if preview_tex != null:
 			return preview_tex
 
 	var marker_rel := String(role_data.get("marker_texture", ""))
 	if not marker_rel.is_empty():
-		var marker_tex := load_skin_texture(skin_id, marker_rel)
+		var marker_tex := load_skin_texture(requested_id, marker_rel)
 		if marker_tex != null:
 			return marker_tex
 
 	var body_rel := String(role_data.get("body_texture", ""))
 	if not body_rel.is_empty():
-		return load_skin_texture(skin_id, body_rel)
-	return null
+		var body_tex := load_skin_texture(requested_id, body_rel)
+		if body_tex != null:
+			return body_tex
+	return _create_generated_skin_preview_texture(requested_id, safe_role)
+
+static func _create_generated_skin_preview_texture(skin_id: String, role: String) -> Texture2D:
+	var skin := load_role_skin(role, skin_id)
+	if skin.is_empty():
+		return null
+
+	var image := Image.create(PREVIEW_TEXTURE_SIZE, PREVIEW_TEXTURE_SIZE, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0.0, 0.0, 0.0, 0.0))
+
+	var model_scene := String(skin.get("model_scene", ""))
+	if model_scene.is_empty():
+		_draw_capsule_actor_preview(image, skin, role)
+	else:
+		_draw_badge_model_preview(image)
+	return ImageTexture.create_from_image(image)
+
+static func _draw_capsule_actor_preview(image: Image, skin: Dictionary, role: String) -> void:
+	var safe_role := role.strip_edges().to_lower()
+	var default_radius := 0.38 if safe_role == "tagger" else 0.35
+	var default_height := 1.82 if safe_role == "tagger" else 1.72
+	var radius := maxf(0.1, float(skin.get("radius", default_radius)))
+	var height := maxf(0.2, float(skin.get("height", default_height)))
+	var visual_radius := clampf(46.0 * radius / default_radius, 36.0, 58.0)
+	var visual_height := clampf(152.0 * height / default_height, 132.0, 178.0)
+	var top := 128.0 - visual_height * 0.5 + 8.0
+	var bottom := top + visual_height
+	var center_x := 128.0
+	var body_color := skin.get("body_color", Color(0.15, 0.5, 1.0)) as Color
+	var marker_color := skin.get("marker_color", Color(0.95, 0.98, 1.0)) as Color
+	var border_color := _shade_color(body_color, -0.34)
+
+	_draw_ellipse(image, Vector2(center_x, bottom + 12.0), Vector2(54.0, 12.0), Color(0.05, 0.07, 0.11, 0.24))
+	_draw_capsule_shape(image, center_x + 5.0, top + 6.0, bottom + 6.0, visual_radius, Color(0.06, 0.07, 0.1, 0.18), false)
+	_draw_capsule_shape(image, center_x, top - 4.0, bottom + 4.0, visual_radius + 5.0, border_color, false)
+	_draw_capsule_shape(image, center_x, top, bottom, visual_radius, body_color, true)
+
+	var marker_width := clampf(72.0 * visual_radius / 46.0, 58.0, 88.0)
+	var marker_height := 22.0
+	var marker_y := top + visual_height * 0.48
+	_draw_box(image, Rect2(center_x - marker_width * 0.5 - 4.0, marker_y - marker_height * 0.5 - 4.0, marker_width + 8.0, marker_height + 8.0), _shade_color(marker_color, -0.38))
+	_draw_box(image, Rect2(center_x - marker_width * 0.5, marker_y - marker_height * 0.5, marker_width, marker_height), marker_color)
+	_draw_box(image, Rect2(center_x - marker_width * 0.42, marker_y - marker_height * 0.36, marker_width * 0.42, marker_height * 0.22), Color(1.0, 1.0, 1.0, 0.32))
+	_draw_ellipse(image, Vector2(center_x - visual_radius * 0.28, top + visual_height * 0.22), Vector2(visual_radius * 0.18, visual_height * 0.11), Color(1.0, 1.0, 1.0, 0.22))
+
+static func _draw_badge_model_preview(image: Image) -> void:
+	var center := Vector2(128.0, 126.0)
+	var silver := Color(0.86, 0.88, 0.92, 1.0)
+	var highlight := Color(0.97, 0.98, 1.0, 1.0)
+	_draw_ellipse(image, Vector2(center.x + 6.0, center.y + 92.0), Vector2(70.0, 14.0), Color(0.05, 0.07, 0.11, 0.22))
+	_draw_ellipse(image, center + Vector2(7.0, 8.0), Vector2(82.0, 82.0), Color(0.04, 0.05, 0.07, 0.2))
+	_draw_ellipse(image, center, Vector2(86.0, 86.0), Color(0.42, 0.44, 0.5, 1.0))
+	_draw_ellipse(image, center, Vector2(80.0, 80.0), _shade_color(silver, -0.1))
+	_draw_ellipse(image, center + Vector2(-5.0, -6.0), Vector2(68.0, 68.0), silver)
+	_draw_ellipse(image, center + Vector2(-16.0, -22.0), Vector2(28.0, 18.0), Color(1.0, 1.0, 1.0, 0.26))
+	_draw_ellipse(image, center, Vector2(45.0, 45.0), Color(0.58, 0.6, 0.66, 1.0))
+	_draw_ellipse(image, center + Vector2(-2.0, -2.0), Vector2(37.0, 37.0), highlight)
+	_draw_ellipse(image, center + Vector2(-10.0, -12.0), Vector2(15.0, 10.0), Color(1.0, 1.0, 1.0, 0.34))
+	_draw_ellipse(image, center + Vector2(19.0, 20.0), Vector2(8.0, 8.0), Color(0.7, 0.72, 0.78, 0.32))
+
+static func _draw_capsule_shape(image: Image, center_x: float, top: float, bottom: float, radius: float, color: Color, shaded: bool) -> void:
+	var x0 := clampi(int(floor(center_x - radius - 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var x1 := clampi(int(ceil(center_x + radius + 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var y0 := clampi(int(floor(top - 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var y1 := clampi(int(ceil(bottom + 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var top_center_y := top + radius
+	var bottom_center_y := bottom - radius
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			var edge_distance := 0.0
+			if float(y) < top_center_y:
+				edge_distance = Vector2(float(x) - center_x, float(y) - top_center_y).length() - radius
+			elif float(y) > bottom_center_y:
+				edge_distance = Vector2(float(x) - center_x, float(y) - bottom_center_y).length() - radius
+			else:
+				edge_distance = absf(float(x) - center_x) - radius
+			var alpha := clampf(0.75 - edge_distance, 0.0, 1.0)
+			if alpha <= 0.0:
+				continue
+			var final_color := color
+			if shaded:
+				var nx := (float(x) - center_x) / radius
+				var ny := (float(y) - top) / maxf(bottom - top, 1.0)
+				var shade := clampf(0.22 - nx * 0.18 - ny * 0.1, -0.18, 0.28)
+				final_color = _shade_color(color, shade)
+			final_color.a *= alpha
+			_blend_pixel(image, x, y, final_color)
+
+static func _draw_ellipse(image: Image, center: Vector2, radius: Vector2, color: Color) -> void:
+	var x0 := clampi(int(floor(center.x - radius.x - 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var x1 := clampi(int(ceil(center.x + radius.x + 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var y0 := clampi(int(floor(center.y - radius.y - 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var y1 := clampi(int(ceil(center.y + radius.y + 2.0)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			var px := (float(x) - center.x) / maxf(radius.x, 1.0)
+			var py := (float(y) - center.y) / maxf(radius.y, 1.0)
+			var d := px * px + py * py
+			var alpha := clampf((1.055 - d) / 0.055, 0.0, 1.0)
+			if alpha <= 0.0:
+				continue
+			var final_color := color
+			final_color.a *= alpha
+			_blend_pixel(image, x, y, final_color)
+
+static func _draw_box(image: Image, rect: Rect2, color: Color) -> void:
+	var x0 := clampi(int(floor(rect.position.x)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var x1 := clampi(int(ceil(rect.position.x + rect.size.x)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var y0 := clampi(int(floor(rect.position.y)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	var y1 := clampi(int(ceil(rect.position.y + rect.size.y)), 0, PREVIEW_TEXTURE_SIZE - 1)
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			_blend_pixel(image, x, y, color)
+
+static func _blend_pixel(image: Image, x: int, y: int, color: Color) -> void:
+	if x < 0 or x >= PREVIEW_TEXTURE_SIZE or y < 0 or y >= PREVIEW_TEXTURE_SIZE:
+		return
+	var src_a := clampf(color.a, 0.0, 1.0)
+	if src_a <= 0.0:
+		return
+	var dst := image.get_pixel(x, y)
+	var out_a := src_a + dst.a * (1.0 - src_a)
+	if out_a <= 0.0:
+		image.set_pixel(x, y, Color(0.0, 0.0, 0.0, 0.0))
+		return
+	var out := Color(0.0, 0.0, 0.0, out_a)
+	out.r = (color.r * src_a + dst.r * dst.a * (1.0 - src_a)) / out_a
+	out.g = (color.g * src_a + dst.g * dst.a * (1.0 - src_a)) / out_a
+	out.b = (color.b * src_a + dst.b * dst.a * (1.0 - src_a)) / out_a
+	image.set_pixel(x, y, out)
+
+static func _shade_color(color: Color, amount: float) -> Color:
+	var alpha := color.a
+	var target := Color(1.0, 1.0, 1.0, alpha) if amount >= 0.0 else Color(0.0, 0.0, 0.0, alpha)
+	var result := color.lerp(target, clampf(absf(amount), 0.0, 1.0))
+	result.a = alpha
+	return result
 
 static func load_skin_model_scene(skin_id: String, relative_path: String) -> PackedScene:
 	var rel := relative_path.strip_edges()

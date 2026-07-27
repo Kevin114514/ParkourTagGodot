@@ -1,0 +1,20 @@
+{
+  "format_version": 1,
+  "name": "森林小岛（外海+内湖）",
+  "runner_spawn": [-34.0, 1.2, 34.0],
+  "tagger_spawn": [34.0, 1.2, -34.0],
+  "objects": [
+    {
+      "type": "model",
+      "name": "ForestIslandVisualAndCollision",
+      "path": "forest_island_map.glb",
+      "position": [0.0, 0.0, 0.0],
+      "rotation_degrees": [0.0, 0.0, 0.0],
+      "scale": [1.0, 1.0, 1.0],
+      "collision": "mesh",
+      "collision_layer": 1,
+      "collision_mask": 1,
+      "visible": true
+    }
+  ]
+}
