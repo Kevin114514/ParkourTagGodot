@@ -1,0 +1,17 @@
+{
+  "id": "neon",
+  "roles": {
+    "runner": {
+      "body_color": [0.20, 0.95, 0.95, 1.0],
+      "marker_color": [0.92, 1.00, 0.60, 1.0],
+      "roughness": 0.50,
+      "marker_roughness": 0.42
+    },
+    "tagger": {
+      "body_color": [1.00, 0.35, 0.70, 1.0],
+      "marker_color": [1.00, 0.95, 0.35, 1.0],
+      "roughness": 0.50,
+      "marker_roughness": 0.42
+    }
+  }
+}

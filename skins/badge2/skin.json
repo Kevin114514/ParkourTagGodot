@@ -1,0 +1,38 @@
+{
+  "id": "badge2",
+  "preview_texture": "silver_badge_preview.png",
+  "roles": {
+    "runner": {
+      "body_color": [1.0, 1.0, 1.0, 1.0],
+      "marker_color": [1.0, 1.0, 1.0, 1.0],
+      "roughness": 0.58,
+      "marker_roughness": 0.45,
+      "body_texture": "icon.png",
+      "marker_texture": "icon.png",
+      "model_scene": "silver_badge.tscn",
+      "model_scale": 1.1,
+      "radius": 0.66,
+      "height": 1.18,
+      "collision_y": 0.70,
+      "mesh_y": 0.70,
+      "marker_y": 1.18,
+      "marker_z": -0.02
+    },
+    "tagger": {
+      "body_color": [1.0, 1.0, 1.0, 1.0],
+      "marker_color": [1.0, 1.0, 1.0, 1.0],
+      "roughness": 0.58,
+      "marker_roughness": 0.45,
+      "body_texture": "icon.png",
+      "marker_texture": "icon.png",
+      "model_scene": "silver_badge.tscn",
+      "model_scale": 1.1,
+      "radius": 0.68,
+      "height": 1.22,
+      "collision_y": 0.72,
+      "mesh_y": 0.72,
+      "marker_y": 1.22,
+      "marker_z": -0.02
+    }
+  }
+}

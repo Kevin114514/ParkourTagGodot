@@ -1,0 +1,29 @@
+{
+  "id": "default",
+  "roles": {
+    "runner": {
+      "body_color": [0.15, 0.50, 1.00, 1.0],
+      "marker_color": [0.95, 0.98, 1.00, 1.0],
+      "roughness": 0.74,
+      "marker_roughness": 0.74,
+      "radius": 0.35,
+      "height": 1.72,
+      "collision_y": 0.92,
+      "mesh_y": 0.92,
+      "marker_y": 1.34,
+      "marker_z": -0.34
+    },
+    "tagger": {
+      "body_color": [1.00, 0.24, 0.18, 1.0],
+      "marker_color": [1.00, 0.90, 0.15, 1.0],
+      "roughness": 0.68,
+      "marker_roughness": 0.68,
+      "radius": 0.38,
+      "height": 1.82,
+      "collision_y": 0.96,
+      "mesh_y": 0.96,
+      "marker_y": 1.42,
+      "marker_z": -0.37
+    }
+  }
+}

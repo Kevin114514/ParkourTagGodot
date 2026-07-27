@@ -1,5 +1,7 @@
 extends CharacterBody3D
 
+const SkinAPI = preload("res://scripts/skin_api.gd")
+
 var role := "runner"
 var owner_peer_id := 1
 var move_speed := 7.0
@@ -13,8 +15,8 @@ var is_control_locked := false
 var is_active := true
 
 var camera_pivot: Node3D
-var body_mesh: MeshInstance3D
 var coyote_timer := 0.0
+var skin_id := "default"
 var local_control := false
 var remote_position := Vector3.ZERO
 var remote_rotation_y := 0.0
@@ -23,9 +25,10 @@ var sync_timer := 0.0
 var spawn_position := Vector3.ZERO
 const VOID_Y := -12.0
 
-func configure(new_role: String, peer_id: int) -> void:
+func configure(new_role: String, peer_id: int, new_skin_id: String = "default") -> void:
 	role = new_role
 	owner_peer_id = peer_id
+	skin_id = new_skin_id
 	set_multiplayer_authority(owner_peer_id)
 
 func _ready() -> void:
@@ -162,30 +165,50 @@ func _try_vault(wish_dir: Vector3) -> bool:
 	return true
 
 func _build_body() -> void:
+	var skin := SkinAPI.load_role_skin(role, skin_id)
+
 	var collision := CollisionShape3D.new()
 	collision.name = "Collision"
 	var capsule := CapsuleShape3D.new()
-	capsule.radius = 0.38 if role == "tagger" else 0.35
-	capsule.height = 1.82 if role == "tagger" else 1.72
+	capsule.radius = float(skin.get("radius", 0.38 if role == "tagger" else 0.35))
+	capsule.height = float(skin.get("height", 1.82 if role == "tagger" else 1.72))
 	collision.shape = capsule
-	collision.position.y = 0.96 if role == "tagger" else 0.92
+	collision.position.y = float(skin.get("collision_y", 0.96 if role == "tagger" else 0.92))
 	add_child(collision)
 
-	var mesh := MeshInstance3D.new()
-	mesh.name = "TaggerMesh" if role == "tagger" else "RunnerMesh"
-	mesh.mesh = _create_unwrapped_capsule_mesh(capsule.radius, capsule.height)
-	mesh.position.y = collision.position.y
-	mesh.material_override = _material(_default_body_color())
-	body_mesh = mesh
-	add_child(mesh)
+	var model_node := SkinAPI.instantiate_skin_model(skin_id, String(skin.get("model_scene", "")))
+	if model_node != null:
+		model_node.name = "NetworkModel"
+		model_node.position.y = float(skin.get("mesh_y", collision.position.y))
+		var model_scale := maxf(0.01, float(skin.get("model_scale", 1.0)))
+		model_node.scale = Vector3.ONE * model_scale
+		add_child(model_node)
+	else:
+		var mesh := MeshInstance3D.new()
+		mesh.name = "TaggerMesh" if role == "tagger" else "RunnerMesh"
+		var capsule_mesh := CapsuleMesh.new()
+		capsule_mesh.radius = capsule.radius
+		capsule_mesh.height = capsule.height
+		mesh.mesh = capsule_mesh
+		mesh.position.y = float(skin.get("mesh_y", collision.position.y))
+		mesh.material_override = _material(
+			skin.get("body_color", Color(1.0, 0.24, 0.18) if role == "tagger" else Color(0.15, 0.5, 1.0)) as Color,
+			float(skin.get("roughness", 0.68 if role == "tagger" else 0.74)),
+			SkinAPI.load_skin_texture(skin_id, String(skin.get("body_texture", "")))
+		)
+		add_child(mesh)
 
 	var marker := MeshInstance3D.new()
 	marker.name = "ForwardMarker"
 	var marker_mesh := BoxMesh.new()
 	marker_mesh.size = Vector3(0.5, 0.12, 0.1)
 	marker.mesh = marker_mesh
-	marker.position = Vector3(0.0, 1.42, -0.37)
-	marker.material_override = _material(Color(1.0, 0.9, 0.15) if role == "tagger" else Color(0.95, 0.98, 1.0))
+	marker.position = Vector3(0.0, float(skin.get("marker_y", 1.42 if role == "tagger" else 1.34)), float(skin.get("marker_z", -0.37 if role == "tagger" else -0.34)))
+	marker.material_override = _material(
+		skin.get("marker_color", Color(1.0, 0.9, 0.15) if role == "tagger" else Color(0.95, 0.98, 1.0)) as Color,
+		float(skin.get("marker_roughness", skin.get("roughness", 0.7))),
+		SkinAPI.load_skin_texture(skin_id, String(skin.get("marker_texture", "")))
+	)
 	add_child(marker)
 
 func _add_camera() -> void:
@@ -202,107 +225,12 @@ func _add_camera() -> void:
 	camera.position = Vector3(0.0, 0.0, 6.0)
 	camera_pivot.add_child(camera)
 
-func get_catch_origin() -> Vector3:
-	return global_position + Vector3.UP * 1.25
-
-func get_catch_direction() -> Vector3:
-	if camera_pivot != null and is_instance_valid(camera_pivot):
-		return -camera_pivot.global_transform.basis.z.normalized()
-	return -global_transform.basis.z.normalized()
-
-func apply_skin(skin_path: String) -> void:
-	if body_mesh == null or not is_instance_valid(body_mesh):
-		return
-	if skin_path.is_empty():
-		body_mesh.material_override = _material(_default_body_color())
-		return
-	var texture := _load_skin_texture(skin_path)
-	if texture == null:
-		body_mesh.material_override = _material(_default_body_color())
-		return
-	var mat := _material(Color.WHITE)
-	mat.albedo_texture = texture
-	body_mesh.material_override = mat
-
-func _create_unwrapped_capsule_mesh(radius: float, total_height: float) -> ArrayMesh:
-	var segments := 32
-	var cap_rings := 6
-	var cylinder_height := maxf(total_height - radius * 2.0, 0.01)
-	var ring_data: Array[Vector2] = []
-	for i in range(cap_rings + 1):
-		var theta := -PI * 0.5 + (PI * 0.5 * float(i) / float(cap_rings))
-		ring_data.append(Vector2(-cylinder_height * 0.5 + sin(theta) * radius, cos(theta) * radius))
-	ring_data.append(Vector2(cylinder_height * 0.5, radius))
-	for i in range(1, cap_rings + 1):
-		var theta := PI * 0.5 * float(i) / float(cap_rings)
-		ring_data.append(Vector2(cylinder_height * 0.5 + sin(theta) * radius, cos(theta) * radius))
-
-	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	for ring_index in range(ring_data.size()):
-		var y := ring_data[ring_index].x
-		var ring_radius := ring_data[ring_index].y
-		var v := 1.0 - clampf((y + total_height * 0.5) / total_height, 0.0, 1.0)
-		for segment in range(segments + 1):
-			var u := float(segment) / float(segments)
-			var angle := TAU * (u - 0.125)
-			var x := -sin(angle) * ring_radius
-			var z := cos(angle) * ring_radius
-			vertices.append(Vector3(x, y, z))
-			uvs.append(Vector2(u, v))
-			normals.append(_capsule_normal(Vector3(x, y, z), radius, cylinder_height))
-
-	var stride := segments + 1
-	for ring_index in range(ring_data.size() - 1):
-		for segment in range(segments):
-			var a := ring_index * stride + segment
-			var b := a + 1
-			var c := (ring_index + 1) * stride + segment
-			var d := c + 1
-			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
-
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
-
-func _capsule_normal(point: Vector3, radius: float, cylinder_height: float) -> Vector3:
-	var cap_center_y := 0.0
-	if point.y > cylinder_height * 0.5:
-		cap_center_y = cylinder_height * 0.5
-	elif point.y < -cylinder_height * 0.5:
-		cap_center_y = -cylinder_height * 0.5
-	else:
-		return Vector3(point.x, 0.0, point.z).normalized()
-	var normal := Vector3(point.x, point.y - cap_center_y, point.z)
-	if normal.length_squared() < 0.001:
-		return Vector3.UP if point.y > 0.0 else Vector3.DOWN
-	return normal.normalized()
-
-func _load_skin_texture(skin_path: String) -> Texture2D:
-	if skin_path.begins_with("res://") or skin_path.begins_with("user://"):
-		var resource := load(skin_path)
-		if resource is Texture2D:
-			return resource as Texture2D
-	var image := Image.new()
-	var error := image.load(skin_path)
-	if error != OK:
-		return null
-	return ImageTexture.create_from_image(image)
-
-func _default_body_color() -> Color:
-	return Color(1.0, 0.24, 0.18) if role == "tagger" else Color(0.15, 0.5, 1.0)
-
-func _material(color: Color) -> StandardMaterial3D:
+func _material(color: Color, roughness: float = 0.7, texture: Texture2D = null) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
-	mat.roughness = 0.7
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.roughness = clampf(roughness, 0.0, 1.0)
+	if texture != null:
+		mat.albedo_texture = texture
+		mat.uv1_triplanar = true
+		mat.uv1_scale = Vector3(1.4, 1.4, 1.4)
 	return mat
