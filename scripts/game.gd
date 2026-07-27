@@ -12,7 +12,7 @@ const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
 const MULTIPLAYER_RESULT_DELAY := 3.0
-const CATCH_RANGE := 1.6
+const CATCH_RANGE := 2.5
 const CATCH_AIM_DOT := 0.92
 const AI_CATCH_COOLDOWN := 0.45
 const CATCH_ORIGIN_TOLERANCE := 2.2
@@ -39,6 +39,7 @@ var tagger
 var hud_layer: CanvasLayer
 var hud_label: Label
 var center_label: Label
+var catch_crosshair: Label
 var title_layer: CanvasLayer
 var title_status: Label
 var ip_input: LineEdit
@@ -152,6 +153,7 @@ func _process(delta: float) -> void:
 	else:
 		controls_text += "  Q 退出房间"
 	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
+	_update_catch_crosshair()
 
 	if (game_mode == "single" or game_mode == "host") and time_alive >= win_time_seconds:
 		_on_runner_survived()
@@ -1212,6 +1214,7 @@ func _has_clear_catch_line(from: Vector3, to: Vector3) -> bool:
 
 func _on_runner_survived() -> void:
 	caught = true
+	_update_catch_crosshair()
 	player.is_control_locked = true
 	tagger.is_active = false
 	if game_mode == "single":
@@ -1226,6 +1229,7 @@ func _on_runner_survived() -> void:
 @rpc("call_remote", "reliable")
 func _rpc_runner_survived(final_time: float) -> void:
 	caught = true
+	_update_catch_crosshair()
 	time_alive = final_time
 	if player != null and is_instance_valid(player):
 		player.is_control_locked = true
@@ -1256,6 +1260,7 @@ func _finish_runner_failed(reason: String) -> void:
 @rpc("call_remote", "reliable")
 func _rpc_runner_failed(final_time: float, reason: String) -> void:
 	caught = true
+	_update_catch_crosshair()
 	time_alive = final_time
 	if player != null and is_instance_valid(player):
 		player.is_control_locked = true
@@ -1480,7 +1485,31 @@ func _build_hud() -> void:
 	center_label.add_theme_constant_override("outline_size", 8)
 	center_label.text = ""
 	hud_layer.add_child(center_label)
+
+	catch_crosshair = Label.new()
+	catch_crosshair.anchor_left = 0.5
+	catch_crosshair.anchor_top = 0.5
+	catch_crosshair.anchor_right = 0.5
+	catch_crosshair.anchor_bottom = 0.5
+	catch_crosshair.offset_left = -22.0
+	catch_crosshair.offset_top = -24.0
+	catch_crosshair.offset_right = 22.0
+	catch_crosshair.offset_bottom = 24.0
+	catch_crosshair.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	catch_crosshair.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	catch_crosshair.add_theme_font_size_override("font_size", 34)
+	catch_crosshair.add_theme_color_override("font_color", Color(1.0, 0.92, 0.35, 0.9))
+	catch_crosshair.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.02, 0.9))
+	catch_crosshair.add_theme_constant_override("outline_size", 4)
+	catch_crosshair.text = "+"
+	catch_crosshair.visible = false
+	hud_layer.add_child(catch_crosshair)
 	hud_layer.visible = false
+
+func _update_catch_crosshair() -> void:
+	if catch_crosshair == null:
+		return
+	catch_crosshair.visible = hud_layer != null and hud_layer.visible and not caught and _local_is_tagger()
 
 func _build_arena() -> void:
 	_add_box("Ground", Vector3(0.0, -0.15, 0.0), Vector3(64.0, 0.3, 64.0), Color(0.16, 0.18, 0.2))
