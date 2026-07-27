@@ -31,6 +31,16 @@ const OFFICIAL_MAPS = [
 		"name": "双层别墅追逐战",
 		"path": "res://maps/two_story_villa.json",
 		"description": "开放首层、中庭与二层环廊组成的多路线别墅；三条坡道让追逐能在上下层持续转换。"
+	},
+	{
+		"name": "林地废墟",
+		"path": "res://maps/woodland_mansion.json",
+		"description": "高墙木质三层废墟：整齐房间、双向楼梯、环形走廊、家具翻越点和高风险捷径。"
+	},
+	{
+		"name": "沙漠神殿",
+		"path": "res://maps/desert_temple.json",
+		"description": "更大规模的三层砂岩神殿：二层大厅出生，中心旋转楼梯直达一层藏宝室，两侧阶梯可登上圆形穹顶。"
 	}
 ]
 
@@ -155,14 +165,20 @@ func _process(delta: float) -> void:
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
 	var mode_text := "单人模式" if game_mode == "single" else "联机一打一：" + _local_role_text()
-	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开  F3 碰撞箱:%s" % ["开" if debug_mode else "关"]
+	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开  F3 调试(碰撞箱/坐标):%s" % ["开" if debug_mode else "关"]
 	if _local_is_tagger():
 		controls_text += "  左键抓人"
 	if game_mode == "single":
 		controls_text += "  Q 回标题"
 	else:
 		controls_text += "  Q 回房间"
-	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n追逐者速度：7.8  躲藏者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
+	var coordinate_text := ""
+	if debug_mode:
+		var local_actor := _local_controlled_actor()
+		if local_actor != null:
+			var local_position := local_actor.global_position
+			coordinate_text = "\n坐标：X %.2f  Y %.2f  Z %.2f" % [local_position.x, local_position.y, local_position.z]
+	hud_label.text = "%s\n地图：%s%s\n逃跑时间：%05.2f / %d 秒\n追逐者速度：7.8  躲藏者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, coordinate_text, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
 	_update_catch_crosshair()
 
 	if (game_mode == "single" or game_mode == "host") and time_alive >= win_time_seconds:
@@ -1190,6 +1206,20 @@ func _local_role_text() -> String:
 		return ("你是追逐者" if host_is_runner else "你是躲藏者") + "，房主按 R 可重开"
 	return ""
 
+func _local_controlled_actor() -> Node3D:
+	var actor: Node3D = null
+	if game_mode == "single":
+		actor = player as Node3D
+	elif game_mode == "host":
+		actor = player as Node3D
+		if not host_is_runner:
+			actor = tagger as Node3D
+	elif game_mode == "client":
+		actor = tagger as Node3D
+		if not host_is_runner:
+			actor = player as Node3D
+	return actor if actor != null and is_instance_valid(actor) else null
+
 func _local_is_tagger() -> bool:
 	if game_mode == "host":
 		return not host_is_runner
@@ -1406,7 +1436,7 @@ func _toggle_debug_mode() -> void:
 	debug_mode = not debug_mode
 	_refresh_debug_collision_shapes()
 	if title_status != null and title_layer != null and title_layer.visible:
-		title_status.text = "Debug Mode：%s。按 F3 可切换碰撞箱显示。" % ["开启" if debug_mode else "关闭"]
+		title_status.text = "Debug Mode：%s。按 F3 可切换碰撞箱与坐标显示。" % ["开启" if debug_mode else "关闭"]
 
 func _refresh_debug_collision_shapes() -> void:
 	_ensure_debug_materials()

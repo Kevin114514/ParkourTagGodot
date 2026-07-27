@@ -54,6 +54,8 @@ static func _add_object(root: Node3D, data: Dictionary, map_path: String) -> voi
 			_add_sphere(root, data, map_path)
 		"cylinder":
 			_add_cylinder(root, data, map_path)
+		"csg_cylinder":
+			_add_csg_cylinder(root, data, map_path)
 		"capsule":
 			_add_capsule(root, data, map_path)
 		"model", "scene", "mesh":
@@ -119,6 +121,36 @@ static func _add_cylinder(root: Node3D, data: Dictionary, map_path: String) -> S
 		mesh.material_override = _material_from_data(data, map_path, Color(0.4, 0.4, 0.4))
 		body.add_child(mesh)
 	return body
+
+static func _add_csg_cylinder(root: Node3D, data: Dictionary, map_path: String) -> CSGCylinder3D:
+	var cylinder := CSGCylinder3D.new()
+	cylinder.name = String(data.get("name", "MapCSGCylinder"))
+	cylinder.radius = float(data.get("radius", 1.0))
+	cylinder.height = float(data.get("height", 2.0))
+	cylinder.sides = maxi(8, int(data.get("sides", 64)))
+	cylinder.material = _material_from_data(data, map_path, Color(0.4, 0.4, 0.4))
+	cylinder.visible = _to_bool(data.get("visible", true), true)
+	cylinder.collision_layer = int(data.get("collision_layer", 1))
+	cylinder.collision_mask = int(data.get("collision_mask", 1))
+	_apply_transform(cylinder, data)
+	root.add_child(cylinder)
+
+	var raw_holes = data.get("holes", [])
+	if typeof(raw_holes) == TYPE_ARRAY:
+		for raw_hole in raw_holes:
+			if typeof(raw_hole) != TYPE_DICTIONARY:
+				continue
+			var hole_data: Dictionary = raw_hole
+			var hole := CSGBox3D.new()
+			hole.name = String(hole_data.get("name", "SubtractionHole"))
+			hole.size = _to_vector3(hole_data.get("size", Vector3.ONE), Vector3.ONE)
+			hole.operation = CSGShape3D.OPERATION_SUBTRACTION
+			hole.material = cylinder.material
+			_apply_transform(hole, hole_data)
+			cylinder.add_child(hole)
+
+	cylinder.use_collision = _collision_mode(data, "shape") != "none"
+	return cylinder
 
 static func _add_capsule(root: Node3D, data: Dictionary, map_path: String) -> StaticBody3D:
 	var radius := float(data.get("radius", 0.8))
