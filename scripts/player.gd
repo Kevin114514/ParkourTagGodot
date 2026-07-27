@@ -179,8 +179,8 @@ func _create_unwrapped_capsule_mesh(radius: float, total_height: float) -> Array
 		var v := 1.0 - clampf((y + total_height * 0.5) / total_height, 0.0, 1.0)
 		for segment in range(segments + 1):
 			var u := float(segment) / float(segments)
-			var angle := TAU * (0.75 - u)
-			var x := sin(angle) * ring_radius
+			var angle := TAU * (u - 0.125)
+			var x := -sin(angle) * ring_radius
 			var z := cos(angle) * ring_radius
 			vertices.append(Vector3(x, y, z))
 			uvs.append(Vector2(u, v))
