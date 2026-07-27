@@ -2,9 +2,11 @@ extends Node3D
 
 const PlayerScript = preload("res://scripts/player.gd")
 const TaggerScript = preload("res://scripts/tagger.gd")
+const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
 const PORT = 24591
+const USE_RL_POLICY_TAGGER := true
 const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
@@ -915,7 +917,7 @@ func _spawn_single_characters() -> void:
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "Tagger"
-	tagger.set_script(TaggerScript)
+	tagger.set_script(RLPolicyTaggerScript if USE_RL_POLICY_TAGGER else TaggerScript)
 	tagger.global_position = tagger_spawn_position
 	add_child(tagger)
 	tagger.target = player
@@ -999,9 +1001,11 @@ func _rpc_request_catch(origin: Vector3, direction: Vector3) -> void:
 func _try_ai_catch_attempt(flat_distance: float) -> void:
 	if ai_catch_cooldown > 0.0 or flat_distance > CATCH_RANGE + 0.5:
 		return
+	if tagger.has_method("should_consume_ai_catch_attempt") and not tagger.should_consume_ai_catch_attempt():
+		return
 	ai_catch_cooldown = AI_CATCH_COOLDOWN
-	var origin: Vector3 = tagger.global_position + Vector3.UP * 1.0
-	var direction: Vector3 = -tagger.global_transform.basis.z
+	var origin: Vector3 = tagger.get_catch_origin() if tagger.has_method("get_catch_origin") else tagger.global_position + Vector3.UP * 1.0
+	var direction: Vector3 = tagger.get_catch_direction() if tagger.has_method("get_catch_direction") else -tagger.global_transform.basis.z
 	if _validate_catch_attempt(origin, direction, false):
 		_on_player_caught()
 
