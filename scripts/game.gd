@@ -49,6 +49,7 @@ var map_select_button: Button
 var map_list: ItemList
 var map_description_label: Label
 var settings_display_mode_option: OptionButton
+var camera_mode_option: OptionButton
 var runner_skin_option: OptionButton
 var tagger_skin_option: OptionButton
 var runner_skin_preview: TextureRect
@@ -86,6 +87,7 @@ var debug_obstacle_material: StandardMaterial3D
 var debug_actor_material: StandardMaterial3D
 @export var runner_skin_id := "badge2"
 @export var tagger_skin_id := "default"
+var selected_camera_mode := "third_person"
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
@@ -126,7 +128,7 @@ func _process(delta: float) -> void:
 			_start_single_game()
 		elif game_mode == "host" and remote_peer_id != 0:
 			_start_network_round(remote_peer_id)
-			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id)
+			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode)
 		return
 
 	if caught:
@@ -356,6 +358,25 @@ func _build_title_ui() -> void:
 	tagger_skin_option.item_selected.connect(Callable(self, "_on_tagger_skin_selected"))
 	skin_row.add_child(tagger_skin_option)
 
+	var camera_row := HBoxContainer.new()
+	camera_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	camera_row.add_theme_constant_override("separation", 10)
+	box.add_child(camera_row)
+	setup_controls.append(camera_row)
+
+	var camera_mode_label := Label.new()
+	camera_mode_label.text = "视角"
+	_apply_label_style(camera_mode_label)
+	camera_row.add_child(camera_mode_label)
+
+	camera_mode_option = OptionButton.new()
+	camera_mode_option.custom_minimum_size = Vector2(230.0, 42.0)
+	_style_button(camera_mode_option, Color(0.36, 0.5, 1.0), Color(0.14, 0.2, 0.58))
+	camera_mode_option.add_item("第三人称")
+	camera_mode_option.add_item("第一人称")
+	camera_mode_option.item_selected.connect(Callable(self, "_on_camera_mode_selected"))
+	camera_row.add_child(camera_mode_option)
+
 	_refresh_skin_options()
 
 	var preview_row := HBoxContainer.new()
@@ -583,6 +604,7 @@ func _build_title_ui() -> void:
 	_set_settings_page_visible(false)
 	_update_map_ui()
 	_update_display_mode_ui()
+	_update_camera_mode_ui()
 
 func _set_setup_visible(is_visible: bool) -> void:
 	for control in setup_controls:
@@ -611,6 +633,7 @@ func _show_settings_page() -> void:
 	_set_map_page_visible(false)
 	_set_settings_page_visible(true)
 	_update_display_mode_ui()
+	_update_camera_mode_ui()
 	if title_status != null:
 		title_status.text = "调整游戏设置。"
 
@@ -637,6 +660,37 @@ func _on_display_mode_selected(index: int) -> void:
 	_update_display_mode_ui()
 	if title_status != null:
 		title_status.text = "已切换为：%s。" % ["全屏" if use_fullscreen else "窗口"]
+
+func _on_camera_mode_selected(index: int) -> void:
+	if game_mode == "lobby" and not multiplayer.is_server():
+		_update_camera_mode_ui()
+		return
+	selected_camera_mode = "first_person" if index == 1 else "third_person"
+	_update_camera_mode_ui()
+	_apply_camera_mode_to_local_actor()
+	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "房主已切换视角为：%s，等待房主开始游戏。" % _camera_mode_display_name())
+	if title_status != null:
+		title_status.text = "已选择视角：%s。" % _camera_mode_display_name()
+
+func _update_camera_mode_ui() -> void:
+	if camera_mode_option == null:
+		return
+	camera_mode_option.select(1 if selected_camera_mode == "first_person" else 0)
+	camera_mode_option.disabled = game_mode == "lobby" and not multiplayer.is_server()
+
+func _camera_mode_display_name() -> String:
+	return "第一人称" if selected_camera_mode == "first_person" else "第三人称"
+
+func _apply_camera_mode_to_local_actor() -> void:
+	var local_peer := multiplayer.get_unique_id() if multiplayer.multiplayer_peer != null else 1
+	for actor in [player, tagger]:
+		if actor == null or not is_instance_valid(actor) or not actor.has_method("set_camera_mode"):
+			continue
+		if game_mode == "single" and actor == player:
+			actor.set_camera_mode(selected_camera_mode)
+		elif game_mode != "single" and int(actor.get("owner_peer_id")) == local_peer:
+			actor.set_camera_mode(selected_camera_mode)
 
 func _show_map_page() -> void:
 	if game_mode == "lobby" and not multiplayer.is_server():
@@ -682,7 +736,7 @@ func _select_official_map(index: int, should_sync: bool) -> bool:
 	if title_status != null:
 		title_status.text = "已选择官方地图：%s" % map_name if loaded else "地图加载失败，已保留当前选择。"
 	if loaded and should_sync and game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "地图已切换为：%s，等待房主开始游戏。" % map_name)
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "地图已切换为：%s，等待房主开始游戏。" % map_name)
 	return loaded
 
 func _update_map_ui() -> void:
@@ -701,7 +755,7 @@ func _update_map_ui() -> void:
 func _on_win_time_changed(value: float) -> void:
 	win_time_seconds = value
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
 	_update_lobby_ui()
 
 func _refresh_win_time_from_ui() -> void:
@@ -750,7 +804,7 @@ func _on_runner_skin_selected(index: int) -> void:
 	runner_skin_id = available_skin_ids[index]
 	_update_skin_previews()
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "皮肤已更新，等待房主开始游戏。")
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
 	_update_lobby_ui()
 
 func _on_tagger_skin_selected(index: int) -> void:
@@ -759,7 +813,7 @@ func _on_tagger_skin_selected(index: int) -> void:
 	tagger_skin_id = available_skin_ids[index]
 	_update_skin_previews()
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "皮肤已更新，等待房主开始游戏。")
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
 	_update_lobby_ui()
 
 func _show_title(message: String) -> void:
@@ -785,6 +839,7 @@ func _show_title(message: String) -> void:
 	_set_settings_page_visible(false)
 	_update_map_ui()
 	_update_display_mode_ui()
+	_update_camera_mode_ui()
 	_refresh_skin_options()
 	if win_time_row != null:
 		win_time_row.visible = true
@@ -860,7 +915,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	remote_peer_id = peer_id
 	network_started = true
 	_enter_lobby("玩家已加入。双方可在房间内切换角色，房主点击开始游戏。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	if is_leaving_room:
@@ -902,7 +957,7 @@ func _update_lobby_ui() -> void:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "抓人者" if local_role == "逃跑者" else "逃跑者"
-	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n地图：%s\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds), map_name]
+	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds), map_name, _camera_mode_display_name()]
 	if win_time_spinbox != null:
 		win_time_spinbox.editable = multiplayer.is_server()
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -912,6 +967,7 @@ func _update_lobby_ui() -> void:
 	if switch_role_button != null:
 		switch_role_button.visible = true
 	_update_map_ui()
+	_update_camera_mode_ui()
 
 func _schedule_return_to_lobby_after_round() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
@@ -927,7 +983,7 @@ func _return_to_lobby_after_round() -> void:
 		return
 	host_is_runner = not host_is_runner
 	_enter_lobby("上一局结算完成，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
 
 func _local_lobby_role_text() -> String:
 	var is_host := multiplayer.is_server()
@@ -941,7 +997,7 @@ func _toggle_lobby_roles() -> void:
 		host_is_runner = not host_is_runner
 		_update_lobby_ui()
 		if remote_peer_id != 0:
-			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "角色已切换，等待房主开始游戏。")
+			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
 	else:
 		rpc_id(1, "_rpc_request_role_switch")
 
@@ -950,7 +1006,7 @@ func _start_lobby_game() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	_start_network_round(remote_peer_id)
-	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id)
+	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_role_switch() -> void:
@@ -958,14 +1014,15 @@ func _rpc_request_role_switch() -> void:
 		return
 	host_is_runner = not host_is_runner
 	_update_lobby_ui()
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, "角色已切换，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
 
 @rpc("call_remote", "reliable")
-func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, message: String) -> void:
+func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String, message: String) -> void:
 	host_is_runner = new_host_is_runner
 	win_time_seconds = new_win_time_seconds
 	runner_skin_id = new_runner_skin_id
 	tagger_skin_id = new_tagger_skin_id
+	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
 	_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -973,12 +1030,13 @@ func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_
 	_enter_lobby(message)
 
 @rpc("call_remote", "reliable")
-func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String) -> void:
+func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String) -> void:
 	remote_peer_id = client_id
 	host_is_runner = new_host_is_runner
 	win_time_seconds = new_win_time_seconds
 	runner_skin_id = new_runner_skin_id
 	tagger_skin_id = new_tagger_skin_id
+	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
 	_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -1001,6 +1059,7 @@ func _start_network_round(client_id: int) -> void:
 	hud_layer.visible = true
 	center_label.text = ""
 	_spawn_network_characters(client_id)
+	_apply_camera_mode_to_local_actor()
 	if debug_mode:
 		_refresh_debug_collision_shapes()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
