@@ -108,6 +108,15 @@ func _process(delta: float) -> void:
 		if game_mode == "single":
 			_show_title("已返回标题界面。")
 			return
+		if game_mode == "host":
+			_return_active_round_to_lobby("房主已返回房间等待页面。")
+			return
+		if game_mode == "client":
+			rpc_id(1, "_rpc_request_return_to_lobby")
+			if center_label != null:
+				center_label.text = "正在返回房间等待页面..."
+			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			return
 		if _is_in_network_room():
 			_leave_room("已退出房间。")
 			return
@@ -151,7 +160,7 @@ func _process(delta: float) -> void:
 	if game_mode == "single":
 		controls_text += "  Q 回标题"
 	else:
-		controls_text += "  Q 退出房间"
+		controls_text += "  Q 回房间"
 	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
 	_update_catch_crosshair()
 
@@ -868,6 +877,7 @@ func _start_single_game() -> void:
 	hud_layer.visible = true
 	center_label.text = ""
 	_spawn_single_characters()
+	_apply_camera_mode_to_local_actor()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _start_host_game() -> void:
@@ -986,6 +996,21 @@ func _return_to_lobby_after_round() -> void:
 	host_is_runner = not host_is_runner
 	_enter_lobby("上一局结算完成，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
 	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
+
+func _return_active_round_to_lobby(message: String) -> void:
+	if not multiplayer.is_server() or remote_peer_id == 0:
+		return
+	caught = false
+	ai_catch_cooldown = 0.0
+	time_alive = 0.0
+	_enter_lobby(message)
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, message)
+
+@rpc("any_peer", "reliable")
+func _rpc_request_return_to_lobby() -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
+		return
+	_return_active_round_to_lobby("玩家已返回房间等待页面。")
 
 func _local_lobby_role_text() -> String:
 	var is_host := multiplayer.is_server()

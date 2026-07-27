@@ -104,6 +104,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, wish_dir.x * move_speed, accel * delta)
 	velocity.z = move_toward(velocity.z, wish_dir.z * move_speed, accel * delta)
 	move_and_slide()
+	_update_camera_collision()
 	_send_state(delta)
 
 func _respawn() -> void:
@@ -251,19 +252,36 @@ func _apply_camera_mode() -> void:
 		_update_camera_collision()
 
 func _update_camera_collision() -> void:
-	if camera_mode != "third_person" or camera_pivot == null or camera == null:
+	if camera_mode != "third_person" or camera_pivot == null or camera == null or get_world_3d() == null:
 		return
 	var desired_distance := 6.0
 	var min_distance := 0.55
+	var camera_radius := 0.28
+	var padding := 0.16
 	var from := camera_pivot.global_position
-	var to := from + camera_pivot.global_transform.basis.z.normalized() * desired_distance
-	var query := PhysicsRayQueryParameters3D.create(from, to)
-	query.collision_mask = 1
-	query.exclude = [get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var direction := camera_pivot.global_transform.basis.z.normalized()
+	var motion := direction * desired_distance
+	var space := get_world_3d().direct_space_state
 	var distance := desired_distance
+
+	var sphere := SphereShape3D.new()
+	sphere.radius = camera_radius
+	var shape_query := PhysicsShapeQueryParameters3D.new()
+	shape_query.shape = sphere
+	shape_query.transform = Transform3D(Basis(), from)
+	shape_query.motion = motion
+	shape_query.collision_mask = 1
+	shape_query.exclude = [get_rid()]
+	var cast_result := space.cast_motion(shape_query)
+	if cast_result.size() > 0:
+		distance = clampf(desired_distance * float(cast_result[0]) - padding, min_distance, desired_distance)
+
+	var ray_query := PhysicsRayQueryParameters3D.create(from, from + motion)
+	ray_query.collision_mask = 1
+	ray_query.exclude = [get_rid()]
+	var hit := space.intersect_ray(ray_query)
 	if not hit.is_empty():
-		distance = clampf(from.distance_to(hit["position"]) - 0.18, min_distance, desired_distance)
+		distance = minf(distance, clampf(from.distance_to(hit["position"]) - padding, min_distance, desired_distance))
 	camera.position = Vector3(0.0, 0.0, distance)
 
 func _set_local_visuals_visible(is_visible: bool) -> void:
