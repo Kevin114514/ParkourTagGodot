@@ -1,5 +1,6 @@
 {
   "id": "badge2",
+  "name": "silver medal",
   "preview_texture": "silver_badge_preview.png",
   "roles": {
     "runner": {

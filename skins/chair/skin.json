@@ -1,0 +1,33 @@
+{
+  "id": "chair",
+  "name": "椅子",
+  "preview_texture": "chair.png",
+  "roles": {
+    "runner": {
+      "visual_type": "chair_3d",
+      "preview_texture": "chair.png",
+      "hide_marker": true,
+      "body_color": "#945252",
+      "marker_color": "#763e3e",
+      "collision_shape": "box",
+      "collision_size": [0.9, 1.45, 0.82],
+      "collision_y": 0.72,
+      "radius": 0.35,
+      "height": 1.45,
+      "roughness": 0.82
+    },
+    "tagger": {
+      "visual_type": "chair_3d",
+      "preview_texture": "chair.png",
+      "hide_marker": true,
+      "body_color": "#945252",
+      "marker_color": "#763e3e",
+      "collision_shape": "box",
+      "collision_size": [0.9, 1.45, 0.82],
+      "collision_y": 0.72,
+      "radius": 0.38,
+      "height": 1.45,
+      "roughness": 0.82
+    }
+  }
+}

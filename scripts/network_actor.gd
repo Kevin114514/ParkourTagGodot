@@ -178,44 +178,55 @@ func _build_body() -> void:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = float(skin.get("radius", 0.38 if role == "tagger" else 0.35))
 	capsule.height = float(skin.get("height", 1.82 if role == "tagger" else 1.72))
-	collision.shape = capsule
+	if String(skin.get("collision_shape", "capsule")) == "box":
+		var box := BoxShape3D.new()
+		box.size = skin.get("collision_size", Vector3(0.7, 1.2, 0.5)) as Vector3
+		collision.shape = box
+	else:
+		collision.shape = capsule
 	collision.position.y = float(skin.get("collision_y", 0.96 if role == "tagger" else 0.92))
 	add_child(collision)
 
-	var model_node := SkinAPI.instantiate_skin_model(skin_id, String(skin.get("model_scene", "")))
-	if model_node != null:
-		model_node.name = "NetworkModel"
-		model_node.position.y = float(skin.get("mesh_y", collision.position.y))
-		var model_scale := maxf(0.01, float(skin.get("model_scale", 1.0)))
-		model_node.scale = Vector3.ONE * model_scale
-		add_child(model_node)
+	var custom_model := SkinAPI.create_skin_visual_model(skin_id, skin)
+	if custom_model != null:
+		custom_model.name = "NetworkCustomModel"
+		add_child(custom_model)
 	else:
-		var mesh := MeshInstance3D.new()
-		mesh.name = "TaggerMesh" if role == "tagger" else "RunnerMesh"
-		var capsule_mesh := CapsuleMesh.new()
-		capsule_mesh.radius = capsule.radius
-		capsule_mesh.height = capsule.height
-		mesh.mesh = capsule_mesh
-		mesh.position.y = float(skin.get("mesh_y", collision.position.y))
-		mesh.material_override = _material(
-			skin.get("body_color", Color(1.0, 0.24, 0.18) if role == "tagger" else Color(0.15, 0.5, 1.0)) as Color,
-			float(skin.get("roughness", 0.68 if role == "tagger" else 0.74)),
-			SkinAPI.load_skin_texture(skin_id, String(skin.get("body_texture", "")))
-		)
-		add_child(mesh)
+		var model_node := SkinAPI.instantiate_skin_model(skin_id, String(skin.get("model_scene", "")))
+		if model_node != null:
+			model_node.name = "NetworkModel"
+			model_node.position.y = float(skin.get("mesh_y", collision.position.y))
+			var model_scale := maxf(0.01, float(skin.get("model_scale", 1.0)))
+			model_node.scale = Vector3.ONE * model_scale
+			add_child(model_node)
+		else:
+			var mesh := MeshInstance3D.new()
+			mesh.name = "TaggerMesh" if role == "tagger" else "RunnerMesh"
+			var capsule_mesh := CapsuleMesh.new()
+			capsule_mesh.radius = capsule.radius
+			capsule_mesh.height = capsule.height
+			mesh.mesh = capsule_mesh
+			mesh.position.y = float(skin.get("mesh_y", collision.position.y))
+			mesh.material_override = _material(
+				skin.get("body_color", Color(1.0, 0.24, 0.18) if role == "tagger" else Color(0.15, 0.5, 1.0)) as Color,
+				float(skin.get("roughness", 0.68 if role == "tagger" else 0.74)),
+				SkinAPI.load_skin_texture(skin_id, String(skin.get("body_texture", "")))
+			)
+			add_child(mesh)
 
-	var marker := MeshInstance3D.new()
-	marker.name = "ForwardMarker"
-	var marker_mesh := BoxMesh.new()
-	marker_mesh.size = Vector3(0.5, 0.12, 0.1)
-	marker.mesh = marker_mesh
-	marker.position = Vector3(0.0, float(skin.get("marker_y", 1.42 if role == "tagger" else 1.34)), float(skin.get("marker_z", -0.37 if role == "tagger" else -0.34)))
-	marker.material_override = _material(
-		skin.get("marker_color", Color(1.0, 0.9, 0.15) if role == "tagger" else Color(0.95, 0.98, 1.0)) as Color,
-		float(skin.get("marker_roughness", skin.get("roughness", 0.7))),
-		SkinAPI.load_skin_texture(skin_id, String(skin.get("marker_texture", "")))
-	)
-	add_child(marker)
+	if not bool(skin.get("hide_marker", false)):
+		var marker := MeshInstance3D.new()
+		marker.name = "ForwardMarker"
+		var marker_mesh := BoxMesh.new()
+		marker_mesh.size = Vector3(0.5, 0.12, 0.1)
+		marker.mesh = marker_mesh
+		marker.position = Vector3(0.0, float(skin.get("marker_y", 1.42 if role == "tagger" else 1.34)), float(skin.get("marker_z", -0.37 if role == "tagger" else -0.34)))
+		marker.material_override = _material(
+			skin.get("marker_color", Color(1.0, 0.9, 0.15) if role == "tagger" else Color(0.95, 0.98, 1.0)) as Color,
+			float(skin.get("marker_roughness", skin.get("roughness", 0.7))),
+			SkinAPI.load_skin_texture(skin_id, String(skin.get("marker_texture", "")))
+		)
+		add_child(marker)
 
 func _add_camera() -> void:
 	camera_pivot = Node3D.new()
@@ -250,6 +261,16 @@ func _apply_camera_mode() -> void:
 		camera.position = Vector3(0.0, 0.0, 6.0)
 		camera.near = 0.08
 		_update_camera_collision()
+
+func get_catch_origin() -> Vector3:
+	if local_control and camera_pivot != null:
+		return camera_pivot.global_position
+	return global_position + Vector3.UP * 1.0
+
+func get_catch_direction() -> Vector3:
+	if local_control and camera_pivot != null:
+		return -camera_pivot.global_transform.basis.z.normalized()
+	return -global_transform.basis.z.normalized()
 
 func _update_camera_collision() -> void:
 	if camera_mode != "third_person" or camera_pivot == null or camera == null or get_world_3d() == null:

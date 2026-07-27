@@ -1,0 +1,31 @@
+{
+  "id": "irris",
+  "name": "irris",
+  "preview_texture": "irris.webp",
+  "roles": {
+    "runner": {
+      "visual_type": "image_square",
+      "body_texture": "irris.webp",
+      "preview_texture": "irris.webp",
+      "hide_marker": true,
+      "image_size": 1.35,
+      "radius": 0.35,
+      "height": 1.72,
+      "collision_y": 0.86,
+      "mesh_y": 1.08,
+      "roughness": 0.88
+    },
+    "tagger": {
+      "visual_type": "image_square",
+      "body_texture": "irris.webp",
+      "preview_texture": "irris.webp",
+      "hide_marker": true,
+      "image_size": 1.35,
+      "radius": 0.38,
+      "height": 1.72,
+      "collision_y": 0.86,
+      "mesh_y": 1.08,
+      "roughness": 0.88
+    }
+  }
+}

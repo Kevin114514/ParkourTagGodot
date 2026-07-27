@@ -1,9 +1,13 @@
 extends RefCounted
 class_name SkinAPI
 
-const DEFAULT_SKIN_ID := "default"
+const DEFAULT_SKIN_ID := "irris"
 const RESOURCE_SKIN_ROOT := "res://skins"
 const USER_SKIN_ROOT := "user://skins"
+const UPLOADED_IMAGE_SKIN_ID := "uploaded_image"
+const UPLOADED_IMAGE_TEXTURE := "image.png"
+const UPLOADED_IMAGE_SIZE := 512
+const IMAGE_MODEL_SIZE := 1.35
 const GENERATED_PREVIEW_SKIN_IDS := ["badge2", "default", "neon"]
 const PREVIEW_TEXTURE_SIZE := 256
 
@@ -67,7 +71,18 @@ static func list_available_skin_ids() -> Array[String]:
 	if not ids.has(DEFAULT_SKIN_ID):
 		ids.append(DEFAULT_SKIN_ID)
 	ids.sort()
+	if ids.has(DEFAULT_SKIN_ID):
+		ids.erase(DEFAULT_SKIN_ID)
+		ids.push_front(DEFAULT_SKIN_ID)
 	return ids
+
+static func get_skin_display_name(skin_id: String) -> String:
+	var requested_id := skin_id.strip_edges()
+	if requested_id.is_empty():
+		requested_id = DEFAULT_SKIN_ID
+	var manifest := _load_skin_manifest(requested_id)
+	var display_name := String(manifest.get("name", "")).strip_edges()
+	return display_name if not display_name.is_empty() else requested_id
 
 static func _read_json_dict(file_path: String) -> Dictionary:
 	var file := FileAccess.open(file_path, FileAccess.READ)
@@ -112,12 +127,19 @@ static func _normalize_skin(raw: Dictionary) -> Dictionary:
 		normalized["marker_y"] = float(raw.get("marker_y", 1.34))
 	if raw.has("marker_z"):
 		normalized["marker_z"] = float(raw.get("marker_z", -0.34))
+	if raw.has("collision_shape"):
+		normalized["collision_shape"] = String(raw.get("collision_shape", "capsule"))
+	if raw.has("collision_size"):
+		normalized["collision_size"] = _vector3_from_any(raw.get("collision_size", null), Vector3(0.7, 1.2, 0.5))
 
 	normalized["body_texture"] = String(raw.get("body_texture", ""))
 	normalized["marker_texture"] = String(raw.get("marker_texture", ""))
 	normalized["preview_texture"] = String(raw.get("preview_texture", ""))
 	normalized["model_scene"] = String(raw.get("model_scene", ""))
 	normalized["model_scale"] = maxf(0.01, float(raw.get("model_scale", 1.0)))
+	normalized["visual_type"] = String(raw.get("visual_type", ""))
+	normalized["hide_marker"] = bool(raw.get("hide_marker", false))
+	normalized["image_size"] = maxf(0.1, float(raw.get("image_size", IMAGE_MODEL_SIZE)))
 	return normalized
 
 static func _merge_with_default(role: String, skin: Dictionary) -> Dictionary:
@@ -185,6 +207,122 @@ static func get_skin_preview_texture(skin_id: String, role: String = "runner") -
 		if body_tex != null:
 			return body_tex
 	return _create_generated_skin_preview_texture(requested_id, safe_role)
+
+static func create_uploaded_image_skin(source_path: String) -> String:
+	var image := Image.load_from_file(source_path)
+	if image == null or image.is_empty():
+		return ""
+	var square_size := mini(image.get_width(), image.get_height())
+	if square_size <= 0:
+		return ""
+	var crop_x := int((image.get_width() - square_size) * 0.5)
+	var crop_y := int((image.get_height() - square_size) * 0.5)
+	var square_image := image.get_region(Rect2i(crop_x, crop_y, square_size, square_size))
+	square_image.convert(Image.FORMAT_RGBA8)
+	square_image.resize(UPLOADED_IMAGE_SIZE, UPLOADED_IMAGE_SIZE, Image.INTERPOLATE_LANCZOS)
+
+	var skin_dir := "%s/%s" % [USER_SKIN_ROOT, UPLOADED_IMAGE_SKIN_ID]
+	var absolute_skin_dir := ProjectSettings.globalize_path(skin_dir)
+	if DirAccess.make_dir_recursive_absolute(absolute_skin_dir) != OK:
+		return ""
+	if square_image.save_png("%s/%s" % [skin_dir, UPLOADED_IMAGE_TEXTURE]) != OK:
+		return ""
+
+	var manifest := {
+		"name": "上传图片皮肤",
+		"preview_texture": UPLOADED_IMAGE_TEXTURE,
+		"roles": {
+			"runner": _uploaded_image_role_manifest("runner"),
+			"tagger": _uploaded_image_role_manifest("tagger")
+		}
+	}
+	var file := FileAccess.open("%s/skin.json" % skin_dir, FileAccess.WRITE)
+	if file == null:
+		return ""
+	file.store_string(JSON.stringify(manifest, "\t"))
+	file.close()
+	return UPLOADED_IMAGE_SKIN_ID
+
+static func _uploaded_image_role_manifest(role: String) -> Dictionary:
+	var is_tagger := role == "tagger"
+	return {
+		"visual_type": "image_square",
+		"body_texture": UPLOADED_IMAGE_TEXTURE,
+		"preview_texture": UPLOADED_IMAGE_TEXTURE,
+		"hide_marker": true,
+		"image_size": IMAGE_MODEL_SIZE,
+		"radius": 0.38 if is_tagger else 0.35,
+		"height": 1.72,
+		"collision_y": 0.86,
+		"mesh_y": 1.08,
+		"roughness": 0.88
+	}
+
+static func create_skin_visual_model(skin_id: String, skin: Dictionary) -> Node3D:
+	var visual_type := String(skin.get("visual_type", ""))
+	if visual_type == "image_square":
+		return create_image_square_model(skin_id, skin)
+	if visual_type == "chair_3d":
+		return create_chair_model(skin)
+	return null
+
+static func create_image_square_model(skin_id: String, skin: Dictionary) -> Node3D:
+	var texture := load_skin_texture(skin_id, String(skin.get("body_texture", "")))
+	if texture == null:
+		return null
+	var mesh_instance := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	var size := maxf(0.1, float(skin.get("image_size", IMAGE_MODEL_SIZE)))
+	quad.size = Vector2(size, size)
+	mesh_instance.mesh = quad
+	mesh_instance.position.y = float(skin.get("mesh_y", 1.08))
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color.WHITE
+	mat.albedo_texture = texture
+	mat.roughness = clampf(float(skin.get("roughness", 0.88)), 0.0, 1.0)
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mesh_instance.material_override = mat
+	return mesh_instance
+
+static func create_chair_model(skin: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	var roughness := clampf(float(skin.get("roughness", 0.82)), 0.0, 1.0)
+	var wood := skin.get("body_color", Color(0.58, 0.32, 0.32)) as Color
+	var dark := skin.get("marker_color", _shade_color(wood, -0.22)) as Color
+	var light := _shade_color(wood, 0.16)
+
+	root.add_child(_create_chair_box("Seat", Vector3(0.0, 0.58, 0.0), Vector3(0.86, 0.14, 0.76), wood, roughness))
+	root.add_child(_create_chair_box("SeatFrontLip", Vector3(0.0, 0.51, -0.39), Vector3(0.9, 0.12, 0.08), dark, roughness))
+	root.add_child(_create_chair_box("SeatHighlight", Vector3(0.0, 0.66, -0.08), Vector3(0.72, 0.03, 0.48), light, roughness))
+
+	root.add_child(_create_chair_box("BackLeftPost", Vector3(-0.34, 1.03, 0.31), Vector3(0.12, 0.9, 0.12), dark, roughness))
+	root.add_child(_create_chair_box("BackRightPost", Vector3(0.34, 1.03, 0.31), Vector3(0.12, 0.9, 0.12), dark, roughness))
+	root.add_child(_create_chair_box("BackTopRail", Vector3(0.0, 1.43, 0.33), Vector3(0.9, 0.18, 0.14), wood, roughness))
+	root.add_child(_create_chair_box("BackLowerRail", Vector3(0.0, 1.14, 0.33), Vector3(0.74, 0.14, 0.12), _shade_color(wood, 0.08), roughness))
+
+	var leg_size := Vector3(0.12, 0.72, 0.12)
+	root.add_child(_create_chair_box("FrontLeftLeg", Vector3(-0.34, 0.23, -0.28), leg_size, dark, roughness, Vector3(0.0, 0.0, deg_to_rad(-8.0))))
+	root.add_child(_create_chair_box("FrontRightLeg", Vector3(0.34, 0.23, -0.28), leg_size, dark, roughness, Vector3(0.0, 0.0, deg_to_rad(8.0))))
+	root.add_child(_create_chair_box("BackLeftLeg", Vector3(-0.34, 0.23, 0.28), leg_size, wood, roughness, Vector3(deg_to_rad(7.0), 0.0, deg_to_rad(-5.0))))
+	root.add_child(_create_chair_box("BackRightLeg", Vector3(0.34, 0.23, 0.28), leg_size, wood, roughness, Vector3(deg_to_rad(7.0), 0.0, deg_to_rad(5.0))))
+	return root
+
+static func _create_chair_box(part_name: String, position: Vector3, size: Vector3, color: Color, roughness: float, rotation: Vector3 = Vector3.ZERO) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = part_name
+	var box := BoxMesh.new()
+	box.size = size
+	mesh_instance.mesh = box
+	mesh_instance.position = position
+	mesh_instance.rotation = rotation
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = roughness
+	mesh_instance.material_override = mat
+	return mesh_instance
 
 static func _create_generated_skin_preview_texture(skin_id: String, role: String) -> Texture2D:
 	var skin := load_role_skin(role, skin_id)
@@ -405,4 +543,16 @@ static func _color_from_any(value, fallback: Color) -> Color:
 			var b := float(arr[2])
 			var a := float(arr[3]) if arr.size() >= 4 else 1.0
 			return Color(r, g, b, a)
+	return fallback
+
+static func _vector3_from_any(value, fallback: Vector3) -> Vector3:
+	if value is Vector3:
+		return value
+	if value is Array:
+		var arr := value as Array
+		if arr.size() >= 3:
+			return Vector3(maxf(0.05, float(arr[0])), maxf(0.05, float(arr[1])), maxf(0.05, float(arr[2])))
+	if value is Dictionary:
+		var dict := value as Dictionary
+		return Vector3(maxf(0.05, float(dict.get("x", fallback.x))), maxf(0.05, float(dict.get("y", fallback.y))), maxf(0.05, float(dict.get("z", fallback.z))))
 	return fallback

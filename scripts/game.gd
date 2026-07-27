@@ -51,6 +51,7 @@ var map_list: ItemList
 var map_description_label: Label
 var settings_display_mode_option: OptionButton
 var camera_mode_option: OptionButton
+var image_skin_file_dialog: FileDialog
 var runner_skin_option: OptionButton
 var tagger_skin_option: OptionButton
 var runner_skin_preview: TextureRect
@@ -86,8 +87,8 @@ var map_page_return_mode := "menu"
 var debug_mode := false
 var debug_obstacle_material: StandardMaterial3D
 var debug_actor_material: StandardMaterial3D
-@export var runner_skin_id := "badge2"
-@export var tagger_skin_id := "default"
+@export var runner_skin_id := "chair"
+@export var tagger_skin_id := "irris"
 var selected_camera_mode := "third_person"
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
@@ -161,7 +162,7 @@ func _process(delta: float) -> void:
 		controls_text += "  Q 回标题"
 	else:
 		controls_text += "  Q 回房间"
-	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
+	hud_label.text = "%s\n地图：%s\n逃跑时间：%05.2f / %d 秒\n追逐者速度：7.8  躲藏者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
 	_update_catch_crosshair()
 
 	if (game_mode == "single" or game_mode == "host") and time_alive >= win_time_seconds:
@@ -282,7 +283,7 @@ func _build_title_ui() -> void:
 	margin.add_child(box)
 
 	var title := Label.new()
-	title.text = "跑酷抓人"
+	title.text = "椅子大逃亡 2.0"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 52)
 	title.add_theme_color_override("font_color", Color(1.0, 0.43, 0.14))
@@ -291,7 +292,7 @@ func _build_title_ui() -> void:
 	box.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "卡通跑酷派对 · 单人逃脱 / 联机一打一"
+	subtitle.text = "3D 椅子追逐 · 单人逃脱 / 联机一打一"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 20)
 	_apply_label_style(subtitle, Color(0.16, 0.24, 0.42), 2)
@@ -320,7 +321,7 @@ func _build_title_ui() -> void:
 	win_time_row.add_child(win_time_spinbox)
 
 	var win_time_hint := Label.new()
-	win_time_hint.text = "逃跑者坚持到即胜"
+	win_time_hint.text = "躲藏者坚持到即胜"
 	_apply_label_style(win_time_hint, Color(0.35, 0.28, 0.18), 1)
 	win_time_row.add_child(win_time_hint)
 
@@ -348,7 +349,7 @@ func _build_title_ui() -> void:
 	setup_controls.append(skin_row)
 
 	var runner_skin_label := Label.new()
-	runner_skin_label.text = "逃跑者皮肤"
+	runner_skin_label.text = "躲藏者皮肤"
 	_apply_label_style(runner_skin_label)
 	skin_row.add_child(runner_skin_label)
 
@@ -359,7 +360,7 @@ func _build_title_ui() -> void:
 	skin_row.add_child(runner_skin_option)
 
 	var tagger_skin_label := Label.new()
-	tagger_skin_label.text = "抓人者皮肤"
+	tagger_skin_label.text = "追逐者皮肤"
 	_apply_label_style(tagger_skin_label)
 	skin_row.add_child(tagger_skin_label)
 
@@ -407,7 +408,7 @@ func _build_title_ui() -> void:
 	runner_preview_card.add_child(runner_preview_box)
 
 	var runner_preview_title := Label.new()
-	runner_preview_title.text = "逃跑者预览"
+	runner_preview_title.text = "躲藏者预览"
 	runner_preview_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_apply_label_style(runner_preview_title, Color(0.16, 0.27, 0.48), 2)
 	runner_preview_box.add_child(runner_preview_title)
@@ -435,7 +436,7 @@ func _build_title_ui() -> void:
 	tagger_preview_card.add_child(tagger_preview_box)
 
 	var tagger_preview_title := Label.new()
-	tagger_preview_title.text = "抓人者预览"
+	tagger_preview_title.text = "追逐者预览"
 	tagger_preview_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_apply_label_style(tagger_preview_title, Color(0.44, 0.17, 0.1), 2)
 	tagger_preview_box.add_child(tagger_preview_title)
@@ -454,8 +455,24 @@ func _build_title_ui() -> void:
 
 	_update_skin_previews()
 
+	var upload_image_skin_button := Button.new()
+	upload_image_skin_button.text = "上传图片皮肤（1:1 固定大小）"
+	_style_button(upload_image_skin_button, Color(0.14, 0.66, 0.72), Color(0.04, 0.34, 0.38))
+	upload_image_skin_button.pressed.connect(Callable(self, "_open_image_skin_dialog"))
+	box.add_child(upload_image_skin_button)
+	menu_controls.append(upload_image_skin_button)
+
+	image_skin_file_dialog = FileDialog.new()
+	image_skin_file_dialog.title = "选择一张图片作为模型"
+	image_skin_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
+	image_skin_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	image_skin_file_dialog.use_native_dialog = true
+	image_skin_file_dialog.filters = PackedStringArray(["*.png, *.jpg, *.jpeg, *.webp ; 图片文件"])
+	image_skin_file_dialog.file_selected.connect(Callable(self, "_on_image_skin_file_selected"))
+	title_layer.add_child(image_skin_file_dialog)
+
 	var single_button := Button.new()
-	single_button.text = "单人模式：逃跑者 VS AI 抓人者"
+	single_button.text = "单人模式：躲藏者 VS AI 追逐者"
 	_style_button(single_button, Color(1.0, 0.52, 0.17), Color(0.64, 0.23, 0.06))
 	single_button.pressed.connect(Callable(self, "_start_single_game"))
 	box.add_child(single_button)
@@ -776,23 +793,23 @@ func _refresh_win_time_from_ui() -> void:
 func _refresh_skin_options() -> void:
 	available_skin_ids = SkinAPI.list_available_skin_ids()
 	if available_skin_ids.is_empty():
-		available_skin_ids = ["default"]
+		available_skin_ids = [SkinAPI.DEFAULT_SKIN_ID]
 	if not available_skin_ids.has(runner_skin_id):
-		runner_skin_id = "default"
+		runner_skin_id = SkinAPI.DEFAULT_SKIN_ID
 	if not available_skin_ids.has(tagger_skin_id):
-		tagger_skin_id = "default"
+		tagger_skin_id = SkinAPI.DEFAULT_SKIN_ID
 
 	if runner_skin_option != null:
 		runner_skin_option.clear()
 		for skin in available_skin_ids:
-			runner_skin_option.add_item(skin)
+			runner_skin_option.add_item(SkinAPI.get_skin_display_name(skin))
 		var idx := available_skin_ids.find(runner_skin_id)
 		runner_skin_option.select(maxi(idx, 0))
 
 	if tagger_skin_option != null:
 		tagger_skin_option.clear()
 		for skin in available_skin_ids:
-			tagger_skin_option.add_item(skin)
+			tagger_skin_option.add_item(SkinAPI.get_skin_display_name(skin))
 		var idx2 := available_skin_ids.find(tagger_skin_id)
 		tagger_skin_option.select(maxi(idx2, 0))
 
@@ -802,12 +819,12 @@ func _update_skin_previews() -> void:
 	if runner_skin_preview != null:
 		runner_skin_preview.texture = SkinAPI.get_skin_preview_texture(runner_skin_id, "runner")
 	if runner_skin_preview_label != null:
-		runner_skin_preview_label.text = "当前：%s" % runner_skin_id
+		runner_skin_preview_label.text = "当前：%s" % SkinAPI.get_skin_display_name(runner_skin_id)
 
 	if tagger_skin_preview != null:
 		tagger_skin_preview.texture = SkinAPI.get_skin_preview_texture(tagger_skin_id, "tagger")
 	if tagger_skin_preview_label != null:
-		tagger_skin_preview_label.text = "当前：%s" % tagger_skin_id
+		tagger_skin_preview_label.text = "当前：%s" % SkinAPI.get_skin_display_name(tagger_skin_id)
 
 func _on_runner_skin_selected(index: int) -> void:
 	if index < 0 or index >= available_skin_ids.size():
@@ -826,6 +843,24 @@ func _on_tagger_skin_selected(index: int) -> void:
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
 		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
 	_update_lobby_ui()
+
+func _open_image_skin_dialog() -> void:
+	if image_skin_file_dialog == null:
+		return
+	image_skin_file_dialog.popup_centered_ratio(0.55)
+
+func _on_image_skin_file_selected(path: String) -> void:
+	var uploaded_skin_id := SkinAPI.create_uploaded_image_skin(path)
+	if uploaded_skin_id.is_empty():
+		if title_status != null:
+			title_status.text = "图片皮肤导入失败，请选择 PNG / JPG / WEBP 图片。"
+		return
+	runner_skin_id = uploaded_skin_id
+	tagger_skin_id = uploaded_skin_id
+	_refresh_skin_options()
+	_update_skin_previews()
+	if title_status != null:
+		title_status.text = "已上传图片皮肤：模型会以 1:1 固定方形显示。"
 
 func _show_title(message: String) -> void:
 	_close_network()
@@ -878,6 +913,7 @@ func _start_single_game() -> void:
 	center_label.text = ""
 	_spawn_single_characters()
 	_apply_camera_mode_to_local_actor()
+	call_deferred("_apply_camera_mode_to_local_actor")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _start_host_game() -> void:
@@ -968,7 +1004,7 @@ func _update_lobby_ui() -> void:
 	if lobby_role_label == null:
 		return
 	var local_role := _local_lobby_role_text()
-	var other_role := "抓人者" if local_role == "逃跑者" else "逃跑者"
+	var other_role := "追逐者" if local_role == "躲藏者" else "躲藏者"
 	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds), map_name, _camera_mode_display_name()]
 	if win_time_spinbox != null:
 		win_time_spinbox.editable = multiplayer.is_server()
@@ -1015,7 +1051,7 @@ func _rpc_request_return_to_lobby() -> void:
 func _local_lobby_role_text() -> String:
 	var is_host := multiplayer.is_server()
 	var local_is_runner := host_is_runner if is_host else not host_is_runner
-	return "逃跑者" if local_is_runner else "抓人者"
+	return "躲藏者" if local_is_runner else "追逐者"
 
 func _toggle_lobby_roles() -> void:
 	if multiplayer.multiplayer_peer == null:
@@ -1087,6 +1123,7 @@ func _start_network_round(client_id: int) -> void:
 	center_label.text = ""
 	_spawn_network_characters(client_id)
 	_apply_camera_mode_to_local_actor()
+	call_deferred("_apply_camera_mode_to_local_actor")
 	if debug_mode:
 		_refresh_debug_collision_shapes()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -1148,9 +1185,9 @@ func _leave_room(message: String) -> void:
 
 func _local_role_text() -> String:
 	if game_mode == "host":
-		return ("你是逃跑者" if host_is_runner else "你是抓人者") + "，房主按 R 可重开"
+		return ("你是躲藏者" if host_is_runner else "你是追逐者") + "，房主按 R 可重开"
 	if game_mode == "client":
-		return ("你是抓人者" if host_is_runner else "你是逃跑者") + "，房主按 R 可重开"
+		return ("你是追逐者" if host_is_runner else "你是躲藏者") + "，房主按 R 可重开"
 	return ""
 
 func _local_is_tagger() -> bool:
@@ -1243,9 +1280,9 @@ func _on_runner_survived() -> void:
 	player.is_control_locked = true
 	tagger.is_active = false
 	if game_mode == "single":
-		center_label.text = "逃跑者胜利！\n成功坚持 %.2f 秒\n按 R 重新开始" % time_alive
+		center_label.text = "躲藏者胜利！\n成功坚持 %.2f 秒\n按 R 重新开始" % time_alive
 	else:
-		center_label.text = "本局结束\n逃跑者胜利！\n成功坚持 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [time_alive, MULTIPLAYER_RESULT_DELAY]
+		center_label.text = "本局结束\n躲藏者胜利！\n成功坚持 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
 		rpc("_rpc_runner_survived", time_alive)
@@ -1260,23 +1297,23 @@ func _rpc_runner_survived(final_time: float) -> void:
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "本局结束\n逃跑者胜利！\n成功坚持 %.2f 秒\n等待房主返回房间并自动换边" % final_time
+	center_label.text = "本局结束\n躲藏者胜利！\n成功坚持 %.2f 秒\n等待房主返回房间并自动换边" % final_time
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _on_player_caught() -> void:
-	_finish_runner_failed("逃跑者被抓到了！")
+	_finish_runner_failed("躲藏者被抓到了！")
 
 func _on_runner_fell() -> void:
-	_finish_runner_failed("逃跑者掉出地图！")
+	_finish_runner_failed("躲藏者掉出地图！")
 
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
 	player.is_control_locked = true
 	tagger.is_active = false
 	if game_mode == "single":
-		center_label.text = "%s\n抓人者胜利\n坚持了 %.2f 秒\n按 R 重新开始" % [reason, time_alive]
+		center_label.text = "%s\n追逐者胜利\n坚持了 %.2f 秒\n按 R 重新开始" % [reason, time_alive]
 	else:
-		center_label.text = "本局结束\n%s\n抓人者胜利\n坚持了 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [reason, time_alive, MULTIPLAYER_RESULT_DELAY]
+		center_label.text = "本局结束\n%s\n追逐者胜利\n坚持了 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [reason, time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
 		rpc("_rpc_runner_failed", time_alive, reason)
@@ -1291,7 +1328,7 @@ func _rpc_runner_failed(final_time: float, reason: String) -> void:
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "本局结束\n%s\n抓人者胜利\n坚持了 %.2f 秒\n等待房主返回房间并自动换边" % [reason, final_time]
+	center_label.text = "本局结束\n%s\n追逐者胜利\n坚持了 %.2f 秒\n等待房主返回房间并自动换边" % [reason, final_time]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _setup_world() -> void:
