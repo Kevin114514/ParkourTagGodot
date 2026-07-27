@@ -202,6 +202,14 @@ func _add_camera() -> void:
 	camera.position = Vector3(0.0, 0.0, 6.0)
 	camera_pivot.add_child(camera)
 
+func get_catch_origin() -> Vector3:
+	return global_position + Vector3.UP * 1.25
+
+func get_catch_direction() -> Vector3:
+	if camera_pivot != null and is_instance_valid(camera_pivot):
+		return -camera_pivot.global_transform.basis.z.normalized()
+	return -global_transform.basis.z.normalized()
+
 func apply_skin(skin_path: String) -> void:
 	if body_mesh == null or not is_instance_valid(body_mesh):
 		return

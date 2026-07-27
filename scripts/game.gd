@@ -9,6 +9,10 @@ const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
 const MULTIPLAYER_RESULT_DELAY := 3.0
+const CATCH_RANGE := 1.6
+const CATCH_AIM_DOT := 0.92
+const AI_CATCH_COOLDOWN := 0.45
+const CATCH_ORIGIN_TOLERANCE := 2.2
 const OFFICIAL_MAPS = [
 	{
 		"name": "默认跑酷竞技场",
@@ -53,6 +57,7 @@ var lobby_controls: Array[Control] = []
 var map_page_controls: Array[Control] = []
 var time_alive := 0.0
 var caught := false
+var ai_catch_cooldown := 0.0
 var game_mode := "title"
 var network_started := false
 var remote_peer_id := 0
@@ -127,28 +132,29 @@ func _process(delta: float) -> void:
 		return
 
 	time_alive += delta
+	ai_catch_cooldown = maxf(ai_catch_cooldown - delta, 0.0)
 	var catch_offset: Vector3 = player.global_position - tagger.global_position
-	var vertical_distance: float = absf(catch_offset.y)
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
 	var mode_text := "单人模式" if game_mode == "single" else "联机一打一：" + _local_role_text()
 	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开  F3 碰撞箱:%s" % ["开" if debug_mode else "关"]
+	if _local_is_tagger():
+		controls_text += "  左键抓人"
 	if game_mode == "single":
 		controls_text += "  Q 回标题"
 	else:
 		controls_text += "  Q 退出房间"
-	hud_label.text = "%s\n地图：%s\n皮肤：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n距离：%04.1f 米\n%s" % [mode_text, map_name, selected_skin_name, time_alive, int(win_time_seconds), distance, controls_text]
+	hud_label.text = "%s\n地图：%s\n皮肤：%s\n逃跑时间：%05.2f / %d 秒\n抓人者速度：7.8  逃跑者速度：7.0\n抓捕距离：%04.1f / %.1f 米\n%s" % [mode_text, map_name, selected_skin_name, time_alive, int(win_time_seconds), distance, CATCH_RANGE, controls_text]
 
 	if (game_mode == "single" or game_mode == "host") and time_alive >= win_time_seconds:
 		_on_runner_survived()
 		return
 
+	if _local_is_tagger() and Input.is_action_just_pressed("catch_attack") and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		_request_local_catch_attempt()
+
 	if game_mode == "single":
-		if distance <= 1.35 and vertical_distance <= 2.25 and _has_clear_catch_line():
-			_on_player_caught()
-	elif game_mode == "host":
-		if distance <= 1.35 and vertical_distance <= 2.25 and _has_clear_catch_line():
-			_on_player_caught()
+		_try_ai_catch_attempt(distance)
 
 func _connect_multiplayer_signals() -> void:
 	multiplayer.peer_connected.connect(Callable(self, "_on_peer_connected"))
@@ -888,6 +894,7 @@ func _start_network_round(client_id: int) -> void:
 		return
 	game_mode = "host" if multiplayer.is_server() else "client"
 	caught = false
+	ai_catch_cooldown = 0.0
 	time_alive = 0.0
 	if title_layer != null:
 		title_layer.visible = false
@@ -959,9 +966,65 @@ func _local_role_text() -> String:
 		return ("你是抓人者" if host_is_runner else "你是逃跑者") + "，房主按 R 可重开"
 	return ""
 
-func _has_clear_catch_line() -> bool:
-	var from: Vector3 = tagger.global_position + Vector3.UP * 1.0
-	var to: Vector3 = player.global_position + Vector3.UP * 0.8
+func _local_is_tagger() -> bool:
+	if game_mode == "host":
+		return not host_is_runner
+	if game_mode == "client":
+		return host_is_runner
+	return false
+
+func _tagger_peer_id() -> int:
+	if remote_peer_id == 0:
+		return 1
+	return remote_peer_id if host_is_runner else 1
+
+func _request_local_catch_attempt() -> void:
+	if tagger == null or not is_instance_valid(tagger):
+		return
+	var origin: Vector3 = tagger.get_catch_origin() if tagger.has_method("get_catch_origin") else tagger.global_position + Vector3.UP * 1.0
+	var direction: Vector3 = tagger.get_catch_direction() if tagger.has_method("get_catch_direction") else -tagger.global_transform.basis.z
+	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
+		rpc_id(1, "_rpc_request_catch", origin, direction)
+		return
+	if _validate_catch_attempt(origin, direction, true):
+		_on_player_caught()
+
+@rpc("any_peer", "reliable")
+func _rpc_request_catch(origin: Vector3, direction: Vector3) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _tagger_peer_id() or caught:
+		return
+	if _validate_catch_attempt(origin, direction, true):
+		_on_player_caught()
+
+func _try_ai_catch_attempt(flat_distance: float) -> void:
+	if ai_catch_cooldown > 0.0 or flat_distance > CATCH_RANGE + 0.5:
+		return
+	ai_catch_cooldown = AI_CATCH_COOLDOWN
+	var origin: Vector3 = tagger.global_position + Vector3.UP * 1.0
+	var direction: Vector3 = -tagger.global_transform.basis.z
+	if _validate_catch_attempt(origin, direction, false):
+		_on_player_caught()
+
+func _validate_catch_attempt(origin: Vector3, direction: Vector3, validate_origin: bool) -> bool:
+	if player == null or tagger == null or not is_instance_valid(player) or not is_instance_valid(tagger):
+		return false
+	if direction.length_squared() < 0.001:
+		return false
+	direction = direction.normalized()
+	if validate_origin:
+		var expected_origin: Vector3 = tagger.global_position + Vector3.UP * 1.0
+		if origin.distance_to(expected_origin) > CATCH_ORIGIN_TOLERANCE:
+			return false
+	var target: Vector3 = player.global_position + Vector3.UP * 0.85
+	var to_target: Vector3 = target - origin
+	var distance: float = to_target.length()
+	if distance > CATCH_RANGE or distance < 0.1:
+		return false
+	if direction.dot(to_target.normalized()) < CATCH_AIM_DOT:
+		return false
+	return _has_clear_catch_line(origin, target)
+
+func _has_clear_catch_line(from: Vector3, to: Vector3) -> bool:
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = 1
 	query.exclude = [tagger.get_rid(), player.get_rid()]
@@ -1321,6 +1384,7 @@ func _ensure_input_actions() -> void:
 	_bind_key("restart", KEY_R)
 	_bind_key("quit_room", KEY_Q)
 	_bind_key("toggle_debug", KEY_F3)
+	_bind_mouse_button("catch_attack", MOUSE_BUTTON_LEFT)
 
 func _bind_key(action_name: String, keycode: int) -> void:
 	if not InputMap.has_action(action_name):
@@ -1331,3 +1395,13 @@ func _bind_key(action_name: String, keycode: int) -> void:
 	var key := InputEventKey.new()
 	key.keycode = keycode
 	InputMap.action_add_event(action_name, key)
+
+func _bind_mouse_button(action_name: String, button_index: MouseButton) -> void:
+	if not InputMap.has_action(action_name):
+		InputMap.add_action(action_name)
+	for event in InputMap.action_get_events(action_name):
+		if event is InputEventMouseButton and event.button_index == button_index:
+			return
+	var mouse_button := InputEventMouseButton.new()
+	mouse_button.button_index = button_index
+	InputMap.action_add_event(action_name, mouse_button)
