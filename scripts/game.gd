@@ -8,6 +8,7 @@ const PORT = 24591
 const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
+const MULTIPLAYER_RESULT_DELAY := 3.0
 const OFFICIAL_MAPS = [
 	{
 		"name": "默认跑酷竞技场",
@@ -55,6 +56,7 @@ var remote_peer_id := 0
 var host_is_runner := true
 var win_time_seconds := 60.0
 var is_leaving_room := false
+var round_transition_token := 0
 var map_root: Node3D
 var map_name := "默认地图"
 var active_map_path := ""
@@ -145,37 +147,120 @@ func _connect_multiplayer_signals() -> void:
 	multiplayer.connection_failed.connect(Callable(self, "_on_connection_failed"))
 	multiplayer.server_disconnected.connect(Callable(self, "_on_server_disconnected"))
 
+func _cartoon_style(fill: Color, border: Color, border_width: int = 4, radius: int = 16, shadow_offset: Vector2 = Vector2(0.0, 5.0), margin: int = 10) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_left = radius
+	style.corner_radius_bottom_right = radius
+	style.shadow_color = Color(0.08, 0.1, 0.18, 0.22)
+	style.shadow_size = 8
+	style.shadow_offset = shadow_offset
+	style.content_margin_left = margin
+	style.content_margin_top = margin
+	style.content_margin_right = margin
+	style.content_margin_bottom = margin
+	return style
+
+func _style_button(button: Button, fill: Color, border: Color) -> void:
+	button.custom_minimum_size = Vector2(0.0, 46.0)
+	button.add_theme_stylebox_override("normal", _cartoon_style(fill, border, 4, 16, Vector2(0.0, 5.0), 12))
+	button.add_theme_stylebox_override("hover", _cartoon_style(fill.lightened(0.1), border, 4, 16, Vector2(0.0, 4.0), 12))
+	button.add_theme_stylebox_override("pressed", _cartoon_style(fill.darkened(0.1), border.darkened(0.05), 4, 16, Vector2(0.0, 2.0), 12))
+	button.add_theme_stylebox_override("disabled", _cartoon_style(Color(0.7, 0.72, 0.78, 0.75), Color(0.42, 0.44, 0.52), 4, 16, Vector2(0.0, 2.0), 12))
+	button.add_theme_color_override("font_color", Color.WHITE)
+	button.add_theme_color_override("font_hover_color", Color.WHITE)
+	button.add_theme_color_override("font_pressed_color", Color.WHITE)
+	button.add_theme_color_override("font_disabled_color", Color(0.92, 0.92, 0.95, 0.8))
+	button.add_theme_color_override("font_outline_color", Color(0.07, 0.08, 0.15))
+	button.add_theme_constant_override("outline_size", 3)
+	button.add_theme_font_size_override("font_size", 18)
+
+func _style_input(control: Control) -> void:
+	control.add_theme_stylebox_override("normal", _cartoon_style(Color(1.0, 1.0, 0.96, 0.98), Color(0.25, 0.33, 0.58), 3, 14, Vector2(0.0, 3.0), 9))
+	control.add_theme_stylebox_override("focus", _cartoon_style(Color(1.0, 0.98, 0.86, 0.98), Color(1.0, 0.55, 0.16), 4, 14, Vector2(0.0, 3.0), 9))
+	control.add_theme_color_override("font_color", Color(0.14, 0.16, 0.3))
+	control.add_theme_color_override("font_placeholder_color", Color(0.42, 0.46, 0.62))
+	control.add_theme_font_size_override("font_size", 17)
+
+func _style_item_list(item_list: ItemList) -> void:
+	item_list.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 1.0, 0.96, 0.98), Color(0.25, 0.33, 0.58), 3, 14, Vector2(0.0, 3.0), 10))
+	item_list.add_theme_stylebox_override("focus", _cartoon_style(Color(1.0, 0.98, 0.86, 0.98), Color(1.0, 0.55, 0.16), 3, 14, Vector2(0.0, 3.0), 10))
+	item_list.add_theme_color_override("font_color", Color(0.14, 0.16, 0.3))
+	item_list.add_theme_color_override("font_selected_color", Color.WHITE)
+	item_list.add_theme_color_override("guide_color", Color(1.0, 0.62, 0.18, 0.45))
+	item_list.add_theme_font_size_override("font_size", 18)
+
+func _apply_label_style(label: Label, color: Color = Color(0.18, 0.22, 0.42), outline_size: int = 2) -> void:
+	label.add_theme_color_override("font_color", color)
+	label.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.72))
+	label.add_theme_constant_override("outline_size", outline_size)
+
 func _build_title_ui() -> void:
 	title_layer = CanvasLayer.new()
 	title_layer.name = "TitleUI"
 	add_child(title_layer)
 
 	var bg := ColorRect.new()
-	bg.color = Color(0.02, 0.03, 0.045, 0.94)
+	bg.color = Color(0.42, 0.78, 1.0, 0.98)
 	bg.anchor_right = 1.0
 	bg.anchor_bottom = 1.0
 	title_layer.add_child(bg)
+
+	var grass := ColorRect.new()
+	grass.color = Color(0.34, 0.82, 0.38, 0.9)
+	grass.anchor_top = 0.83
+	grass.anchor_right = 1.0
+	grass.anchor_bottom = 1.0
+	title_layer.add_child(grass)
+
+	var sun := Panel.new()
+	sun.position = Vector2(54.0, 44.0)
+	sun.custom_minimum_size = Vector2(118.0, 118.0)
+	sun.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.86, 0.25, 0.95), Color(1.0, 0.58, 0.12), 5, 64, Vector2(0.0, 4.0)))
+	title_layer.add_child(sun)
 
 	var center := CenterContainer.new()
 	center.anchor_right = 1.0
 	center.anchor_bottom = 1.0
 	title_layer.add_child(center)
 
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(560.0, 0.0)
+	card.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.76, 0.96), Color(0.17, 0.23, 0.43), 5, 22, Vector2(0.0, 9.0), 18))
+	center.add_child(card)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	card.add_child(margin)
+
 	var box := VBoxContainer.new()
-	box.custom_minimum_size = Vector2(460.0, 0.0)
-	box.add_theme_constant_override("separation", 12)
-	center.add_child(box)
+	box.add_theme_constant_override("separation", 13)
+	margin.add_child(box)
 
 	var title := Label.new()
 	title.text = "跑酷抓人"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_color_override("font_color", Color(1.0, 0.43, 0.14))
+	title.add_theme_color_override("font_outline_color", Color(0.16, 0.18, 0.32))
+	title.add_theme_constant_override("outline_size", 8)
 	box.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "单人逃脱 / 联机一打一"
+	subtitle.text = "卡通跑酷派对 · 单人逃脱 / 联机一打一"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.add_theme_font_size_override("font_size", 20)
+	_apply_label_style(subtitle, Color(0.16, 0.24, 0.42), 2)
 	box.add_child(subtitle)
 
 	win_time_row = HBoxContainer.new()
@@ -186,6 +271,7 @@ func _build_title_ui() -> void:
 
 	var win_time_label := Label.new()
 	win_time_label.text = "胜利时间"
+	_apply_label_style(win_time_label)
 	win_time_row.add_child(win_time_label)
 
 	win_time_spinbox = SpinBox.new()
@@ -194,12 +280,14 @@ func _build_title_ui() -> void:
 	win_time_spinbox.step = 5.0
 	win_time_spinbox.value = win_time_seconds
 	win_time_spinbox.suffix = " 秒"
-	win_time_spinbox.custom_minimum_size = Vector2(120.0, 0.0)
+	win_time_spinbox.custom_minimum_size = Vector2(124.0, 42.0)
+	_style_input(win_time_spinbox)
 	win_time_spinbox.value_changed.connect(Callable(self, "_on_win_time_changed"))
 	win_time_row.add_child(win_time_spinbox)
 
 	var win_time_hint := Label.new()
 	win_time_hint.text = "逃跑者坚持到即胜"
+	_apply_label_style(win_time_hint, Color(0.35, 0.28, 0.18), 1)
 	win_time_row.add_child(win_time_hint)
 
 	var map_row := HBoxContainer.new()
@@ -210,21 +298,25 @@ func _build_title_ui() -> void:
 
 	map_summary_label = Label.new()
 	map_summary_label.text = "当前地图：%s" % map_name
+	_apply_label_style(map_summary_label)
 	map_row.add_child(map_summary_label)
 
 	map_select_button = Button.new()
 	map_select_button.text = "选择官方地图"
+	_style_button(map_select_button, Color(0.15, 0.61, 1.0), Color(0.06, 0.29, 0.58))
 	map_select_button.pressed.connect(Callable(self, "_show_map_page"))
 	map_row.add_child(map_select_button)
 
 	var single_button := Button.new()
 	single_button.text = "单人模式：逃跑者 VS AI 抓人者"
+	_style_button(single_button, Color(1.0, 0.52, 0.17), Color(0.64, 0.23, 0.06))
 	single_button.pressed.connect(Callable(self, "_start_single_game"))
 	box.add_child(single_button)
 	menu_controls.append(single_button)
 
 	var host_button := Button.new()
 	host_button.text = "创建联机房间"
+	_style_button(host_button, Color(0.34, 0.78, 0.32), Color(0.12, 0.42, 0.17))
 	host_button.pressed.connect(Callable(self, "_start_host_game"))
 	box.add_child(host_button)
 	menu_controls.append(host_button)
@@ -232,11 +324,14 @@ func _build_title_ui() -> void:
 	ip_input = LineEdit.new()
 	ip_input.text = "127.0.0.1"
 	ip_input.placeholder_text = "输入房主 IP"
+	ip_input.custom_minimum_size = Vector2(0.0, 42.0)
+	_style_input(ip_input)
 	box.add_child(ip_input)
 	menu_controls.append(ip_input)
 
 	var join_button := Button.new()
 	join_button.text = "加入联机房间"
+	_style_button(join_button, Color(0.61, 0.42, 1.0), Color(0.28, 0.18, 0.58))
 	join_button.pressed.connect(Callable(self, "_start_client_game"))
 	box.add_child(join_button)
 	menu_controls.append(join_button)
@@ -245,17 +340,20 @@ func _build_title_ui() -> void:
 	lobby_role_label.text = ""
 	lobby_role_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lobby_role_label.add_theme_font_size_override("font_size", 22)
+	_apply_label_style(lobby_role_label)
 	box.add_child(lobby_role_label)
 	lobby_controls.append(lobby_role_label)
 
 	switch_role_button = Button.new()
 	switch_role_button.text = "切换角色"
+	_style_button(switch_role_button, Color(1.0, 0.72, 0.2), Color(0.7, 0.38, 0.06))
 	switch_role_button.pressed.connect(Callable(self, "_toggle_lobby_roles"))
 	box.add_child(switch_role_button)
 	lobby_controls.append(switch_role_button)
 
 	start_game_button = Button.new()
 	start_game_button.text = "开始游戏"
+	_style_button(start_game_button, Color(0.22, 0.78, 0.48), Color(0.08, 0.38, 0.18))
 	start_game_button.pressed.connect(Callable(self, "_start_lobby_game"))
 	box.add_child(start_game_button)
 	lobby_controls.append(start_game_button)
@@ -263,12 +361,14 @@ func _build_title_ui() -> void:
 	var map_page_title := Label.new()
 	map_page_title.text = "官方地图列表"
 	map_page_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	map_page_title.add_theme_font_size_override("font_size", 28)
+	map_page_title.add_theme_font_size_override("font_size", 32)
+	_apply_label_style(map_page_title, Color(0.18, 0.22, 0.45), 3)
 	box.add_child(map_page_title)
 	map_page_controls.append(map_page_title)
 
 	map_list = ItemList.new()
-	map_list.custom_minimum_size = Vector2(460.0, 190.0)
+	map_list.custom_minimum_size = Vector2(500.0, 210.0)
+	_style_item_list(map_list)
 	map_list.item_selected.connect(Callable(self, "_on_map_item_selected"))
 	for map_info in OFFICIAL_MAPS:
 		map_list.add_item(String(map_info.get("name", "官方地图")))
@@ -279,6 +379,7 @@ func _build_title_ui() -> void:
 	map_description_label = Label.new()
 	map_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	map_description_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_apply_label_style(map_description_label, Color(0.24, 0.25, 0.34), 1)
 	box.add_child(map_description_label)
 	map_page_controls.append(map_description_label)
 
@@ -290,11 +391,13 @@ func _build_title_ui() -> void:
 
 	var use_map_button := Button.new()
 	use_map_button.text = "使用选中地图"
+	_style_button(use_map_button, Color(0.25, 0.74, 0.48), Color(0.08, 0.38, 0.18))
 	use_map_button.pressed.connect(Callable(self, "_confirm_map_selection"))
 	map_page_buttons.add_child(use_map_button)
 
 	var back_map_button := Button.new()
 	back_map_button.text = "返回"
+	_style_button(back_map_button, Color(0.93, 0.45, 0.45), Color(0.56, 0.12, 0.12))
 	back_map_button.pressed.connect(Callable(self, "_close_map_page"))
 	map_page_buttons.add_child(back_map_button)
 
@@ -302,6 +405,7 @@ func _build_title_ui() -> void:
 	title_status.text = ""
 	title_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_apply_label_style(title_status, Color(0.25, 0.22, 0.32), 1)
 	box.add_child(title_status)
 	_set_lobby_visible(false)
 	_set_map_page_visible(false)
@@ -500,6 +604,7 @@ func _on_server_disconnected() -> void:
 	_show_title("与房主断开连接，已返回标题界面。")
 
 func _enter_lobby(message: String) -> void:
+	round_transition_token += 1
 	game_mode = "lobby"
 	_clear_characters()
 	if title_layer != null:
@@ -531,12 +636,21 @@ func _update_lobby_ui() -> void:
 		switch_role_button.visible = true
 	_update_map_ui()
 
+func _schedule_return_to_lobby_after_round() -> void:
+	if not multiplayer.is_server() or remote_peer_id == 0:
+		return
+	var token := round_transition_token
+	await get_tree().create_timer(MULTIPLAYER_RESULT_DELAY).timeout
+	if token != round_transition_token or game_mode != "host" or remote_peer_id == 0:
+		return
+	_return_to_lobby_after_round()
+
 func _return_to_lobby_after_round() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	host_is_runner = not host_is_runner
-	_enter_lobby("上一局结束，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "上一局结束，已自动交换追/被追。等待房主开始下一局。")
+	_enter_lobby("上一局结算完成，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
 
 func _local_lobby_role_text() -> String:
 	var is_host := multiplayer.is_server()
@@ -591,6 +705,7 @@ func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_
 	_start_network_round(client_id)
 
 func _start_network_round(client_id: int) -> void:
+	round_transition_token += 1
 	_clear_characters()
 	if not _load_active_map():
 		if title_status != null:
@@ -681,11 +796,14 @@ func _on_runner_survived() -> void:
 	caught = true
 	player.is_control_locked = true
 	tagger.is_active = false
-	center_label.text = "逃跑者胜利！\n成功坚持 %.2f 秒\n%s" % [time_alive, "按 R 重新开始" if game_mode == "single" else "房主按 R 重新开始"]
+	if game_mode == "single":
+		center_label.text = "逃跑者胜利！\n成功坚持 %.2f 秒\n按 R 重新开始" % time_alive
+	else:
+		center_label.text = "本局结束\n逃跑者胜利！\n成功坚持 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
 		rpc("_rpc_runner_survived", time_alive)
-		_return_to_lobby_after_round()
+		_schedule_return_to_lobby_after_round()
 
 @rpc("call_remote", "reliable")
 func _rpc_runner_survived(final_time: float) -> void:
@@ -695,7 +813,7 @@ func _rpc_runner_survived(final_time: float) -> void:
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "逃跑者胜利！\n成功坚持 %.2f 秒\n房主按 R 重新开始" % final_time
+	center_label.text = "本局结束\n逃跑者胜利！\n成功坚持 %.2f 秒\n等待房主返回房间并自动换边" % final_time
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _on_player_caught() -> void:
@@ -708,11 +826,14 @@ func _finish_runner_failed(reason: String) -> void:
 	caught = true
 	player.is_control_locked = true
 	tagger.is_active = false
-	center_label.text = "%s\n抓人者胜利\n坚持了 %.2f 秒\n%s" % [reason, time_alive, "按 R 重新开始" if game_mode == "single" else "房主按 R 重新开始"]
+	if game_mode == "single":
+		center_label.text = "%s\n抓人者胜利\n坚持了 %.2f 秒\n按 R 重新开始" % [reason, time_alive]
+	else:
+		center_label.text = "本局结束\n%s\n抓人者胜利\n坚持了 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [reason, time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
 		rpc("_rpc_runner_failed", time_alive, reason)
-		_return_to_lobby_after_round()
+		_schedule_return_to_lobby_after_round()
 
 @rpc("call_remote", "reliable")
 func _rpc_runner_failed(final_time: float, reason: String) -> void:
@@ -722,17 +843,17 @@ func _rpc_runner_failed(final_time: float, reason: String) -> void:
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "%s\n抓人者胜利\n坚持了 %.2f 秒\n房主按 R 重新开始" % [reason, final_time]
+	center_label.text = "本局结束\n%s\n抓人者胜利\n坚持了 %.2f 秒\n等待房主返回房间并自动换边" % [reason, final_time]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _setup_world() -> void:
 	var environment := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.045, 0.06, 0.09)
+	env.background_color = Color(0.48, 0.78, 1.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.64, 0.7, 0.82)
-	env.ambient_light_energy = 0.9
+	env.ambient_light_color = Color(0.95, 0.9, 0.78)
+	env.ambient_light_energy = 1.15
 	environment.environment = env
 	add_child(environment)
 
@@ -909,24 +1030,36 @@ func _build_hud() -> void:
 	hud_layer.name = "HUD"
 	add_child(hud_layer)
 
-	var panel := ColorRect.new()
-	panel.color = Color(0.0, 0.0, 0.0, 0.42)
-	panel.anchor_right = 1.0
-	panel.offset_bottom = 130.0
+	var panel := PanelContainer.new()
+	panel.position = Vector2(14.0, 14.0)
+	panel.custom_minimum_size = Vector2(610.0, 150.0)
+	panel.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.72, 0.88), Color(0.12, 0.18, 0.36), 4, 18, Vector2(0.0, 5.0), 12))
 	hud_layer.add_child(panel)
 
+	var hud_margin := MarginContainer.new()
+	hud_margin.add_theme_constant_override("margin_left", 14)
+	hud_margin.add_theme_constant_override("margin_right", 14)
+	hud_margin.add_theme_constant_override("margin_top", 10)
+	hud_margin.add_theme_constant_override("margin_bottom", 10)
+	panel.add_child(hud_margin)
+
 	hud_label = Label.new()
-	hud_label.position = Vector2(18.0, 12.0)
 	hud_label.add_theme_font_size_override("font_size", 18)
+	hud_label.add_theme_color_override("font_color", Color(0.11, 0.16, 0.31))
+	hud_label.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.72))
+	hud_label.add_theme_constant_override("outline_size", 2)
 	hud_label.text = ""
-	hud_layer.add_child(hud_label)
+	hud_margin.add_child(hud_label)
 
 	center_label = Label.new()
 	center_label.anchor_right = 1.0
 	center_label.anchor_bottom = 1.0
 	center_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	center_label.add_theme_font_size_override("font_size", 34)
+	center_label.add_theme_font_size_override("font_size", 38)
+	center_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.18))
+	center_label.add_theme_color_override("font_outline_color", Color(0.08, 0.09, 0.16))
+	center_label.add_theme_constant_override("outline_size", 8)
 	center_label.text = ""
 	hud_layer.add_child(center_label)
 	hud_layer.visible = false
