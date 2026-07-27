@@ -17,6 +17,8 @@ var camera: Camera3D
 var coyote_timer := 0.0
 var skin_id := "default"
 var spawn_position := Vector3.ZERO
+var move_speed_multiplier := 1.0
+var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
 
 func _ready() -> void:
@@ -38,6 +40,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_update_camera_collision()
 
 func _physics_process(delta: float) -> void:
+	if move_speed_effect_time > 0.0:
+		move_speed_effect_time = maxf(move_speed_effect_time - delta, 0.0)
+		if move_speed_effect_time <= 0.0:
+			move_speed_multiplier = 1.0
 	if is_control_locked:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
@@ -64,8 +70,9 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 
 	var accel := acceleration if is_on_floor() else air_acceleration
-	velocity.x = move_toward(velocity.x, wish_dir.x * walk_speed, accel * delta)
-	velocity.z = move_toward(velocity.z, wish_dir.z * walk_speed, accel * delta)
+	var current_walk_speed := walk_speed * move_speed_multiplier
+	velocity.x = move_toward(velocity.x, wish_dir.x * current_walk_speed, accel * delta)
+	velocity.z = move_toward(velocity.z, wish_dir.z * current_walk_speed, accel * delta)
 	move_and_slide()
 	_update_camera_collision()
 
@@ -73,6 +80,22 @@ func _respawn() -> void:
 	global_position = spawn_position
 	velocity = Vector3.ZERO
 	coyote_timer = 0.0
+	move_speed_multiplier = 1.0
+	move_speed_effect_time = 0.0
+
+func apply_speed_multiplier(multiplier: float, duration: float) -> void:
+	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
+	move_speed_effect_time = maxf(duration, 0.0)
+
+func get_throw_origin() -> Vector3:
+	if camera_pivot != null:
+		return camera_pivot.global_position + -camera_pivot.global_transform.basis.z.normalized() * 0.4
+	return global_position + Vector3.UP * 1.15
+
+func get_throw_direction() -> Vector3:
+	if camera_pivot != null:
+		return -camera_pivot.global_transform.basis.z.normalized()
+	return -global_transform.basis.z.normalized()
 
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor() and velocity.y < 0.0:

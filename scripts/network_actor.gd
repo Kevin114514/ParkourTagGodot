@@ -25,6 +25,8 @@ var remote_rotation_y := 0.0
 var remote_velocity := Vector3.ZERO
 var sync_timer := 0.0
 var spawn_position := Vector3.ZERO
+var move_speed_multiplier := 1.0
+var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
 
 func configure(new_role: String, peer_id: int, new_skin_id: String = "default") -> void:
@@ -36,7 +38,7 @@ func configure(new_role: String, peer_id: int, new_skin_id: String = "default") 
 func _ready() -> void:
 	spawn_position = global_position
 	set_multiplayer_authority(owner_peer_id)
-	local_control = owner_peer_id == multiplayer.get_unique_id()
+	local_control = multiplayer.multiplayer_peer == null or owner_peer_id == multiplayer.get_unique_id()
 	collision_layer = 4 if role == "tagger" else 2
 	collision_mask = 1
 	floor_max_angle = deg_to_rad(50.0)
@@ -65,6 +67,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x - event.relative.y * mouse_sensitivity, min_pitch, max_pitch)
 
 func _physics_process(delta: float) -> void:
+	if move_speed_effect_time > 0.0:
+		move_speed_effect_time = maxf(move_speed_effect_time - delta, 0.0)
+		if move_speed_effect_time <= 0.0:
+			move_speed_multiplier = 1.0
 	if local_control and role == "tagger" and global_position.y < VOID_Y:
 		_respawn()
 		_send_state(999.0)
@@ -101,8 +107,9 @@ func _physics_process(delta: float) -> void:
 
 	_apply_gravity(delta)
 	var accel := acceleration if is_on_floor() else air_acceleration
-	velocity.x = move_toward(velocity.x, wish_dir.x * move_speed, accel * delta)
-	velocity.z = move_toward(velocity.z, wish_dir.z * move_speed, accel * delta)
+	var current_move_speed := move_speed * move_speed_multiplier
+	velocity.x = move_toward(velocity.x, wish_dir.x * current_move_speed, accel * delta)
+	velocity.z = move_toward(velocity.z, wish_dir.z * current_move_speed, accel * delta)
 	move_and_slide()
 	_update_camera_collision()
 	_send_state(delta)
@@ -113,6 +120,12 @@ func _respawn() -> void:
 	coyote_timer = 0.0
 	remote_position = spawn_position
 	remote_velocity = Vector3.ZERO
+	move_speed_multiplier = 1.0
+	move_speed_effect_time = 0.0
+
+func apply_speed_multiplier(multiplier: float, duration: float) -> void:
+	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
+	move_speed_effect_time = maxf(duration, 0.0)
 
 func _send_state(delta: float) -> void:
 	if multiplayer.multiplayer_peer == null:
@@ -268,6 +281,16 @@ func get_catch_origin() -> Vector3:
 	return global_position + Vector3.UP * 1.0
 
 func get_catch_direction() -> Vector3:
+	if local_control and camera_pivot != null:
+		return -camera_pivot.global_transform.basis.z.normalized()
+	return -global_transform.basis.z.normalized()
+
+func get_throw_origin() -> Vector3:
+	if local_control and camera_pivot != null:
+		return camera_pivot.global_position + -camera_pivot.global_transform.basis.z.normalized() * 0.4
+	return global_position + Vector3.UP * 1.15
+
+func get_throw_direction() -> Vector3:
 	if local_control and camera_pivot != null:
 		return -camera_pivot.global_transform.basis.z.normalized()
 	return -global_transform.basis.z.normalized()

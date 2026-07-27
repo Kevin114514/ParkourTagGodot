@@ -191,6 +191,10 @@ static func _add_model(root: Node3D, data: Dictionary, map_path: String) -> Stat
 	body.add_child(instance)
 	if data.has("material") or data.has("texture"):
 		_apply_material_to_meshes(instance, _material_from_data(data, map_path, Color.WHITE))
+	var material_overrides: Dictionary = data["material_overrides"] if data.has("material_overrides") and typeof(data["material_overrides"]) == TYPE_DICTIONARY else {}
+	var node_material_overrides: Dictionary = data["node_material_overrides"] if data.has("node_material_overrides") and typeof(data["node_material_overrides"]) == TYPE_DICTIONARY else {}
+	if not material_overrides.is_empty() or not node_material_overrides.is_empty():
+		_apply_material_overrides_to_meshes(instance, material_overrides, node_material_overrides, map_path)
 
 	var mode := _collision_mode(data, "mesh")
 	if mode == "none":
@@ -296,6 +300,35 @@ static func _apply_material_to_meshes(node: Node, material: StandardMaterial3D) 
 		(node as MeshInstance3D).material_override = material
 	for child in node.get_children():
 		_apply_material_to_meshes(child, material)
+
+static func _apply_material_overrides_to_meshes(node: Node, material_overrides: Dictionary, node_overrides: Dictionary, map_path: String) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		var matched_surface := false
+		if mesh_instance.mesh != null:
+			for surface in range(mesh_instance.mesh.get_surface_count()):
+				var surface_material := mesh_instance.mesh.surface_get_material(surface)
+				if surface_material == null:
+					continue
+				var material_name := surface_material.resource_name
+				if material_overrides.has(material_name) and typeof(material_overrides[material_name]) == TYPE_DICTIONARY:
+					var override_material := _material_from_data(material_overrides[material_name], map_path, Color.WHITE)
+					override_material.resource_name = material_name
+					mesh_instance.set_surface_override_material(surface, override_material)
+					matched_surface = true
+		if not matched_surface:
+			var node_data := _find_node_material_override(mesh_instance.name, node_overrides)
+			if not node_data.is_empty():
+				mesh_instance.material_override = _material_from_data(node_data, map_path, Color.WHITE)
+	for child in node.get_children():
+		_apply_material_overrides_to_meshes(child, material_overrides, node_overrides, map_path)
+
+static func _find_node_material_override(node_name: String, overrides: Dictionary) -> Dictionary:
+	for key in overrides.keys():
+		var prefix := String(key)
+		if node_name.begins_with(prefix) and typeof(overrides[key]) == TYPE_DICTIONARY:
+			return overrides[key]
+	return {}
 
 static func _material_from_data(data: Dictionary, map_path: String, default_color: Color) -> StandardMaterial3D:
 	var material_data := data

@@ -14,7 +14,64 @@
       "collision": "mesh",
       "collision_layer": 1,
       "collision_mask": 1,
-      "visible": true
+      "visible": true,
+      "material_overrides": {
+        "Ground_Mat": {
+          "color": "#31572c",
+          "roughness": 0.94
+        },
+        "Bush_Mat": {
+          "color": "#1f7a2e",
+          "roughness": 0.86
+        },
+        "Leaf_Mat": {
+          "color": "#2f8f2f",
+          "roughness": 0.84
+        },
+        "Wood_Mat": {
+          "color": "#5a351c",
+          "roughness": 0.88
+        },
+        "Rock_Mat": {
+          "color": "#626866",
+          "roughness": 0.9
+        },
+        "Water_Mat": {
+          "color": "#0d6ba5cc",
+          "roughness": 0.18,
+          "metallic": 0.0
+        }
+      },
+      "node_material_overrides": {
+        "IslandTerrain": {
+          "color": "#31572c",
+          "roughness": 0.94
+        },
+        "Bush": {
+          "color": "#1f7a2e",
+          "roughness": 0.86
+        },
+        "Tree": {
+          "color": "#2f8f2f",
+          "roughness": 0.84
+        },
+        "Rock": {
+          "color": "#626866",
+          "roughness": 0.9
+        },
+        "ShoreRock": {
+          "color": "#626866",
+          "roughness": 0.9
+        },
+        "Ocean": {
+          "color": "#0d6ba5cc",
+          "roughness": 0.18
+        },
+        "LakeWater": {
+          "color": "#0d6ba5cc",
+          "roughness": 0.18
+        }
+      }
     }
   ]
 }

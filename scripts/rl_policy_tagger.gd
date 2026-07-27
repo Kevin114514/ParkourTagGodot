@@ -2,7 +2,7 @@ extends "res://scripts/tagger.gd"
 
 const POLICY_PATH := "res://rl/trained_policy.json"
 const VERTICAL_FALLBACK_GAP := 0.8
-const CATCH_ATTEMPT_DISTANCE := 1.7
+const CATCH_ATTEMPT_DISTANCE := 2.5
 const ACTION_STEPS = [
 	Vector2i(1, 0),
 	Vector2i(-1, 0),
@@ -60,7 +60,10 @@ func _physics_process(delta: float) -> void:
 	vertical_fallback_active = false
 
 	var move_dir := _policy_move_dir()
-	if wants_catch_attempt:
+	if _is_close_enough_for_catch():
+		wants_catch_attempt = true
+		move_dir = _direction_to_target()
+	elif wants_catch_attempt:
 		move_dir = _direction_to_target()
 	elif move_dir.length_squared() < 0.01:
 		super._physics_process(delta)
@@ -72,7 +75,7 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	if velocity.y > MAX_UPWARD_VELOCITY:
 		velocity.y = MAX_UPWARD_VELOCITY
-	var target_speed := 0.0 if wants_catch_attempt else chase_speed
+	var target_speed: float = 0.0 if wants_catch_attempt else chase_speed * move_speed_multiplier
 	velocity.x = move_toward(velocity.x, move_dir.x * target_speed, acceleration * delta)
 	velocity.z = move_toward(velocity.z, move_dir.z * target_speed, acceleration * delta)
 
@@ -89,8 +92,15 @@ func _should_use_vertical_fallback(vertical_gap: float) -> bool:
 func _is_close_enough_for_catch() -> bool:
 	if target == null:
 		return false
-	var target_point: Vector3 = target.global_position + Vector3.UP * 0.85
-	return get_catch_origin().distance_to(target_point) <= CATCH_ATTEMPT_DISTANCE
+	var to_target := target.global_position - global_position
+	to_target.y = 0.0
+	if to_target.length() > CATCH_ATTEMPT_DISTANCE or to_target.length_squared() < 0.01:
+		return false
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	if forward.length_squared() < 0.01:
+		return false
+	return forward.normalized().dot(to_target.normalized()) >= -0.05
 
 func _hold_and_face_for_catch(delta: float) -> void:
 	var move_dir := _direction_to_target()

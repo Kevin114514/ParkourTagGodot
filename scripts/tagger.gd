@@ -23,6 +23,8 @@ var wall_follow_timer := 0.0
 var repath_timer := 0.0
 var skin_id := "default"
 var spawn_position := Vector3.ZERO
+var move_speed_multiplier := 1.0
+var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
 
 func _ready() -> void:
@@ -118,8 +120,9 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	if velocity.y > MAX_UPWARD_VELOCITY:
 		velocity.y = MAX_UPWARD_VELOCITY
-	velocity.x = move_toward(velocity.x, move_dir.x * chase_speed, acceleration * delta)
-	velocity.z = move_toward(velocity.z, move_dir.z * chase_speed, acceleration * delta)
+	var current_chase_speed := chase_speed * move_speed_multiplier
+	velocity.x = move_toward(velocity.x, move_dir.x * current_chase_speed, acceleration * delta)
+	velocity.z = move_toward(velocity.z, move_dir.z * current_chase_speed, acceleration * delta)
 
 	if move_dir.length_squared() > 0.01:
 		look_at(global_position + move_dir, Vector3.UP)
@@ -136,7 +139,19 @@ func _respawn() -> void:
 	wall_follow_dir = Vector3.ZERO
 	wall_follow_timer = 0.0
 	repath_timer = 0.0
+	move_speed_multiplier = 1.0
+	move_speed_effect_time = 0.0
 	last_position = global_position
+
+func _update_speed_effect(delta: float) -> void:
+	if move_speed_effect_time > 0.0:
+		move_speed_effect_time = maxf(move_speed_effect_time - delta, 0.0)
+		if move_speed_effect_time <= 0.0:
+			move_speed_multiplier = 1.0
+
+func apply_speed_multiplier(multiplier: float, duration: float) -> void:
+	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
+	move_speed_effect_time = maxf(duration, 0.0)
 
 func _line_to_target_blocked() -> bool:
 	var from: Vector3 = global_position + Vector3.UP * 0.9
