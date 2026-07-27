@@ -2507,4 +2507,6 @@ func _rpc_remove_flying_throwable(projectile_id: int, impact_position: Vector3) 
 @rpc("call_remote", "reliable")
 func _rpc_apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3) -> void:
 	if tagger != null and is_instance_valid(tagger) and tagger.has_method("apply_speed_multiplier"):
-		tagger.apply_speed_mult
+		tagger.apply_speed_multiplier(multiplier, duration)
+		_start_tagger_slow_particles(duration)
+	_play_throwable_hit_effect(impact_position)

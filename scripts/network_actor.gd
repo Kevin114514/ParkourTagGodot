@@ -99,7 +99,7 @@ func _physics_process(delta: float) -> void:
 		coyote_timer = maxf(coyote_timer - delta, 0.0)
 
 	if Input.is_action_just_pressed("jump"):
-		if role == "runner" and _try_vault(wish_dir):
+		if _try_vault(wish_dir):
 			pass
 		elif is_on_floor() or coyote_timer > 0.0:
 			velocity.y = jump_velocity

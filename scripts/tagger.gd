@@ -38,6 +38,7 @@ func _ready() -> void:
 	_build_body()
 
 func _physics_process(delta: float) -> void:
+	_update_speed_effect(delta)
 	if global_position.y < VOID_Y:
 		_respawn()
 
