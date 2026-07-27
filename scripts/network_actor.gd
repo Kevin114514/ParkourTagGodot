@@ -37,7 +37,7 @@ func _ready() -> void:
 	floor_snap_length = 0.45
 	if role == "tagger":
 		move_speed = 7.8
-		jump_velocity = 7.4
+		jump_velocity = 8.0
 		acceleration = 24.0
 	else:
 		move_speed = 7.0
