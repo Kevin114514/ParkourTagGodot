@@ -38,6 +38,9 @@ const THROWABLE_SLOW_MULTIPLIER := 0.58
 const THROWABLE_SLOW_DURATION := 2.6
 const THROWABLE_MIN_SPAWN_GAP := 4.5
 const THROWABLE_SPAWN_ATTEMPTS := 32
+const THROWABLE_SPAWN_CLEARANCE_HEIGHT := 1.8
+const THROWABLE_SPAWN_CLEARANCE_RADIUS := 0.32
+const THROWABLE_MIN_SURFACE_NORMAL_Y := 0.7
 const THROWABLE_THROW_ORIGIN_TOLERANCE := 2.4
 const THROWABLE_TRAJECTORY_STEPS := 34
 const THROWABLE_TRAJECTORY_STEP_TIME := 0.065
@@ -2696,7 +2699,6 @@ func _find_throwable_spawn_position():
 	# Clamp the search radius so probes stay inside compact maps instead of
 	# overshooting the map bounds (which previously yielded zero valid spawns).
 	var max_radius := clampf(span * 0.5, 10.0, 26.0)
-	var ground_level := (runner_spawn_position.y + tagger_spawn_position.y) * 0.5
 	var space_state := get_world_3d().direct_space_state
 	var total_attempts: int = maxi(THROWABLE_SPAWN_ATTEMPTS, 64)
 	for attempt in range(total_attempts):
@@ -2714,19 +2716,21 @@ func _find_throwable_spawn_position():
 			2:
 				origin = tagger_spawn_position
 		var probe := origin + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
-		var from := probe + Vector3.UP * 12.0
-		var to := probe + Vector3.DOWN * 24.0
+		# 从地图上方寻找暴露的上表面，不再限制必须与出生点处于同一高度。
+		var from := probe + Vector3.UP * 64.0
+		var to := probe + Vector3.DOWN * 128.0
 		var query := PhysicsRayQueryParameters3D.create(from, to)
 		query.collision_mask = 1
 		var hit := space_state.intersect_ray(query)
 		if hit.is_empty():
 			continue
-		var position: Vector3 = hit.get("position", probe)
-		# Reject hits that landed on an upper floor / roof so items stay on the
-		# level the players start on and remain reachable.
-		if position.y - ground_level > 2.5:
+		var surface_normal: Vector3 = hit.get("normal", Vector3.ZERO)
+		if surface_normal.y < THROWABLE_MIN_SURFACE_NORMAL_Y:
 			continue
-		position.y += 0.28
+		var surface_position: Vector3 = hit.get("position", probe)
+		if not _has_throwable_spawn_clearance(surface_position, space_state):
+			continue
+		var position := surface_position + Vector3.UP * 0.28
 		if position.distance_to(runner_spawn_position) < 4.0 or position.distance_to(tagger_spawn_position) < 4.0:
 			continue
 		var too_close := false
@@ -2739,6 +2743,19 @@ func _find_throwable_spawn_position():
 			continue
 		return position
 	return null
+
+func _has_throwable_spawn_clearance(surface_position: Vector3, space_state: PhysicsDirectSpaceState3D) -> bool:
+	var clearance_shape := CylinderShape3D.new()
+	clearance_shape.radius = THROWABLE_SPAWN_CLEARANCE_RADIUS
+	clearance_shape.height = THROWABLE_SPAWN_CLEARANCE_HEIGHT
+	var clearance_query := PhysicsShapeQueryParameters3D.new()
+	clearance_query.shape = clearance_shape
+	clearance_query.transform = Transform3D(
+		Basis(),
+		surface_position + Vector3.UP * (THROWABLE_SPAWN_CLEARANCE_HEIGHT * 0.5 + 0.05)
+	)
+	clearance_query.collision_mask = 1
+	return space_state.intersect_shape(clearance_query, 1).is_empty()
 
 func _spawn_ground_throwable(position: Vector3, item_id: int = -1) -> int:
 	_ensure_throwable_root()
