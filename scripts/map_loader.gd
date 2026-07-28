@@ -1,5 +1,7 @@
 extends RefCounted
 
+const FlickerScript = preload("res://scripts/light_flicker.gd")
+
 const DEFAULT_RUNNER_SPAWN := Vector3(-23.0, 0.12, 22.0)
 const DEFAULT_TAGGER_SPAWN := Vector3(23.0, 0.12, -22.0)
 
@@ -282,7 +284,27 @@ static func _add_light(root: Node3D, data: Dictionary, context: Dictionary) -> L
 	light.shadow_enabled = _to_bool(data.get("shadow", false), false)
 	_apply_transform(light, data)
 	root.add_child(light)
+	_apply_light_flicker(light, data)
 	return light
+
+static func _apply_light_flicker(light: Light3D, data: Dictionary) -> void:
+	if not data.has("flicker"):
+		return
+	var raw = data["flicker"]
+	var cfg := {}
+	if typeof(raw) == TYPE_DICTIONARY:
+		cfg = raw
+	elif not _to_bool(raw, false):
+		return
+	var node := FlickerScript.new()
+	node.name = "Flicker"
+	node.target = light
+	node.base_energy = light.light_energy
+	node.mode = String(cfg.get("mode", "flicker")).to_lower()
+	node.frequency = float(cfg.get("frequency", 9.0))
+	node.min_energy = float(cfg.get("min", 0.12))
+	node.max_energy = float(cfg.get("max", 1.0))
+	light.add_child(node)
 
 static func _add_decal(root: Node3D, data: Dictionary, context: Dictionary) -> Decal:
 	var decal := Decal.new()

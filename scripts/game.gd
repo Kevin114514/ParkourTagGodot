@@ -99,6 +99,11 @@ const OFFICIAL_MAPS = [
 		"name": "城市训练工地",
 		"path": "res://maps/urban_training_site.json",
 		"description": "v2 写实标杆地图：工业街区、仓库灯光、二层平台、低障碍翻越点和清晰追逐路线。"
+	},
+	{
+		"name": "猴子旅馆走廊",
+		"path": "res://maps/monkey_hotel_corridors.json",
+		"description": "昏暗压抑的旅馆迷宫走廊：低环境光配暗红体积雾，沿路贴顶灯座投下昏黄点光，只照亮近处路径，灯与灯之间陷入黑暗。"
 	}
 ]
 

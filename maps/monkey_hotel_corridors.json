@@ -1,0 +1,9423 @@
+{
+  "format_version": 2,
+  "name": "猴子酒店回廊迷宫",
+  "runner_spawn": [
+    -36.0,
+    0.12,
+    -36.0
+  ],
+  "tagger_spawn": [
+    36.0,
+    0.12,
+    36.0
+  ],
+  "environment": {
+    "background": "color",
+    "background_color": [
+      0.015,
+      0.01,
+      0.015
+    ],
+    "sky_color": [
+      0.015,
+      0.01,
+      0.015
+    ],
+    "ambient_color": [
+      0.16,
+      0.12,
+      0.13
+    ],
+    "ambient_energy": 0.36,
+    "fog_enabled": true,
+    "fog_color": [
+      0.045,
+      0.03,
+      0.032
+    ],
+    "fog_density": 0.026,
+    "tonemap": "filmic",
+    "exposure": 0.9,
+    "glow": true,
+    "sun": {
+      "rotation_degrees": [
+        -70.0,
+        25.0,
+        0.0
+      ],
+      "energy": 0.06,
+      "color": [
+        0.4,
+        0.28,
+        0.3
+      ],
+      "shadow": false
+    }
+  },
+  "objects": [
+    {
+      "type": "box",
+      "name": "Ground",
+      "position": [
+        0.0,
+        -0.15,
+        0.0
+      ],
+      "size": [
+        83.0,
+        0.3,
+        83.0
+      ],
+      "color": [
+        0.09,
+        0.06,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "BoundN",
+      "position": [
+        0.0,
+        1.8,
+        -40.5
+      ],
+      "size": [
+        81.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "BoundS",
+      "position": [
+        0.0,
+        1.8,
+        40.5
+      ],
+      "size": [
+        81.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "BoundW",
+      "position": [
+        -40.5,
+        1.8,
+        0.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        81.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "BoundE",
+      "position": [
+        40.5,
+        1.8,
+        0.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        81.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_0",
+      "position": [
+        -31.5,
+        1.8,
+        -9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_1",
+      "position": [
+        -31.5,
+        1.8,
+        0.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_2",
+      "position": [
+        -36.0,
+        1.8,
+        22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_3",
+      "position": [
+        -22.5,
+        1.8,
+        -36.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_4",
+      "position": [
+        -27.0,
+        1.8,
+        -22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_5",
+      "position": [
+        -22.5,
+        1.8,
+        -18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_6",
+      "position": [
+        -22.5,
+        1.8,
+        -9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_7",
+      "position": [
+        -22.5,
+        1.8,
+        0.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_8",
+      "position": [
+        -22.5,
+        1.8,
+        9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_9",
+      "position": [
+        -27.0,
+        1.8,
+        13.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_10",
+      "position": [
+        -27.0,
+        1.8,
+        22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_11",
+      "position": [
+        -27.0,
+        1.8,
+        31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_12",
+      "position": [
+        -13.5,
+        1.8,
+        -27.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_13",
+      "position": [
+        -13.5,
+        1.8,
+        0.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_14",
+      "position": [
+        -13.5,
+        1.8,
+        9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_15",
+      "position": [
+        -13.5,
+        1.8,
+        18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_16",
+      "position": [
+        -18.0,
+        1.8,
+        31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_17",
+      "position": [
+        -4.5,
+        1.8,
+        -36.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_18",
+      "position": [
+        -9.0,
+        1.8,
+        -22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_19",
+      "position": [
+        -4.5,
+        1.8,
+        -18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_20",
+      "position": [
+        -9.0,
+        1.8,
+        -4.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_21",
+      "position": [
+        -4.5,
+        1.8,
+        9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_22",
+      "position": [
+        -9.0,
+        1.8,
+        22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_23",
+      "position": [
+        -4.5,
+        1.8,
+        27.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_24",
+      "position": [
+        0.0,
+        1.8,
+        -22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_25",
+      "position": [
+        4.5,
+        1.8,
+        -9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_26",
+      "position": [
+        0.0,
+        1.8,
+        4.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_27",
+      "position": [
+        4.5,
+        1.8,
+        18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_28",
+      "position": [
+        0.0,
+        1.8,
+        31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_29",
+      "position": [
+        9.0,
+        1.8,
+        -31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_30",
+      "position": [
+        9.0,
+        1.8,
+        -22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_31",
+      "position": [
+        13.5,
+        1.8,
+        -18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_32",
+      "position": [
+        9.0,
+        1.8,
+        13.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_33",
+      "position": [
+        9.0,
+        1.8,
+        31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_34",
+      "position": [
+        18.0,
+        1.8,
+        -31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_35",
+      "position": [
+        18.0,
+        1.8,
+        -22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_36",
+      "position": [
+        18.0,
+        1.8,
+        4.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_37",
+      "position": [
+        18.0,
+        1.8,
+        22.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_38",
+      "position": [
+        18.0,
+        1.8,
+        31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_39",
+      "position": [
+        27.0,
+        1.8,
+        -31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_40",
+      "position": [
+        31.5,
+        1.8,
+        -27.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_41",
+      "position": [
+        31.5,
+        1.8,
+        -18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_42",
+      "position": [
+        31.5,
+        1.8,
+        -9.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_43",
+      "position": [
+        27.0,
+        1.8,
+        -4.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_44",
+      "position": [
+        27.0,
+        1.8,
+        4.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_45",
+      "position": [
+        27.0,
+        1.8,
+        13.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_46",
+      "position": [
+        31.5,
+        1.8,
+        18.0
+      ],
+      "size": [
+        0.5,
+        3.6,
+        9.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_47",
+      "position": [
+        27.0,
+        1.8,
+        31.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Wall_48",
+      "position": [
+        36.0,
+        1.8,
+        4.5
+      ],
+      "size": [
+        9.5,
+        3.6,
+        0.5
+      ],
+      "color": [
+        0.14,
+        0.09,
+        0.1
+      ]
+    },
+    {
+      "type": "box",
+      "name": "Ceiling",
+      "position": [
+        0.0,
+        3.75,
+        0.0
+      ],
+      "size": [
+        83.0,
+        0.3,
+        83.0
+      ],
+      "color": [
+        0.1,
+        0.06,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "LampFix_0",
+      "position": [
+        -36.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_1",
+      "position": [
+        -36.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_2",
+      "position": [
+        -36.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_3",
+      "position": [
+        -36.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_4",
+      "position": [
+        -36.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_5",
+      "position": [
+        -36.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_6",
+      "position": [
+        -36.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_7",
+      "position": [
+        -36.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_8",
+      "position": [
+        -36.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_9",
+      "position": [
+        -27.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_10",
+      "position": [
+        -27.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_11",
+      "position": [
+        -27.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_12",
+      "position": [
+        -27.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_13",
+      "position": [
+        -27.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_14",
+      "position": [
+        -27.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_15",
+      "position": [
+        -27.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_16",
+      "position": [
+        -27.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_17",
+      "position": [
+        -27.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_18",
+      "position": [
+        -18.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_19",
+      "position": [
+        -18.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_20",
+      "position": [
+        -18.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_21",
+      "position": [
+        -18.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_22",
+      "position": [
+        -18.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_23",
+      "position": [
+        -18.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_24",
+      "position": [
+        -18.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_25",
+      "position": [
+        -18.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_26",
+      "position": [
+        -18.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_27",
+      "position": [
+        -9.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_28",
+      "position": [
+        -9.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_29",
+      "position": [
+        -9.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_30",
+      "position": [
+        -9.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_31",
+      "position": [
+        -9.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_32",
+      "position": [
+        -9.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_33",
+      "position": [
+        -9.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_34",
+      "position": [
+        -9.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_35",
+      "position": [
+        -9.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_36",
+      "position": [
+        0.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_37",
+      "position": [
+        0.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_38",
+      "position": [
+        0.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_39",
+      "position": [
+        0.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_40",
+      "position": [
+        0.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_41",
+      "position": [
+        0.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_42",
+      "position": [
+        0.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_43",
+      "position": [
+        0.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_44",
+      "position": [
+        0.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_45",
+      "position": [
+        9.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_46",
+      "position": [
+        9.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_47",
+      "position": [
+        9.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_48",
+      "position": [
+        9.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_49",
+      "position": [
+        9.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_50",
+      "position": [
+        9.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_51",
+      "position": [
+        9.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_52",
+      "position": [
+        9.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_53",
+      "position": [
+        9.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_54",
+      "position": [
+        18.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_55",
+      "position": [
+        18.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_56",
+      "position": [
+        18.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_57",
+      "position": [
+        18.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_58",
+      "position": [
+        18.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_59",
+      "position": [
+        18.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_60",
+      "position": [
+        18.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_61",
+      "position": [
+        18.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_62",
+      "position": [
+        18.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_63",
+      "position": [
+        27.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_64",
+      "position": [
+        27.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_65",
+      "position": [
+        27.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_66",
+      "position": [
+        27.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_67",
+      "position": [
+        27.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_68",
+      "position": [
+        27.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_69",
+      "position": [
+        27.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_70",
+      "position": [
+        27.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_71",
+      "position": [
+        27.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_72",
+      "position": [
+        36.0,
+        3.5,
+        -36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_73",
+      "position": [
+        36.0,
+        3.5,
+        -27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_74",
+      "position": [
+        36.0,
+        3.5,
+        -18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_75",
+      "position": [
+        36.0,
+        3.5,
+        -9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_76",
+      "position": [
+        36.0,
+        3.5,
+        0.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_77",
+      "position": [
+        36.0,
+        3.5,
+        9.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_78",
+      "position": [
+        36.0,
+        3.5,
+        18.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_79",
+      "position": [
+        36.0,
+        3.5,
+        27.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "LampFix_80",
+      "position": [
+        36.0,
+        3.5,
+        36.0
+      ],
+      "size": [
+        0.7,
+        0.14,
+        0.7
+      ],
+      "color": [
+        0.9,
+        0.6,
+        0.35
+      ],
+      "collision": false,
+      "emission": [
+        1.0,
+        0.62,
+        0.26
+      ],
+      "emission_energy": 2.2
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_0",
+      "position": [
+        -36.0,
+        2.0,
+        -40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_0",
+      "position": [
+        -36.0,
+        2.0,
+        -40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_1",
+      "position": [
+        -40.2,
+        2.0,
+        -27.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_1",
+      "position": [
+        -40.17,
+        2.0,
+        -27.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_2",
+      "position": [
+        -40.2,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_2",
+      "position": [
+        -40.17,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_3",
+      "position": [
+        -40.2,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_3",
+      "position": [
+        -40.17,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_4",
+      "position": [
+        -31.8,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_4",
+      "position": [
+        -31.83,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_5",
+      "position": [
+        -40.2,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_5",
+      "position": [
+        -40.17,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_6",
+      "position": [
+        -36.0,
+        2.0,
+        22.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_6",
+      "position": [
+        -36.0,
+        2.0,
+        22.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_7",
+      "position": [
+        -40.2,
+        2.0,
+        27.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_7",
+      "position": [
+        -40.17,
+        2.0,
+        27.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_8",
+      "position": [
+        -36.0,
+        2.0,
+        40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_8",
+      "position": [
+        -36.0,
+        2.0,
+        40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_9",
+      "position": [
+        -22.8,
+        2.0,
+        -36.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_9",
+      "position": [
+        -22.83,
+        2.0,
+        -36.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_10",
+      "position": [
+        -27.0,
+        2.0,
+        -22.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_10",
+      "position": [
+        -27.0,
+        2.0,
+        -22.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_11",
+      "position": [
+        -22.8,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_11",
+      "position": [
+        -22.83,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_12",
+      "position": [
+        -22.8,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_12",
+      "position": [
+        -22.83,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_13",
+      "position": [
+        -31.2,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_13",
+      "position": [
+        -31.17,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_14",
+      "position": [
+        -22.8,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_14",
+      "position": [
+        -22.83,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_15",
+      "position": [
+        -27.0,
+        2.0,
+        22.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_15",
+      "position": [
+        -27.0,
+        2.0,
+        22.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_16",
+      "position": [
+        -27.0,
+        2.0,
+        22.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_16",
+      "position": [
+        -27.0,
+        2.0,
+        22.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_17",
+      "position": [
+        -27.0,
+        2.0,
+        40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_17",
+      "position": [
+        -27.0,
+        2.0,
+        40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_18",
+      "position": [
+        -18.0,
+        2.0,
+        -40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_18",
+      "position": [
+        -18.0,
+        2.0,
+        -40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_19",
+      "position": [
+        -13.8,
+        2.0,
+        -27.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_19",
+      "position": [
+        -13.83,
+        2.0,
+        -27.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_20",
+      "position": [
+        -22.2,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_20",
+      "position": [
+        -22.17,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.16,
+        0.16
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_21",
+      "position": [
+        -22.2,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_21",
+      "position": [
+        -22.17,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_22",
+      "position": [
+        -13.8,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_22",
+      "position": [
+        -13.83,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_23",
+      "position": [
+        -22.2,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_23",
+      "position": [
+        -22.17,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "collision": false,
+      "emission": [
+        0.62,
+        0.36,
+        0.13
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_24",
+      "position": [
+        -13.8,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_24",
+      "position": [
+        -13.83,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_25",
+      "position": [
+        -18.0,
+        2.0,
+        31.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_25",
+      "position": [
+        -18.0,
+        2.0,
+        31.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_26",
+      "position": [
+        -18.0,
+        2.0,
+        31.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_26",
+      "position": [
+        -18.0,
+        2.0,
+        31.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.52,
+        0.14
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_27",
+      "position": [
+        -4.8,
+        2.0,
+        -36.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_27",
+      "position": [
+        -4.83,
+        2.0,
+        -36.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_28",
+      "position": [
+        -9.0,
+        2.0,
+        -22.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_28",
+      "position": [
+        -9.0,
+        2.0,
+        -22.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_29",
+      "position": [
+        -4.8,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_29",
+      "position": [
+        -4.83,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_30",
+      "position": [
+        -9.0,
+        2.0,
+        -4.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_30",
+      "position": [
+        -9.0,
+        2.0,
+        -4.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_31",
+      "position": [
+        -13.2,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_31",
+      "position": [
+        -13.17,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_32",
+      "position": [
+        -4.8,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_32",
+      "position": [
+        -4.83,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_33",
+      "position": [
+        -13.2,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_33",
+      "position": [
+        -13.17,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_34",
+      "position": [
+        -9.0,
+        2.0,
+        22.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_34",
+      "position": [
+        -9.0,
+        2.0,
+        22.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_35",
+      "position": [
+        -9.0,
+        2.0,
+        40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_35",
+      "position": [
+        -9.0,
+        2.0,
+        40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_36",
+      "position": [
+        0.0,
+        2.0,
+        -40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_36",
+      "position": [
+        0.0,
+        2.0,
+        -40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_37",
+      "position": [
+        0.0,
+        2.0,
+        -22.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_37",
+      "position": [
+        0.0,
+        2.0,
+        -22.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_38",
+      "position": [
+        0.0,
+        2.0,
+        -22.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_38",
+      "position": [
+        0.0,
+        2.0,
+        -22.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_39",
+      "position": [
+        4.2,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_39",
+      "position": [
+        4.17,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_40",
+      "position": [
+        0.0,
+        2.0,
+        4.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_40",
+      "position": [
+        0.0,
+        2.0,
+        4.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_41",
+      "position": [
+        -4.2,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_41",
+      "position": [
+        -4.17,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_42",
+      "position": [
+        4.2,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_42",
+      "position": [
+        4.17,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_43",
+      "position": [
+        -4.2,
+        2.0,
+        27.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_43",
+      "position": [
+        -4.17,
+        2.0,
+        27.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_44",
+      "position": [
+        0.0,
+        2.0,
+        31.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_44",
+      "position": [
+        0.0,
+        2.0,
+        31.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_45",
+      "position": [
+        9.0,
+        2.0,
+        -31.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_45",
+      "position": [
+        9.0,
+        2.0,
+        -31.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_46",
+      "position": [
+        9.0,
+        2.0,
+        -31.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_46",
+      "position": [
+        9.0,
+        2.0,
+        -31.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_47",
+      "position": [
+        13.2,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_47",
+      "position": [
+        13.17,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.52,
+        0.22
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_48",
+      "position": [
+        4.8,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_48",
+      "position": [
+        4.83,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_49",
+      "position": [
+        9.0,
+        2.0,
+        13.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_49",
+      "position": [
+        9.0,
+        2.0,
+        13.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "collision": false,
+      "emission": [
+        0.13,
+        0.46,
+        0.52
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_50",
+      "position": [
+        4.8,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_50",
+      "position": [
+        4.83,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_51",
+      "position": [
+        9.0,
+        2.0,
+        31.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_51",
+      "position": [
+        9.0,
+        2.0,
+        31.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_52",
+      "position": [
+        9.0,
+        2.0,
+        40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_52",
+      "position": [
+        9.0,
+        2.0,
+        40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "collision": false,
+      "emission": [
+        0.16,
+        0.32,
+        0.62
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_53",
+      "position": [
+        18.0,
+        2.0,
+        -40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_53",
+      "position": [
+        18.0,
+        2.0,
+        -40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_54",
+      "position": [
+        18.0,
+        2.0,
+        -22.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_54",
+      "position": [
+        18.0,
+        2.0,
+        -22.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_55",
+      "position": [
+        18.0,
+        2.0,
+        -22.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_55",
+      "position": [
+        18.0,
+        2.0,
+        -22.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_56",
+      "position": [
+        18.0,
+        2.0,
+        4.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_56",
+      "position": [
+        18.0,
+        2.0,
+        4.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_57",
+      "position": [
+        18.0,
+        2.0,
+        4.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_57",
+      "position": [
+        18.0,
+        2.0,
+        4.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_58",
+      "position": [
+        18.0,
+        2.0,
+        22.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_58",
+      "position": [
+        18.0,
+        2.0,
+        22.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_59",
+      "position": [
+        18.0,
+        2.0,
+        31.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_59",
+      "position": [
+        18.0,
+        2.0,
+        31.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_60",
+      "position": [
+        18.0,
+        2.0,
+        31.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_60",
+      "position": [
+        18.0,
+        2.0,
+        31.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_61",
+      "position": [
+        27.0,
+        2.0,
+        -31.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_61",
+      "position": [
+        27.0,
+        2.0,
+        -31.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_62",
+      "position": [
+        27.0,
+        2.0,
+        -31.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_62",
+      "position": [
+        27.0,
+        2.0,
+        -31.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_63",
+      "position": [
+        31.2,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_63",
+      "position": [
+        31.17,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_64",
+      "position": [
+        31.2,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_64",
+      "position": [
+        31.17,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_65",
+      "position": [
+        27.0,
+        2.0,
+        4.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_65",
+      "position": [
+        27.0,
+        2.0,
+        4.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_66",
+      "position": [
+        27.0,
+        2.0,
+        4.8
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_66",
+      "position": [
+        27.0,
+        2.0,
+        4.83
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_67",
+      "position": [
+        31.2,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_67",
+      "position": [
+        31.17,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_68",
+      "position": [
+        27.0,
+        2.0,
+        31.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_68",
+      "position": [
+        27.0,
+        2.0,
+        31.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_69",
+      "position": [
+        27.0,
+        2.0,
+        40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_69",
+      "position": [
+        27.0,
+        2.0,
+        40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_70",
+      "position": [
+        36.0,
+        2.0,
+        -40.2
+      ],
+      "size": [
+        1.82,
+        1.32,
+        0.12
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_70",
+      "position": [
+        36.0,
+        2.0,
+        -40.17
+      ],
+      "size": [
+        1.6,
+        1.1,
+        0.08
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_71",
+      "position": [
+        31.8,
+        2.0,
+        -27.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_71",
+      "position": [
+        31.83,
+        2.0,
+        -27.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_72",
+      "position": [
+        40.2,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_72",
+      "position": [
+        40.17,
+        2.0,
+        -18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "collision": false,
+      "emission": [
+        0.42,
+        0.16,
+        0.56
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_73",
+      "position": [
+        31.8,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_73",
+      "position": [
+        31.83,
+        2.0,
+        -9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_74",
+      "position": [
+        40.2,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_74",
+      "position": [
+        40.17,
+        2.0,
+        0.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_75",
+      "position": [
+        40.2,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_75",
+      "position": [
+        40.17,
+        2.0,
+        9.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "collision": false,
+      "emission": [
+        0.58,
+        0.16,
+        0.42
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_76",
+      "position": [
+        40.2,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_76",
+      "position": [
+        40.17,
+        2.0,
+        18.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_77",
+      "position": [
+        40.2,
+        2.0,
+        27.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_77",
+      "position": [
+        40.17,
+        2.0,
+        27.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "PaintFrame_78",
+      "position": [
+        40.2,
+        2.0,
+        36.0
+      ],
+      "size": [
+        0.12,
+        1.32,
+        1.82
+      ],
+      "color": [
+        0.06,
+        0.05,
+        0.05
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "Painting_78",
+      "position": [
+        40.17,
+        2.0,
+        36.0
+      ],
+      "size": [
+        0.08,
+        1.1,
+        1.6
+      ],
+      "color": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "collision": false,
+      "emission": [
+        0.44,
+        0.44,
+        0.5
+      ],
+      "emission_energy": 0.7
+    },
+    {
+      "type": "box",
+      "name": "TVStand_0",
+      "position": [
+        40.03,
+        0.25,
+        -27.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_0",
+      "position": [
+        40.03,
+        0.95,
+        -27.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_0",
+      "position": [
+        39.82,
+        0.95,
+        -27.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_1",
+      "position": [
+        -40.03,
+        0.25,
+        -18.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_1",
+      "position": [
+        -40.03,
+        0.95,
+        -18.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_1",
+      "position": [
+        -39.82,
+        0.95,
+        -18.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_2",
+      "position": [
+        -13.97,
+        0.25,
+        0.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_2",
+      "position": [
+        -13.97,
+        0.95,
+        0.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_2",
+      "position": [
+        -14.180000000000001,
+        0.95,
+        0.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_3",
+      "position": [
+        40.03,
+        0.25,
+        18.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_3",
+      "position": [
+        40.03,
+        0.95,
+        18.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_3",
+      "position": [
+        39.82,
+        0.95,
+        18.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_4",
+      "position": [
+        -13.97,
+        0.25,
+        18.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_4",
+      "position": [
+        -13.97,
+        0.95,
+        18.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_4",
+      "position": [
+        -14.180000000000001,
+        0.95,
+        18.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_5",
+      "position": [
+        -27.0,
+        0.25,
+        -40.03
+      ],
+      "size": [
+        1.0,
+        0.5,
+        0.5
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_5",
+      "position": [
+        -27.0,
+        0.95,
+        -40.03
+      ],
+      "size": [
+        1.3,
+        0.8,
+        0.4
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_5",
+      "position": [
+        -27.0,
+        0.95,
+        -39.82
+      ],
+      "size": [
+        1.04,
+        0.58,
+        0.05
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_6",
+      "position": [
+        9.0,
+        0.25,
+        -22.03
+      ],
+      "size": [
+        1.0,
+        0.5,
+        0.5
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_6",
+      "position": [
+        9.0,
+        0.95,
+        -22.03
+      ],
+      "size": [
+        1.3,
+        0.8,
+        0.4
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_6",
+      "position": [
+        9.0,
+        0.95,
+        -21.82
+      ],
+      "size": [
+        1.04,
+        0.58,
+        0.05
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_7",
+      "position": [
+        40.03,
+        0.25,
+        27.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_7",
+      "position": [
+        40.03,
+        0.95,
+        27.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_7",
+      "position": [
+        39.82,
+        0.95,
+        27.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_8",
+      "position": [
+        4.03,
+        0.25,
+        -9.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_8",
+      "position": [
+        4.03,
+        0.95,
+        -9.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_8",
+      "position": [
+        3.8200000000000003,
+        0.95,
+        -9.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_9",
+      "position": [
+        -9.0,
+        0.25,
+        -4.97
+      ],
+      "size": [
+        1.0,
+        0.5,
+        0.5
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_9",
+      "position": [
+        -9.0,
+        0.95,
+        -4.97
+      ],
+      "size": [
+        1.3,
+        0.8,
+        0.4
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_9",
+      "position": [
+        -9.0,
+        0.95,
+        -5.18
+      ],
+      "size": [
+        1.04,
+        0.58,
+        0.05
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_10",
+      "position": [
+        -22.97,
+        0.25,
+        -9.0
+      ],
+      "size": [
+        0.5,
+        0.5,
+        1.0
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_10",
+      "position": [
+        -22.97,
+        0.95,
+        -9.0
+      ],
+      "size": [
+        0.4,
+        0.8,
+        1.3
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_10",
+      "position": [
+        -23.18,
+        0.95,
+        -9.0
+      ],
+      "size": [
+        0.05,
+        0.58,
+        1.04
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    },
+    {
+      "type": "box",
+      "name": "TVStand_11",
+      "position": [
+        9.0,
+        0.25,
+        31.97
+      ],
+      "size": [
+        1.0,
+        0.5,
+        0.5
+      ],
+      "color": [
+        0.08,
+        0.07,
+        0.07
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVBody_11",
+      "position": [
+        9.0,
+        0.95,
+        31.97
+      ],
+      "size": [
+        1.3,
+        0.8,
+        0.4
+      ],
+      "color": [
+        0.05,
+        0.05,
+        0.06
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TVScreen_11",
+      "position": [
+        9.0,
+        0.95,
+        32.18
+      ],
+      "size": [
+        1.04,
+        0.58,
+        0.05
+      ],
+      "color": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "collision": false,
+      "emission": [
+        0.55,
+        0.7,
+        0.95
+      ],
+      "emission_energy": 1.6
+    }
+  ],
+  "lights": [
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_0",
+      "position": [
+        -36.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_1",
+      "position": [
+        -36.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "strobe",
+        "frequency": 1.485692766963041,
+        "min": 0.05,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_2",
+      "position": [
+        -36.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_3",
+      "position": [
+        -36.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 3.990896532032486,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_4",
+      "position": [
+        -36.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_5",
+      "position": [
+        -36.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "pulse",
+        "frequency": 0.5560325631112686,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_6",
+      "position": [
+        -36.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_7",
+      "position": [
+        -36.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.223391180442417,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_8",
+      "position": [
+        -36.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "pulse",
+        "frequency": 0.415115371646288,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_9",
+      "position": [
+        -27.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.311300460816813,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_10",
+      "position": [
+        -27.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "strobe",
+        "frequency": 1.697389177709649,
+        "min": 0.05,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_11",
+      "position": [
+        -27.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "pulse",
+        "frequency": 0.3642686073375752,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_12",
+      "position": [
+        -27.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_13",
+      "position": [
+        -27.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_14",
+      "position": [
+        -27.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "pulse",
+        "frequency": 0.35555583478601566,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_15",
+      "position": [
+        -27.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_16",
+      "position": [
+        -27.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.218295447051416,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_17",
+      "position": [
+        -27.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_18",
+      "position": [
+        -18.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_19",
+      "position": [
+        -18.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "strobe",
+        "frequency": 1.2340818099346802,
+        "min": 0.05,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_20",
+      "position": [
+        -18.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.249521376590971,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_21",
+      "position": [
+        -18.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_22",
+      "position": [
+        -18.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_23",
+      "position": [
+        -18.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_24",
+      "position": [
+        -18.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_25",
+      "position": [
+        -18.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.860185776581188,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_26",
+      "position": [
+        -18.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.311785308066799,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_27",
+      "position": [
+        -9.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_28",
+      "position": [
+        -9.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_29",
+      "position": [
+        -9.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_30",
+      "position": [
+        -9.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_31",
+      "position": [
+        -9.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_32",
+      "position": [
+        -9.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_33",
+      "position": [
+        -9.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "strobe",
+        "frequency": 1.432343230842719,
+        "min": 0.05,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_34",
+      "position": [
+        -9.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_35",
+      "position": [
+        -9.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.727313424669735,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_36",
+      "position": [
+        0.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_37",
+      "position": [
+        0.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.561001493428737,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_38",
+      "position": [
+        0.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_39",
+      "position": [
+        0.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_40",
+      "position": [
+        0.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_41",
+      "position": [
+        0.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_42",
+      "position": [
+        0.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_43",
+      "position": [
+        0.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_44",
+      "position": [
+        0.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "strobe",
+        "frequency": 1.133306060547978,
+        "min": 0.05,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_45",
+      "position": [
+        9.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.0409026947315665,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_46",
+      "position": [
+        9.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.942517856699011,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_47",
+      "position": [
+        9.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "pulse",
+        "frequency": 0.5528936302266525,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_48",
+      "position": [
+        9.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_49",
+      "position": [
+        9.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_50",
+      "position": [
+        9.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.545943294548972,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_51",
+      "position": [
+        9.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.717479928868493,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_52",
+      "position": [
+        9.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_53",
+      "position": [
+        9.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_54",
+      "position": [
+        18.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_55",
+      "position": [
+        18.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_56",
+      "position": [
+        18.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_57",
+      "position": [
+        18.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_58",
+      "position": [
+        18.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_59",
+      "position": [
+        18.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_60",
+      "position": [
+        18.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_61",
+      "position": [
+        18.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_62",
+      "position": [
+        18.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "pulse",
+        "frequency": 0.36154654644943124,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_63",
+      "position": [
+        27.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_64",
+      "position": [
+        27.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_65",
+      "position": [
+        27.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_66",
+      "position": [
+        27.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_67",
+      "position": [
+        27.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_68",
+      "position": [
+        27.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_69",
+      "position": [
+        27.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_70",
+      "position": [
+        27.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.848034742138406,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_71",
+      "position": [
+        27.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_72",
+      "position": [
+        36.0,
+        3.1,
+        -36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.701815916435032,
+        "min": 0.18,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_73",
+      "position": [
+        36.0,
+        3.1,
+        -27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_74",
+      "position": [
+        36.0,
+        3.1,
+        -18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_75",
+      "position": [
+        36.0,
+        3.1,
+        -9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_76",
+      "position": [
+        36.0,
+        3.1,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_77",
+      "position": [
+        36.0,
+        3.1,
+        9.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_78",
+      "position": [
+        36.0,
+        3.1,
+        18.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_79",
+      "position": [
+        36.0,
+        3.1,
+        27.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "CorridorLamp_80",
+      "position": [
+        36.0,
+        3.1,
+        36.0
+      ],
+      "color": [
+        1.0,
+        0.66,
+        0.32
+      ],
+      "energy": 2.6,
+      "range": 8.5,
+      "shadow": false
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_0",
+      "position": [
+        39.43,
+        1.0,
+        -27.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.932632267533273,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_1",
+      "position": [
+        -39.43,
+        1.0,
+        -18.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.6779417424377945,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_2",
+      "position": [
+        -14.57,
+        1.0,
+        0.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.270554706971934,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_3",
+      "position": [
+        39.43,
+        1.0,
+        18.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.0188922590829534,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_4",
+      "position": [
+        -14.57,
+        1.0,
+        18.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.571492104929047,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_5",
+      "position": [
+        -27.0,
+        1.0,
+        -39.43
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.303364003705688,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_6",
+      "position": [
+        9.0,
+        1.0,
+        -21.43
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.27685469206994,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_7",
+      "position": [
+        39.43,
+        1.0,
+        27.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.198569085207975,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_8",
+      "position": [
+        3.43,
+        1.0,
+        -9.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 4.564600656916834,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_9",
+      "position": [
+        -9.0,
+        1.0,
+        -5.569999999999999
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.949302758650075,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_10",
+      "position": [
+        -23.57,
+        1.0,
+        -9.0
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.410669090048366,
+        "min": 0.35,
+        "max": 1.0
+      }
+    },
+    {
+      "light_type": "omni",
+      "name": "TVGlow_11",
+      "position": [
+        9.0,
+        1.0,
+        32.57
+      ],
+      "color": [
+        0.5,
+        0.68,
+        0.95
+      ],
+      "energy": 1.3,
+      "range": 4.5,
+      "shadow": false,
+      "flicker": {
+        "mode": "flicker",
+        "frequency": 5.704758764053773,
+        "min": 0.35,
+        "max": 1.0
+      }
+    }
+  ]
+}
