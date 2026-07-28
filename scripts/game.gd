@@ -12,6 +12,8 @@ const USE_RL_POLICY_TAGGER := true
 const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
+const NETWORK_SYNC_MAP_PATH = "user://network_sync/maps/host_map.json"
+const NETWORK_SYNC_SKIN_PREFIX = "network_host_"
 const MULTIPLAYER_RESULT_DELAY := 3.0
 const CATCH_RANGE := 2.5
 const CATCH_COOLDOWN := 1.5
@@ -190,8 +192,7 @@ func _process(delta: float) -> void:
 		elif game_mode == "single_chase":
 			_start_single_chase_game()
 		elif game_mode == "host" and remote_peer_id != 0:
-			_start_network_round(remote_peer_id)
-			rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode)
+			_start_synced_network_round()
 		return
 
 	if caught:
@@ -1176,8 +1177,7 @@ func _start_lobby_game() -> void:
 	_refresh_win_time_from_ui()
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
-	_start_network_round(remote_peer_id)
-	rpc("_rpc_begin_network_round", remote_peer_id, host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode)
+	_start_synced_network_round()
 
 @rpc("any_peer", "reliable")
 func _rpc_request_role_switch() -> void:
@@ -1200,19 +1200,250 @@ func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_
 	network_started = true
 	_enter_lobby(message)
 
+func _start_synced_network_round() -> void:
+	if not multiplayer.is_server() or remote_peer_id == 0:
+		return
+	_refresh_win_time_from_ui()
+	var payload := _build_network_start_payload()
+	_start_network_round(remote_peer_id)
+	rpc("_rpc_begin_network_round", payload)
+
+func _build_network_start_payload() -> Dictionary:
+	return {
+		"client_id": remote_peer_id,
+		"host_is_runner": host_is_runner,
+		"win_time_seconds": win_time_seconds,
+		"selected_camera_mode": selected_camera_mode,
+		"selected_map_index": selected_map_index,
+		"map": _build_map_sync_payload(),
+		"runner_skin": _build_skin_sync_payload(runner_skin_id),
+		"tagger_skin": _build_skin_sync_payload(tagger_skin_id)
+	}
+
+func _build_map_sync_payload() -> Dictionary:
+	var map_path := selected_map_path
+	if map_path.is_empty():
+		map_path = active_map_path
+	var map_text := _read_text_file(map_path)
+	var files: Array = []
+	_collect_map_referenced_files(map_path, map_text, files)
+	return {
+		"index": selected_map_index,
+		"path": map_path,
+		"name": map_name,
+		"text": map_text,
+		"files": files
+	}
+
+func _build_skin_sync_payload(skin_id: String) -> Dictionary:
+	var payload := {
+		"id": skin_id,
+		"files": []
+	}
+	var candidate_roots: Array[String] = [SkinAPI.USER_SKIN_ROOT, SkinAPI.RESOURCE_SKIN_ROOT]
+	var executable_dir := OS.get_executable_path().get_base_dir()
+	if not executable_dir.is_empty():
+		candidate_roots.append(executable_dir.path_join("skins"))
+	for root in candidate_roots:
+		var skin_dir := "%s/%s" % [root, skin_id]
+		if DirAccess.open(skin_dir) == null:
+			continue
+		var files: Array = []
+		_collect_sync_files(skin_dir, "", files)
+		payload["files"] = files
+		return payload
+	return payload
+
+func _collect_sync_files(root: String, relative_dir: String, files: Array) -> void:
+	var dir_path := root if relative_dir.is_empty() else root.path_join(relative_dir)
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while entry != "":
+		if not entry.begins_with("."):
+			var relative_path := entry if relative_dir.is_empty() else relative_dir.path_join(entry)
+			if dir.current_is_dir():
+				_collect_sync_files(root, relative_path, files)
+			else:
+				var file_path := root.path_join(relative_path)
+				var file := FileAccess.open(file_path, FileAccess.READ)
+				if file != null:
+					files.append({"path": relative_path, "data": file.get_buffer(file.get_length())})
+					file.close()
+		entry = dir.get_next()
+	dir.list_dir_end()
+
+func _collect_map_referenced_files(map_path: String, map_text: String, files: Array) -> void:
+	if map_path.is_empty() or map_text.is_empty():
+		return
+	var parsed = JSON.parse_string(map_text)
+	if parsed == null:
+		return
+	var seen := {}
+	_collect_map_refs_recursive(parsed, map_path.get_base_dir(), files, seen)
+
+func _collect_map_refs_recursive(value, base_dir: String, files: Array, seen: Dictionary) -> void:
+	if value is Dictionary:
+		var dict := value as Dictionary
+		for key in dict.keys():
+			var child = dict[key]
+			var key_text := String(key)
+			if child is String and (key_text == "path" or key_text == "texture" or key_text == "normal_texture"):
+				_append_sync_file(base_dir, String(child), files, seen)
+			_collect_map_refs_recursive(child, base_dir, files, seen)
+	elif value is Array:
+		for child in value:
+			_collect_map_refs_recursive(child, base_dir, files, seen)
+
+func _append_sync_file(base_dir: String, relative_path: String, files: Array, seen: Dictionary) -> void:
+	var rel := relative_path.strip_edges().replace("\\", "/")
+	if not _is_safe_relative_path(rel):
+		return
+	var file_path := base_dir.path_join(rel)
+	if seen.has(file_path) or not FileAccess.file_exists(file_path):
+		return
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		return
+	files.append({"path": rel, "data": file.get_buffer(file.get_length())})
+	file.close()
+	seen[file_path] = true
+
 @rpc("call_remote", "reliable")
-func _rpc_begin_network_round(client_id: int, new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String) -> void:
-	remote_peer_id = client_id
-	host_is_runner = new_host_is_runner
-	win_time_seconds = new_win_time_seconds
-	runner_skin_id = new_runner_skin_id
-	tagger_skin_id = new_tagger_skin_id
-	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
-	_select_official_map(new_map_index, false)
+func _rpc_begin_network_round(payload: Dictionary) -> void:
+	_apply_network_start_payload(payload)
+	_start_network_round(remote_peer_id)
+
+func _apply_network_start_payload(payload: Dictionary) -> void:
+	remote_peer_id = int(payload.get("client_id", remote_peer_id))
+	host_is_runner = bool(payload.get("host_is_runner", host_is_runner))
+	win_time_seconds = float(payload.get("win_time_seconds", win_time_seconds))
+	selected_camera_mode = "first_person" if String(payload.get("selected_camera_mode", selected_camera_mode)) == "first_person" else "third_person"
+	selected_map_index = int(payload.get("selected_map_index", selected_map_index))
+	var map_payload = payload.get("map", {})
+	if map_payload is Dictionary:
+		_apply_network_map_payload(map_payload as Dictionary)
+	var runner_skin_payload = payload.get("runner_skin", {})
+	if runner_skin_payload is Dictionary:
+		runner_skin_id = _apply_network_skin_payload(runner_skin_payload as Dictionary)
+	var tagger_skin_payload = payload.get("tagger_skin", {})
+	if tagger_skin_payload is Dictionary:
+		tagger_skin_id = _apply_network_skin_payload(tagger_skin_payload as Dictionary)
+	_refresh_skin_options()
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
 	network_started = true
-	_start_network_round(client_id)
+
+func _apply_network_map_payload(payload: Dictionary) -> void:
+	var max_map_index := maxi(OFFICIAL_MAPS.size() - 1, 0)
+	selected_map_index = clampi(int(payload.get("index", selected_map_index)), 0, max_map_index)
+	map_preview_index = selected_map_index
+	map_name = String(payload.get("name", map_name))
+	var host_path := String(payload.get("path", ""))
+	var map_text := String(payload.get("text", ""))
+	var raw_files = payload.get("files", [])
+	if raw_files is Array:
+		_write_sync_files(NETWORK_SYNC_MAP_PATH.get_base_dir(), raw_files as Array)
+	if not map_text.is_empty() and _write_text_file(NETWORK_SYNC_MAP_PATH, map_text):
+		selected_map_path = NETWORK_SYNC_MAP_PATH
+		return
+	if host_path.begins_with("res://") and FileAccess.file_exists(host_path):
+		selected_map_path = host_path
+		return
+	if FileAccess.file_exists(host_path):
+		selected_map_path = host_path
+		return
+	selected_map_path = String(OFFICIAL_MAPS[selected_map_index].get("path", DEFAULT_MAP_PATH))
+
+func _apply_network_skin_payload(payload: Dictionary) -> String:
+	var source_skin_id := String(payload.get("id", SkinAPI.DEFAULT_SKIN_ID)).strip_edges()
+	if source_skin_id.is_empty():
+		source_skin_id = SkinAPI.DEFAULT_SKIN_ID
+	var raw_files = payload.get("files", [])
+	if not (raw_files is Array):
+		return source_skin_id
+	var files := raw_files as Array
+	if files.is_empty():
+		return source_skin_id
+	var synced_skin_id := NETWORK_SYNC_SKIN_PREFIX + _safe_sync_name(source_skin_id)
+	var skin_dir := "%s/%s" % [SkinAPI.USER_SKIN_ROOT, synced_skin_id]
+	if not _ensure_user_dir(skin_dir):
+		return source_skin_id
+	for raw_file in files:
+		if not (raw_file is Dictionary):
+			continue
+		var file_entry := raw_file as Dictionary
+		var relative_path := String(file_entry.get("path", "")).replace("\\", "/")
+		if not _is_safe_relative_path(relative_path):
+			continue
+		var data = file_entry.get("data", PackedByteArray())
+		if not (data is PackedByteArray):
+			continue
+		var target_path := skin_dir.path_join(relative_path)
+		if not _ensure_user_dir(target_path.get_base_dir()):
+			continue
+		var file := FileAccess.open(target_path, FileAccess.WRITE)
+		if file != null:
+			file.store_buffer(data)
+			file.close()
+	return synced_skin_id
+
+func _write_sync_files(target_root: String, files: Array) -> void:
+	if not _ensure_user_dir(target_root):
+		return
+	for raw_file in files:
+		if not (raw_file is Dictionary):
+			continue
+		var file_entry := raw_file as Dictionary
+		var relative_path := String(file_entry.get("path", "")).replace("\\", "/")
+		if not _is_safe_relative_path(relative_path):
+			continue
+		var data = file_entry.get("data", PackedByteArray())
+		if not (data is PackedByteArray):
+			continue
+		var target_path := target_root.path_join(relative_path)
+		if not _ensure_user_dir(target_path.get_base_dir()):
+			continue
+		var file := FileAccess.open(target_path, FileAccess.WRITE)
+		if file != null:
+			file.store_buffer(data)
+			file.close()
+
+func _read_text_file(file_path: String) -> String:
+	if file_path.is_empty() or not FileAccess.file_exists(file_path):
+		return ""
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		return ""
+	var text := file.get_as_text()
+	file.close()
+	return text
+
+func _write_text_file(file_path: String, text: String) -> bool:
+	if file_path.is_empty():
+		return false
+	if not _ensure_user_dir(file_path.get_base_dir()):
+		return false
+	var file := FileAccess.open(file_path, FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(text)
+	file.close()
+	return true
+
+func _ensure_user_dir(dir_path: String) -> bool:
+	if dir_path.is_empty():
+		return false
+	return DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(dir_path)) == OK
+
+func _safe_sync_name(source: String) -> String:
+	var safe := source.strip_edges().replace("\\", "_").replace("/", "_").replace(":", "_").replace(".", "_")
+	return safe if not safe.is_empty() else SkinAPI.DEFAULT_SKIN_ID
+
+func _is_safe_relative_path(relative_path: String) -> bool:
+	return not relative_path.is_empty() and not relative_path.begins_with("/") and not relative_path.contains(":") and not relative_path.contains("..")
 
 func _start_network_round(client_id: int) -> void:
 	round_transition_token += 1
