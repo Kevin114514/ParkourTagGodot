@@ -15,6 +15,7 @@ const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const USE_RL_POLICY_RUNNER := true
 const VOID_Y = -12.0
+const DEFAULT_SKY_COLOR := Color(0.48, 0.78, 1.0)
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
 const NETWORK_SYNC_MAP_PATH = "user://network_sync/maps/host_map.json"

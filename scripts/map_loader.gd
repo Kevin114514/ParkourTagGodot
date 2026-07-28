@@ -521,6 +521,7 @@ static func _load_texture(path: String) -> Texture2D:
 		var resource := load(path)
 		if resource is Texture2D:
 			return resource as Texture2D
+		path = ProjectSettings.globalize_path(path)
 	var image := Image.new()
 	var error := image.load(path)
 	if error != OK:
