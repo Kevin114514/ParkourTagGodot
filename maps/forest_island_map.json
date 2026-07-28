@@ -1,8 +1,8 @@
 {
   "format_version": 1,
   "name": "森林小岛（外海+内湖）",
-  "runner_spawn": [-34.0, 1.2, 34.0],
-  "tagger_spawn": [34.0, 1.2, -34.0],
+  "runner_spawn": [-34.0, 2.0, 34.0],
+  "tagger_spawn": [34.0, 2.0, -34.0],
   "objects": [
     {
       "type": "model",

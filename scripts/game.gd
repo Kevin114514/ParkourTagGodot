@@ -1527,20 +1527,14 @@ func _spawn_single_characters() -> void:
 	player.set_script(PlayerScript)
 	player.skin_id = runner_skin_id
 	add_child(player)
-	player.global_position = _grounded_spawn_position(runner_spawn_position)
+	_place_character_at_spawn(player, runner_spawn_position)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "Tagger"
 	tagger.set_script(RLPolicyTaggerScript if USE_RL_POLICY_TAGGER else TaggerScript)
 	tagger.skin_id = tagger_skin_id
 	add_child(tagger)
-	tagger.global_position = _grounded_spawn_position(tagger_spawn_position)
-	# add_child 已触发 _ready()，此时位置还是 (0,0,0)，spawn_position 会被记成地图中心圆球。
-	# 位置摆到真正出生点后，这里显式回写复活点，确保掉进虚空重生回出生点而非中心。
-	if "spawn_position" in tagger:
-		tagger.spawn_position = tagger.global_position
-	if "last_position" in tagger:
-		tagger.last_position = tagger.global_position
+	_place_character_at_spawn(tagger, tagger_spawn_position)
 	tagger.target = player
 
 func _spawn_single_chase_characters() -> void:
@@ -1549,14 +1543,14 @@ func _spawn_single_chase_characters() -> void:
 	player.set_script(RLPolicyRunnerScript if USE_RL_POLICY_RUNNER else RunnerAIScript)
 	player.skin_id = runner_skin_id
 	add_child(player)
-	player.global_position = _grounded_spawn_position(runner_spawn_position)
+	_place_character_at_spawn(player, runner_spawn_position)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "PlayerTagger"
 	tagger.set_script(NetworkActorScript)
 	tagger.configure("tagger", 1, tagger_skin_id)
 	add_child(tagger)
-	tagger.global_position = _grounded_spawn_position(tagger_spawn_position)
+	_place_character_at_spawn(tagger, tagger_spawn_position)
 	player.target = tagger
 	player.target_last_position = tagger.global_position
 
@@ -1569,14 +1563,29 @@ func _spawn_network_characters(client_id: int) -> void:
 	player.set_script(NetworkActorScript)
 	player.configure("runner", runner_peer_id, runner_skin_id)
 	add_child(player)
-	player.global_position = _grounded_spawn_position(runner_spawn_position)
+	_place_character_at_spawn(player, runner_spawn_position)
 
 	tagger = CharacterBody3D.new()
 	tagger.name = "NetworkTagger"
 	tagger.set_script(NetworkActorScript)
 	tagger.configure("tagger", tagger_peer_id, tagger_skin_id)
 	add_child(tagger)
-	tagger.global_position = _grounded_spawn_position(tagger_spawn_position)
+	_place_character_at_spawn(tagger, tagger_spawn_position)
+
+func _place_character_at_spawn(character: CharacterBody3D, configured_position: Vector3) -> void:
+	var grounded_position := _grounded_spawn_position(configured_position)
+	character.global_position = grounded_position
+	character.velocity = Vector3.ZERO
+	# add_child() 会先触发角色的 _ready()，当时角色仍在 (0,0,0)。
+	# 将初始落点同步为复活点，掉出世界后即可按初始生成机制回到同一安全位置。
+	if "spawn_position" in character:
+		character.spawn_position = grounded_position
+	if "last_position" in character:
+		character.last_position = grounded_position
+	if "remote_position" in character:
+		character.remote_position = grounded_position
+	if "remote_velocity" in character:
+		character.remote_velocity = Vector3.ZERO
 
 func _clear_characters() -> void:
 	if player != null and is_instance_valid(player):
@@ -1643,8 +1652,10 @@ func _ensure_default_fullscreen() -> void:
 func _grounded_spawn_position(base_position: Vector3) -> Vector3:
 	if get_world_3d() == null:
 		return base_position
-	var from := base_position + Vector3.UP * 6.0
-	var to := base_position + Vector3.DOWN * 20.0
+	# 直接在出生点就地贴地：只从出生点上方很小的高度向下探测地面，取正下方第一处地面。
+	# 不再从高空坠落（避免落到建筑/高台的屋顶上），同时纠正略微陷入地下的出生点。
+	var from := base_position + Vector3.UP * 2.0
+	var to := base_position + Vector3.DOWN * 30.0
 	var query := PhysicsRayQueryParameters3D.create(from, to)
 	query.collision_mask = 1
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
