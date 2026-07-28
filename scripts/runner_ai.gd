@@ -22,6 +22,10 @@ var target_last_position := Vector3.ZERO
 var stuck_timer := 0.0
 var dodge_sign := 1.0
 var survival_timer := 0.0
+var throwable_targets: Array[Vector3] = []
+var has_throwable := false
+var hit_progress := 0
+var hits_to_win := 10
 const VOID_Y := -12.0
 const CENTER_PULL_TIME := 4.0
 const IDEAL_ESCAPE_DISTANCE := 12.0
@@ -98,6 +102,24 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	last_position = global_position
 
+func set_throwable_context(new_targets: Array[Vector3], new_has_throwable: bool, new_hit_progress: int, new_hits_to_win: int) -> void:
+	throwable_targets = new_targets
+	has_throwable = new_has_throwable
+	hit_progress = new_hit_progress
+	hits_to_win = max(1, new_hits_to_win)
+
+func _nearest_throwable_position():
+	if throwable_targets.is_empty():
+		return null
+	var best_position := throwable_targets[0]
+	var best_distance := global_position.distance_squared_to(best_position)
+	for position in throwable_targets:
+		var distance := global_position.distance_squared_to(position)
+		if distance < best_distance:
+			best_distance = distance
+			best_position = position
+	return best_position
+
 func _compute_escape_dir(target_velocity: Vector3) -> Vector3:
 	var away := global_position - target.global_position
 	away.y = 0.0
@@ -119,6 +141,12 @@ func _compute_escape_dir(target_velocity: Vector3) -> Vector3:
 	else:
 		target_move = Vector3.ZERO
 
+	var nearest_throwable: Variant = _nearest_throwable_position()
+	var item_dir := Vector3.ZERO
+	if not has_throwable and nearest_throwable != null:
+		item_dir = (nearest_throwable as Vector3) - global_position
+		item_dir.y = 0.0
+
 	var candidates: Array[Vector3] = [
 		away,
 		away.rotated(Vector3.UP, deg_to_rad(28.0)),
@@ -138,6 +166,13 @@ func _compute_escape_dir(target_velocity: Vector3) -> Vector3:
 		var cut_left := Vector3(-target_move.z, 0.0, target_move.x).normalized()
 		candidates.append((-target_move + cut_left * 0.75).normalized())
 		candidates.append((-target_move - cut_left * 0.75).normalized())
+	if item_dir.length_squared() > 0.01:
+		var item_forward := item_dir.normalized()
+		var item_side := Vector3(-item_forward.z, 0.0, item_forward.x).normalized()
+		candidates.append(item_forward)
+		candidates.append((item_forward + away * 0.55).normalized())
+		candidates.append((item_forward + item_side * 0.45).normalized())
+		candidates.append((item_forward - item_side * 0.45).normalized())
 
 	var best_dir := away
 	var best_score := -100000.0
@@ -196,6 +231,33 @@ func _score_escape_candidate(dir: Vector3, away: Vector3, target_velocity: Vecto
 		score -= 2.6
 	if current_distance < 4.0 and dir.dot(away) < 0.2:
 		score -= 4.0
+
+	var nearest_item: Variant = _nearest_throwable_position()
+	if not has_throwable and nearest_item != null:
+		var item_position := nearest_item as Vector3
+		var to_item := item_position - global_position
+		to_item.y = 0.0
+		if to_item.length_squared() > 0.01:
+			var item_distance := to_item.length()
+			var future_item_distance := future_self.distance_to(item_position)
+			var item_urgency := clampf(float(hits_to_win - hit_progress) / maxf(float(hits_to_win), 1.0), 0.25, 1.0)
+			if current_distance > 4.8:
+				score += dir.dot(to_item.normalized()) * (3.8 + 2.2 * item_urgency)
+				score += clampf(item_distance - future_item_distance, -3.0, 4.0) * (1.1 + item_urgency)
+			if future_item_distance < 2.4:
+				score += 5.5
+			if current_distance < 5.0 and dir.dot(away) < 0.35:
+				score -= 5.0
+	elif has_throwable:
+		var ideal_throw_distance := 10.5
+		var future_throw_error := absf(future_distance - ideal_throw_distance)
+		score += maxf(0.0, 5.5 - future_throw_error) * 0.9
+		if future_distance < 5.0:
+			score -= (5.0 - future_distance) * 2.4
+		if future_distance > 16.0:
+			score -= (future_distance - 16.0) * 0.7
+		if not _line_to_target_blocked_from(future_self + Vector3.UP * 1.05):
+			score += 2.2
 	return score
 
 func _probe_dir(dir: Vector3) -> Vector3:
@@ -269,15 +331,40 @@ func _front_blocked(dir: Vector3) -> bool:
 	if dir.length_squared() < 0.01:
 		return false
 	var space := get_world_3d().direct_space_state
-	for height in PackedFloat32Array([0.45, 0.9]):
-		var from := global_position + Vector3.UP * height
-		var to := from + dir.normalized() * 1.05
-		var query := PhysicsRayQueryParameters3D.create(from, to)
-		query.collision_mask = 1
-		query.exclude = [get_rid()]
-		if not space.intersect_ray(query).is_empty():
-			return true
-	return false
+	var forward := dir.normalized()
+	var low_from := global_position + Vector3.UP * 0.45
+	var low_to := low_from + forward * 1.05
+	var low_query := PhysicsRayQueryParameters3D.create(low_from, low_to)
+	low_query.collision_mask = 1
+	low_query.exclude = [get_rid()]
+	var low_hit := space.intersect_ray(low_query)
+	if low_hit.is_empty():
+		return false
+	var high_from := global_position + Vector3.UP * 1.55
+	var high_to := high_from + forward * 1.25
+	var high_query := PhysicsRayQueryParameters3D.create(high_from, high_to)
+	high_query.collision_mask = 1
+	high_query.exclude = [get_rid()]
+	var high_hit := space.intersect_ray(high_query)
+	if high_hit.is_empty() and _has_walkable_step_ahead(forward):
+		return false
+	return true
+
+func _has_walkable_step_ahead(dir: Vector3) -> bool:
+	if dir.length_squared() < 0.01 or get_world_3d() == null:
+		return false
+	var probe := global_position + dir.normalized() * 1.25
+	var from := probe + Vector3.UP * 1.8
+	var to := probe + Vector3.DOWN * 2.4
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return false
+	var hit_pos: Vector3 = hit["position"]
+	var step_delta := hit_pos.y - global_position.y
+	return step_delta > -0.35 and step_delta < 1.15
 
 func _wall_too_close(dir: Vector3) -> bool:
 	if dir.length_squared() < 0.01:

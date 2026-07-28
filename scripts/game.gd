@@ -8,6 +8,9 @@ const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
 const PORT = 24591
+# 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
+const GAME_VERSION := "1.0"
+const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
@@ -33,10 +36,23 @@ const THROWABLE_SLOW_DURATION := 2.6
 const THROWABLE_MIN_SPAWN_GAP := 4.5
 const THROWABLE_SPAWN_ATTEMPTS := 32
 const THROWABLE_THROW_ORIGIN_TOLERANCE := 2.4
-const THROWABLE_TRAJECTORY_STEPS := 30
-const THROWABLE_TRAJECTORY_STEP_TIME := 0.075
+const THROWABLE_TRAJECTORY_STEPS := 34
+const THROWABLE_TRAJECTORY_STEP_TIME := 0.065
+const THROWABLE_TRAJECTORY_DOT_COUNT := 14
+const THROWABLE_HAND_OFFSET := Vector3(0.44, 1.05, -0.16)
+const THROWABLE_AI_PICKUP_RANGE := 2.25
+const THROWABLE_AI_THROW_COOLDOWN := 1.15
+const THROWABLE_AI_THROW_MIN_DISTANCE := 4.0
+const THROWABLE_AI_THROW_MAX_DISTANCE := 17.5
 const THROWABLE_NOTICE_DURATION := 2.2
 const THROWABLE_PICKUP_NOTICE_PROTECT := 1.15
+const TAGGER_HITS_TO_WIN := 10
+const SLOW_PARTICLE_MOVE_THRESHOLD := 0.18
+const ACTION_CONFIRM_DURATION := 2.0
+const OPPONENT_MINIMAP_MEMORY := 5.0
+const OPPONENT_SIGHT_RANGE := 28.0
+const RUNNER_THREAT_RED_DISTANCE := 8.0
+const MINIMAP_WORLD_RADIUS := 42.0
 const OFFICIAL_MAPS = [
 	{
 		"name": "默认跑酷竞技场",
@@ -76,7 +92,14 @@ var hud_layer: CanvasLayer
 var hud_label: Label
 var center_label: Label
 var throwable_notice_label: Label
-var catch_crosshair: Label
+var catch_cd_label: Label
+var direction_marker_label: Label
+var threat_overlay: ColorRect
+var minimap_panel: PanelContainer
+var minimap_content: Control
+var minimap_opponent_dot: ColorRect
+var minimap_player_dot: ColorRect
+var minimap_reward_dots: Array[ColorRect] = []
 var title_layer: CanvasLayer
 var title_status: Label
 var ip_input: LineEdit
@@ -89,6 +112,7 @@ var map_description_label: Label
 var settings_display_mode_option: OptionButton
 var camera_mode_option: OptionButton
 var image_skin_file_dialog: FileDialog
+var pending_image_skin_role := "runner"
 var runner_skin_option: OptionButton
 var tagger_skin_option: OptionButton
 var runner_skin_preview: TextureRect
@@ -127,12 +151,15 @@ var debug_obstacle_material: StandardMaterial3D
 var debug_actor_material: StandardMaterial3D
 @export var runner_skin_id := "chair"
 @export var tagger_skin_id := "irris"
-var selected_camera_mode := "third_person"
+var selected_camera_mode := "first_person"
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
 var throwable_root: Node3D
 var throwable_trajectory: MeshInstance3D
+var throwable_trajectory_dots: Node3D
+var throwable_landing_marker: MeshInstance3D
+var held_throwable_visual: Node3D
 var ground_throwables: Dictionary = {}
 var flying_throwables: Dictionary = {}
 var runner_has_throwable := false
@@ -144,6 +171,13 @@ var throwable_notice_protect_timer := 0.0
 var tagger_slow_particles: Node3D
 var tagger_slow_particle_timer := 0.0
 var tagger_slow_particle_elapsed := 0.0
+var tagger_slow_particle_last_position := Vector3.ZERO
+var tagger_hit_count := 0
+var ai_runner_throw_cooldown := 0.0
+var quit_confirm_timer := 0.0
+var restart_confirm_timer := 0.0
+var opponent_seen_timer := 0.0
+var last_seen_opponent_position := Vector3.ZERO
 
 func _ready() -> void:
 	randomize()
@@ -154,17 +188,27 @@ func _ready() -> void:
 	_load_active_map()
 	_build_hud()
 	_build_title_ui()
-	_show_title("选择模式开始游戏")
+	_show_title("")
 
 func _process(delta: float) -> void:
+	quit_confirm_timer = maxf(quit_confirm_timer - delta, 0.0)
+	restart_confirm_timer = maxf(restart_confirm_timer - delta, 0.0)
+	if center_label != null and quit_confirm_timer <= 0.0 and restart_confirm_timer <= 0.0 and (center_label.text == "再按一次 Q 返回标题/房间" or center_label.text == "再按一次 R 重新开始本局"):
+		center_label.text = ""
 	if Input.is_action_just_pressed("quit_room"):
 		if game_mode == "single" or game_mode == "single_chase":
-			_show_title("已返回标题界面。")
+			if not _confirm_round_action("quit"):
+				return
+			_show_title("")
 			return
 		if game_mode == "host":
+			if not _confirm_round_action("quit"):
+				return
 			_return_active_round_to_lobby("房主已返回房间等待页面。")
 			return
 		if game_mode == "client":
+			if not _confirm_round_action("quit"):
+				return
 			rpc_id(1, "_rpc_request_return_to_lobby")
 			if center_label != null:
 				center_label.text = "正在返回房间等待页面..."
@@ -187,6 +231,9 @@ func _process(delta: float) -> void:
 			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 	if Input.is_action_just_pressed("restart"):
+		if game_mode == "single" or game_mode == "single_chase" or game_mode == "host":
+			if not _confirm_round_action("restart"):
+				return
 		if game_mode == "single":
 			_start_single_game()
 		elif game_mode == "single_chase":
@@ -196,6 +243,9 @@ func _process(delta: float) -> void:
 		return
 
 	if caught:
+		_hide_throwable_trajectory()
+		if minimap_panel != null:
+			minimap_panel.visible = false
 		return
 
 	if (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") and player.global_position.y < VOID_Y:
@@ -206,35 +256,20 @@ func _process(delta: float) -> void:
 	ai_catch_cooldown = maxf(ai_catch_cooldown - delta, 0.0)
 	catch_cooldown_remaining = maxf(catch_cooldown_remaining - delta, 0.0)
 	_update_throwables(delta)
+	_update_ai_runner_throwable_strategy(delta)
+	_update_held_throwable_visual()
 	_update_throwable_notice(delta)
 	_update_throwable_trajectory()
+	_update_tagger_slow_particles(delta)
 	var catch_offset: Vector3 = player.global_position - tagger.global_position
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
-	var mode_text := "单人躲藏模式" if game_mode == "single" else ("单人追逐 AI" if game_mode == "single_chase" else "联机一打一：" + _local_role_text())
-	var controls_text := "WASD 移动  空格跳跃/翻越  鼠标视角  Esc 鼠标  R 重开  F3 调试(碰撞箱/坐标):%s" % ["开" if debug_mode else "关"]
-	if _local_is_tagger():
-		controls_text += "  左键抓人"
-	if _local_is_runner():
-		controls_text += "  F 拾取道具  E 投掷"
-	if game_mode == "single" or game_mode == "single_chase":
-		controls_text += "  Q 回标题"
-	else:
-		controls_text += "  Q 回房间"
-	var coordinate_text := ""
-	if debug_mode:
-		var local_actor := _local_controlled_actor()
-		if local_actor != null:
-			var local_position := local_actor.global_position
-			coordinate_text = "\n坐标：X %.2f  Y %.2f  Z %.2f" % [local_position.x, local_position.y, local_position.z]
-	var attack_cd_text := "可攻击" if catch_cooldown_remaining <= 0.0 else "冷却 %.1fs" % catch_cooldown_remaining
-	var throwable_text := _throwable_status_text()
-	hud_label.text = "%s\n地图：%s%s\n逃跑时间：%05.2f / %d 秒\n追逐者速度：7.8  躲藏者速度：7.0\n半圆攻击范围：%04.1f / %.1f 米  攻击：%s\n%s\n%s" % [mode_text, map_name, coordinate_text, time_alive, int(win_time_seconds), distance, CATCH_RANGE, attack_cd_text, controls_text, throwable_text]
+	if hud_label != null:
+		hud_label.text = ""
 	_update_catch_crosshair()
-
-	if (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") and time_alive >= win_time_seconds:
-		_on_runner_survived()
-		return
+	_update_direction_marker()
+	_update_threat_overlay(distance)
+	_update_minimap(delta)
 
 	if _local_is_runner() and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		if Input.is_action_just_pressed("pickup_item"):
@@ -247,6 +282,29 @@ func _process(delta: float) -> void:
 
 	if game_mode == "single":
 		_try_ai_catch_attempt(distance)
+
+func _confirm_round_action(action: String) -> bool:
+	if center_label == null:
+		return true
+	if caught:
+		return true
+	if action == "restart":
+		if restart_confirm_timer <= 0.0:
+			restart_confirm_timer = ACTION_CONFIRM_DURATION
+			center_label.text = "再按一次 R 重新开始本局"
+			return false
+		restart_confirm_timer = 0.0
+		center_label.text = ""
+		return true
+	if action == "quit":
+		if quit_confirm_timer <= 0.0:
+			quit_confirm_timer = ACTION_CONFIRM_DURATION
+			center_label.text = "再按一次 Q 返回标题/房间"
+			return false
+		quit_confirm_timer = 0.0
+		center_label.text = ""
+		return true
+	return true
 
 func _connect_multiplayer_signals() -> void:
 	multiplayer.peer_connected.connect(Callable(self, "_on_peer_connected"))
@@ -363,40 +421,6 @@ func _build_title_ui() -> void:
 	title.add_theme_color_override("font_outline_color", Color(0.16, 0.18, 0.32))
 	title.add_theme_constant_override("outline_size", 8)
 	box.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "3D 椅子追逐 · 单人逃脱 / 联机一打一"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 20)
-	_apply_label_style(subtitle, Color(0.16, 0.24, 0.42), 2)
-	box.add_child(subtitle)
-
-	win_time_row = HBoxContainer.new()
-	win_time_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	win_time_row.add_theme_constant_override("separation", 10)
-	box.add_child(win_time_row)
-	setup_controls.append(win_time_row)
-
-	var win_time_label := Label.new()
-	win_time_label.text = "胜利时间"
-	_apply_label_style(win_time_label)
-	win_time_row.add_child(win_time_label)
-
-	win_time_spinbox = SpinBox.new()
-	win_time_spinbox.min_value = 10.0
-	win_time_spinbox.max_value = 600.0
-	win_time_spinbox.step = 5.0
-	win_time_spinbox.value = win_time_seconds
-	win_time_spinbox.suffix = " 秒"
-	win_time_spinbox.custom_minimum_size = Vector2(124.0, 42.0)
-	_style_input(win_time_spinbox)
-	win_time_spinbox.value_changed.connect(Callable(self, "_on_win_time_changed"))
-	win_time_row.add_child(win_time_spinbox)
-
-	var win_time_hint := Label.new()
-	win_time_hint.text = "躲藏者坚持到即胜"
-	_apply_label_style(win_time_hint, Color(0.35, 0.28, 0.18), 1)
-	win_time_row.add_child(win_time_hint)
 
 	var map_row := HBoxContainer.new()
 	map_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -527,13 +551,6 @@ func _build_title_ui() -> void:
 	tagger_preview_box.add_child(tagger_skin_preview_label)
 
 	_update_skin_previews()
-
-	var upload_image_skin_button := Button.new()
-	upload_image_skin_button.text = "上传图片皮肤（1:1 固定大小）"
-	_style_button(upload_image_skin_button, Color(0.14, 0.66, 0.72), Color(0.04, 0.34, 0.38))
-	upload_image_skin_button.pressed.connect(Callable(self, "_open_image_skin_dialog"))
-	box.add_child(upload_image_skin_button)
-	menu_controls.append(upload_image_skin_button)
 
 	image_skin_file_dialog = FileDialog.new()
 	image_skin_file_dialog.title = "选择一张图片作为模型"
@@ -865,7 +882,7 @@ func _update_map_ui() -> void:
 func _on_win_time_changed(value: float) -> void:
 	win_time_seconds = value
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "胜利时间已改为 %d 秒，等待房主开始游戏。" % int(win_time_seconds))
+		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "房间规则已同步，等待房主开始游戏。")
 	_update_lobby_ui()
 
 func _refresh_win_time_from_ui() -> void:
@@ -885,6 +902,8 @@ func _refresh_skin_options() -> void:
 		runner_skin_option.clear()
 		for skin in available_skin_ids:
 			runner_skin_option.add_item(SkinAPI.get_skin_display_name(skin))
+		runner_skin_option.add_separator()
+		runner_skin_option.add_item("自定义图片皮肤...")
 		var idx := available_skin_ids.find(runner_skin_id)
 		runner_skin_option.select(maxi(idx, 0))
 
@@ -892,6 +911,8 @@ func _refresh_skin_options() -> void:
 		tagger_skin_option.clear()
 		for skin in available_skin_ids:
 			tagger_skin_option.add_item(SkinAPI.get_skin_display_name(skin))
+		tagger_skin_option.add_separator()
+		tagger_skin_option.add_item("自定义图片皮肤...")
 		var idx2 := available_skin_ids.find(tagger_skin_id)
 		tagger_skin_option.select(maxi(idx2, 0))
 
@@ -909,7 +930,13 @@ func _update_skin_previews() -> void:
 		tagger_skin_preview_label.text = "当前：%s" % SkinAPI.get_skin_display_name(tagger_skin_id)
 
 func _on_runner_skin_selected(index: int) -> void:
+	if index == available_skin_ids.size() + 1:
+		pending_image_skin_role = "runner"
+		_update_skin_previews()
+		_open_image_skin_dialog()
+		return
 	if index < 0 or index >= available_skin_ids.size():
+		_refresh_skin_options()
 		return
 	runner_skin_id = available_skin_ids[index]
 	_update_skin_previews()
@@ -937,12 +964,14 @@ func _on_image_skin_file_selected(path: String) -> void:
 		if title_status != null:
 			title_status.text = "图片皮肤导入失败，请选择 PNG / JPG / WEBP 图片。"
 		return
-	runner_skin_id = uploaded_skin_id
-	tagger_skin_id = uploaded_skin_id
+	if pending_image_skin_role == "tagger":
+		tagger_skin_id = uploaded_skin_id
+	else:
+		runner_skin_id = uploaded_skin_id
 	_refresh_skin_options()
 	_update_skin_previews()
 	if title_status != null:
-		title_status.text = "已上传图片皮肤：模型会以 1:1 固定方形显示。"
+		title_status.text = "已选择自定义图片皮肤：%s。" % ["追逐者" if pending_image_skin_role == "tagger" else "躲藏者"]
 
 func _show_title(message: String) -> void:
 	_close_network()
@@ -956,6 +985,7 @@ func _show_title(message: String) -> void:
 	ai_catch_cooldown = 0.0
 	catch_cooldown_remaining = 0.0
 	time_alive = 0.0
+	tagger_hit_count = 0
 	if title_layer != null:
 		title_layer.visible = true
 	if hud_layer != null:
@@ -993,6 +1023,7 @@ func _start_single_game() -> void:
 	ai_catch_cooldown = 0.0
 	catch_cooldown_remaining = 0.0
 	time_alive = 0.0
+	tagger_hit_count = 0
 	title_layer.visible = false
 	hud_layer.visible = true
 	center_label.text = ""
@@ -1015,6 +1046,7 @@ func _start_single_chase_game() -> void:
 	ai_catch_cooldown = 0.0
 	catch_cooldown_remaining = 0.0
 	time_alive = 0.0
+	tagger_hit_count = 0
 	title_layer.visible = false
 	hud_layer.visible = true
 	center_label.text = ""
@@ -1113,7 +1145,7 @@ func _update_lobby_ui() -> void:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "追逐者" if local_role == "躲藏者" else "躲藏者"
-	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n胜利时间：%d 秒\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, int(win_time_seconds), map_name, _camera_mode_display_name()]
+	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n通关条件：躲藏者击中追逐者 %d 次\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, TAGGER_HITS_TO_WIN, map_name, _camera_mode_display_name()]
 	if win_time_spinbox != null:
 		win_time_spinbox.editable = multiplayer.is_server()
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
@@ -1148,6 +1180,7 @@ func _return_active_round_to_lobby(message: String) -> void:
 	ai_catch_cooldown = 0.0
 	catch_cooldown_remaining = 0.0
 	time_alive = 0.0
+	tagger_hit_count = 0
 	_enter_lobby(message)
 	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, message)
 
@@ -1457,6 +1490,7 @@ func _start_network_round(client_id: int) -> void:
 	ai_catch_cooldown = 0.0
 	catch_cooldown_remaining = 0.0
 	time_alive = 0.0
+	tagger_hit_count = 0
 	if title_layer != null:
 		title_layer.visible = false
 	hud_layer.visible = true
@@ -1552,6 +1586,8 @@ func _local_controlled_actor() -> Node3D:
 	var actor: Node3D = null
 	if game_mode == "single":
 		actor = player as Node3D
+	elif game_mode == "single_chase":
+		actor = tagger as Node3D
 	elif game_mode == "host":
 		actor = player as Node3D
 		if not host_is_runner:
@@ -1735,29 +1771,32 @@ func _play_catch_effect(origin: Vector3, direction: Vector3) -> void:
 func _on_runner_survived() -> void:
 	caught = true
 	_update_catch_crosshair()
+	_clear_tagger_slow_particles()
 	player.is_control_locked = true
 	tagger.is_active = false
 	if game_mode == "single":
-		center_label.text = "躲藏者胜利！\n成功坚持 %.2f 秒\n按 R 重新开始" % time_alive
+		center_label.text = "躲藏者胜利！\n已击中追逐者 %d 次\n用时 %.2f 秒\n按 R 重新开始" % [tagger_hit_count, time_alive]
 	elif game_mode == "single_chase":
-		center_label.text = "AI 躲藏者胜利！\n它成功坚持 %.2f 秒\n按 R 重新挑战" % time_alive
+		center_label.text = "AI 躲藏者胜利！\n它击中追逐者 %d 次\n用时 %.2f 秒\n按 R 重新挑战" % [tagger_hit_count, time_alive]
 	else:
-		center_label.text = "本局结束\n躲藏者胜利！\n成功坚持 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [time_alive, MULTIPLAYER_RESULT_DELAY]
+		center_label.text = "本局结束\n躲藏者胜利！\n已击中追逐者 %d 次\n用时 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [tagger_hit_count, time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
-		rpc("_rpc_runner_survived", time_alive)
+		rpc("_rpc_runner_survived", time_alive, tagger_hit_count)
 		_schedule_return_to_lobby_after_round()
 
 @rpc("call_remote", "reliable")
-func _rpc_runner_survived(final_time: float) -> void:
+func _rpc_runner_survived(final_time: float, final_hit_count: int) -> void:
 	caught = true
 	_update_catch_crosshair()
+	_clear_tagger_slow_particles()
 	time_alive = final_time
+	tagger_hit_count = final_hit_count
 	if player != null and is_instance_valid(player):
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "本局结束\n躲藏者胜利！\n成功坚持 %.2f 秒\n等待房主返回房间并自动换边" % final_time
+	center_label.text = "本局结束\n躲藏者胜利！\n已击中追逐者 %d 次\n用时 %.2f 秒\n等待房主返回房间并自动换边" % [tagger_hit_count, final_time]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _on_player_caught() -> void:
@@ -1768,6 +1807,7 @@ func _on_runner_fell() -> void:
 
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
+	_clear_tagger_slow_particles()
 	player.is_control_locked = true
 	tagger.is_active = false
 	if game_mode == "single":
@@ -1826,14 +1866,55 @@ func _ensure_throwable_trajectory() -> void:
 	throwable_trajectory.name = "ThrowableTrajectory"
 	throwable_trajectory.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.25, 0.92, 1.0, 0.72)
+	material.albedo_color = Color(0.25, 0.92, 1.0, 0.58)
 	material.emission_enabled = true
 	material.emission = Color(0.12, 0.78, 1.0)
-	material.emission_energy_multiplier = 0.75
+	material.emission_energy_multiplier = 1.05
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.no_depth_test = true
 	throwable_trajectory.material_override = material
 	throwable_trajectory.visible = false
 	add_child(throwable_trajectory)
+
+	throwable_trajectory_dots = Node3D.new()
+	throwable_trajectory_dots.name = "ThrowableTrajectoryDots"
+	add_child(throwable_trajectory_dots)
+	var dot_material := StandardMaterial3D.new()
+	dot_material.albedo_color = Color(0.9, 1.0, 1.0, 0.82)
+	dot_material.emission_enabled = true
+	dot_material.emission = Color(0.35, 0.95, 1.0)
+	dot_material.emission_energy_multiplier = 1.25
+	dot_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	for i in range(THROWABLE_TRAJECTORY_DOT_COUNT):
+		var dot := MeshInstance3D.new()
+		dot.name = "TrajectoryDot_%02d" % i
+		var sphere := SphereMesh.new()
+		sphere.radius = 0.055
+		sphere.height = 0.11
+		dot.mesh = sphere
+		dot.material_override = dot_material
+		dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		dot.visible = false
+		throwable_trajectory_dots.add_child(dot)
+
+	throwable_landing_marker = MeshInstance3D.new()
+	throwable_landing_marker.name = "ThrowableLandingMarker"
+	var landing_mesh := CylinderMesh.new()
+	landing_mesh.top_radius = 0.45
+	landing_mesh.bottom_radius = 0.45
+	landing_mesh.height = 0.035
+	throwable_landing_marker.mesh = landing_mesh
+	var landing_material := StandardMaterial3D.new()
+	landing_material.albedo_color = Color(1.0, 0.78, 0.2, 0.68)
+	landing_material.emission_enabled = true
+	landing_material.emission = Color(1.0, 0.48, 0.08)
+	landing_material.emission_energy_multiplier = 1.1
+	landing_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	landing_material.no_depth_test = true
+	throwable_landing_marker.material_override = landing_material
+	throwable_landing_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	throwable_landing_marker.visible = false
+	add_child(throwable_landing_marker)
 
 func _load_active_map() -> bool:
 	if _load_map_from_path(selected_map_path):
@@ -2006,6 +2087,7 @@ func _build_hud() -> void:
 	panel.position = Vector2(14.0, 14.0)
 	panel.custom_minimum_size = Vector2(610.0, 150.0)
 	panel.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.72, 0.88), Color(0.12, 0.18, 0.36), 4, 18, Vector2(0.0, 5.0), 12))
+	panel.visible = false
 	hud_layer.add_child(panel)
 
 	var hud_margin := MarginContainer.new()
@@ -2050,30 +2132,194 @@ func _build_hud() -> void:
 	throwable_notice_label.visible = false
 	hud_layer.add_child(throwable_notice_label)
 
-	catch_crosshair = Label.new()
-	catch_crosshair.anchor_left = 0.5
-	catch_crosshair.anchor_top = 0.5
-	catch_crosshair.anchor_right = 0.5
-	catch_crosshair.anchor_bottom = 0.5
-	catch_crosshair.offset_left = -22.0
-	catch_crosshair.offset_top = -24.0
-	catch_crosshair.offset_right = 22.0
-	catch_crosshair.offset_bottom = 24.0
-	catch_crosshair.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	catch_crosshair.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	catch_crosshair.add_theme_font_size_override("font_size", 34)
-	catch_crosshair.add_theme_color_override("font_color", Color(1.0, 0.92, 0.35, 0.9))
-	catch_crosshair.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.02, 0.9))
-	catch_crosshair.add_theme_constant_override("outline_size", 4)
-	catch_crosshair.text = "+"
-	catch_crosshair.visible = false
-	hud_layer.add_child(catch_crosshair)
+	# 追逐者抓捕冷却显示（右下角）
+	catch_cd_label = Label.new()
+	catch_cd_label.anchor_left = 1.0
+	catch_cd_label.anchor_top = 1.0
+	catch_cd_label.anchor_right = 1.0
+	catch_cd_label.anchor_bottom = 1.0
+	catch_cd_label.offset_left = -210.0
+	catch_cd_label.offset_top = -66.0
+	catch_cd_label.offset_right = -18.0
+	catch_cd_label.offset_bottom = -18.0
+	catch_cd_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	catch_cd_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	catch_cd_label.add_theme_font_size_override("font_size", 26)
+	catch_cd_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55, 0.95))
+	catch_cd_label.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.03, 0.9))
+	catch_cd_label.add_theme_constant_override("outline_size", 4)
+	catch_cd_label.text = ""
+	catch_cd_label.visible = false
+	hud_layer.add_child(catch_cd_label)
+
+	direction_marker_label = Label.new()
+	direction_marker_label.anchor_left = 0.5
+	direction_marker_label.anchor_top = 0.08
+	direction_marker_label.anchor_right = 0.5
+	direction_marker_label.anchor_bottom = 0.08
+	direction_marker_label.offset_left = -90.0
+	direction_marker_label.offset_top = -24.0
+	direction_marker_label.offset_right = 90.0
+	direction_marker_label.offset_bottom = 32.0
+	direction_marker_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	direction_marker_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	direction_marker_label.add_theme_font_size_override("font_size", 42)
+	direction_marker_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.24, 0.95))
+	direction_marker_label.add_theme_color_override("font_outline_color", Color(0.06, 0.05, 0.02, 0.9))
+	direction_marker_label.add_theme_constant_override("outline_size", 5)
+	direction_marker_label.text = "▲"
+	direction_marker_label.visible = false
+	hud_layer.add_child(direction_marker_label)
+
+	threat_overlay = ColorRect.new()
+	threat_overlay.color = Color(1.0, 0.0, 0.0, 0.0)
+	threat_overlay.anchor_right = 1.0
+	threat_overlay.anchor_bottom = 1.0
+	threat_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_layer.add_child(threat_overlay)
+
+	_build_minimap_ui()
 	hud_layer.visible = false
 
-func _update_catch_crosshair() -> void:
-	if catch_crosshair == null:
+func _build_minimap_ui() -> void:
+	minimap_panel = PanelContainer.new()
+	# 右上角
+	minimap_panel.anchor_left = 1.0
+	minimap_panel.anchor_top = 0.0
+	minimap_panel.anchor_right = 1.0
+	minimap_panel.anchor_bottom = 0.0
+	minimap_panel.offset_left = -190.0
+	minimap_panel.offset_top = 18.0
+	minimap_panel.offset_right = -18.0
+	minimap_panel.offset_bottom = 190.0
+	minimap_panel.add_theme_stylebox_override("panel", _cartoon_style(Color(0.02, 0.05, 0.08, 0.58), Color(0.28, 0.78, 1.0, 0.82), 3, 18, Vector2.ZERO, 8))
+	hud_layer.add_child(minimap_panel)
+
+	minimap_content = Control.new()
+	minimap_content.custom_minimum_size = Vector2(156.0, 156.0)
+	minimap_content.clip_contents = true
+	minimap_panel.add_child(minimap_content)
+
+	# 本方玩家标记（始终位于地图上其真实位置）
+	minimap_player_dot = ColorRect.new()
+	minimap_player_dot.name = "MinimapPlayer"
+	minimap_player_dot.color = Color(0.32, 0.9, 1.0, 0.95)
+	minimap_player_dot.size = Vector2(9.0, 9.0)
+	minimap_player_dot.visible = false
+	minimap_content.add_child(minimap_player_dot)
+
+	minimap_opponent_dot = ColorRect.new()
+	minimap_opponent_dot.name = "MinimapOpponent"
+	minimap_opponent_dot.color = Color(1.0, 0.18, 0.12, 0.92)
+	minimap_opponent_dot.size = Vector2(9.0, 9.0)
+	minimap_opponent_dot.visible = false
+	minimap_content.add_child(minimap_opponent_dot)
+
+func _update_direction_marker() -> void:
+	if direction_marker_label != null:
+		direction_marker_label.visible = false
+
+func _update_threat_overlay(distance: float) -> void:
+	if threat_overlay == null:
 		return
-	catch_crosshair.visible = hud_layer != null and hud_layer.visible and not caught and _local_is_tagger()
+	var alpha := 0.0
+	if _local_is_runner() and not caught:
+		alpha = clampf((RUNNER_THREAT_RED_DISTANCE - distance) / RUNNER_THREAT_RED_DISTANCE, 0.0, 1.0) * 0.32
+	threat_overlay.color = Color(1.0, 0.0, 0.0, alpha)
+
+func _update_minimap(delta: float) -> void:
+	if minimap_panel == null or minimap_content == null:
+		return
+	if not _throwable_system_active() or caught:
+		minimap_panel.visible = false
+		return
+	minimap_panel.visible = true
+	_update_minimap_player()
+	_update_minimap_rewards()
+	_update_minimap_opponent(delta)
+
+func _update_minimap_player() -> void:
+	if minimap_player_dot == null:
+		return
+	var local_actor := _local_controlled_actor()
+	if local_actor == null or not is_instance_valid(local_actor):
+		minimap_player_dot.visible = false
+		return
+	minimap_player_dot.position = _world_to_minimap(local_actor.global_position) - minimap_player_dot.size * 0.5
+	minimap_player_dot.visible = true
+
+func _update_minimap_rewards() -> void:
+	if minimap_content == null:
+		return
+	while minimap_reward_dots.size() < ground_throwables.size():
+		var dot := ColorRect.new()
+		dot.color = Color(1.0, 0.86, 0.18, 0.95)
+		dot.size = Vector2(7.0, 7.0)
+		minimap_reward_dots.append(dot)
+		minimap_content.add_child(dot)
+	var item_index := 0
+	for data in ground_throwables.values():
+		var dot := minimap_reward_dots[item_index]
+		dot.position = _world_to_minimap(data.get("position", Vector3.ZERO)) - dot.size * 0.5
+		dot.visible = true
+		item_index += 1
+	for i in range(item_index, minimap_reward_dots.size()):
+		minimap_reward_dots[i].visible = false
+
+func _update_minimap_opponent(delta: float) -> void:
+	if minimap_opponent_dot == null:
+		return
+	var local_actor := _local_controlled_actor()
+	var opponent := _opponent_actor_for_local_player()
+	if local_actor != null and opponent != null and _can_see_opponent(local_actor, opponent):
+		opponent_seen_timer = OPPONENT_MINIMAP_MEMORY
+		last_seen_opponent_position = opponent.global_position
+	else:
+		opponent_seen_timer = maxf(opponent_seen_timer - delta, 0.0)
+	minimap_opponent_dot.visible = opponent_seen_timer > 0.0
+	if minimap_opponent_dot.visible:
+		minimap_opponent_dot.position = _world_to_minimap(last_seen_opponent_position) - minimap_opponent_dot.size * 0.5
+
+func _world_to_minimap(world_position: Vector3) -> Vector2:
+	var center := runner_spawn_position.lerp(tagger_spawn_position, 0.5)
+	var rel := Vector2(world_position.x - center.x, world_position.z - center.z) / MINIMAP_WORLD_RADIUS
+	var size := minimap_content.size
+	if size.x <= 1.0 or size.y <= 1.0:
+		size = Vector2(156.0, 156.0)
+	return Vector2(size.x * 0.5 + clampf(rel.x, -1.0, 1.0) * size.x * 0.45, size.y * 0.5 + clampf(rel.y, -1.0, 1.0) * size.y * 0.45)
+
+func _opponent_actor_for_local_player() -> Node3D:
+	if _local_is_runner():
+		return tagger if tagger != null and is_instance_valid(tagger) else null
+	if _local_is_tagger():
+		return player if player != null and is_instance_valid(player) else null
+	return null
+
+func _can_see_opponent(local_actor: Node3D, opponent: Node3D) -> bool:
+	if local_actor == null or opponent == null or get_world_3d() == null:
+		return false
+	var from := local_actor.global_position + Vector3.UP * 1.0
+	var to := opponent.global_position + Vector3.UP * 1.0
+	if from.distance_to(to) > OPPONENT_SIGHT_RANGE:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [local_actor.get_rid(), opponent.get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+func _update_catch_crosshair() -> void:
+	if catch_cd_label == null:
+		return
+	var show_cd := hud_layer != null and hud_layer.visible and not caught and _local_is_tagger()
+	catch_cd_label.visible = show_cd
+	if not show_cd:
+		return
+	if catch_cooldown_remaining > 0.0:
+		catch_cd_label.text = "抓捕冷却 %.1fs" % catch_cooldown_remaining
+		catch_cd_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.3, 0.95))
+	else:
+		catch_cd_label.text = "抓捕就绪"
+		catch_cd_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55, 0.95))
 
 func _build_arena() -> void:
 	_add_box("Ground", Vector3(0.0, -0.15, 0.0), Vector3(64.0, 0.3, 64.0), Color(0.16, 0.18, 0.2))
@@ -2157,7 +2403,7 @@ func _ensure_input_actions() -> void:
 	_bind_key("quit_room", KEY_Q)
 	_bind_key("toggle_debug", KEY_F3)
 	_bind_key("pickup_item", KEY_F)
-	_bind_key("throw_item", KEY_E)
+	_bind_mouse_button("throw_item", MOUSE_BUTTON_LEFT)
 	_bind_mouse_button("catch_attack", MOUSE_BUTTON_LEFT)
 
 func _bind_key(action_name: String, keycode: int) -> void:
@@ -2231,6 +2477,7 @@ func _clear_all_throwables() -> void:
 	flying_throwables.clear()
 	_hide_throwable_trajectory()
 	_hide_throwable_notice()
+	_hide_held_throwable_visual()
 	_clear_tagger_slow_particles()
 
 func _update_throwables(delta: float) -> void:
@@ -2241,6 +2488,52 @@ func _update_throwables(delta: float) -> void:
 		if throwable_respawn_timer <= 0.0:
 			_maybe_fill_throwable_spawns(false)
 	_update_flying_throwables(delta, multiplayer.multiplayer_peer == null or multiplayer.is_server())
+
+func _update_ai_runner_throwable_strategy(delta: float) -> void:
+	if game_mode != "single_chase" or caught or player == null or tagger == null or not is_instance_valid(player) or not is_instance_valid(tagger):
+		return
+	ai_runner_throw_cooldown = maxf(ai_runner_throw_cooldown - delta, 0.0)
+	if player.has_method("set_throwable_context"):
+		player.set_throwable_context(_ground_throwable_positions(), runner_has_throwable, tagger_hit_count, TAGGER_HITS_TO_WIN)
+	if not runner_has_throwable:
+		var pickup_id := _find_pickup_candidate_for_actor(player, THROWABLE_AI_PICKUP_RANGE)
+		if pickup_id >= 0:
+			_pickup_throwable_on_authority(pickup_id)
+		return
+	if ai_runner_throw_cooldown > 0.0:
+		return
+	var origin: Vector3 = _runner_throw_origin(player)
+	var to_tagger: Vector3 = tagger.global_position + Vector3.UP * 0.8 - origin
+	var flat_distance: float = Vector2(to_tagger.x, to_tagger.z).length()
+	if flat_distance < THROWABLE_AI_THROW_MIN_DISTANCE or flat_distance > THROWABLE_AI_THROW_MAX_DISTANCE:
+		return
+	if not _has_clear_throw_line(origin, tagger.global_position + Vector3.UP * 0.85):
+		return
+	var predicted: Vector3 = tagger.global_position + Vector3.UP * 0.85
+	if tagger is CharacterBody3D:
+		var tagger_velocity: Vector3 = (tagger as CharacterBody3D).velocity
+		tagger_velocity.y = 0.0
+		predicted += tagger_velocity * clampf(flat_distance / THROWABLE_THROW_SPEED, 0.0, 0.55)
+	var direction := (predicted - origin).normalized()
+	direction.y = clampf(direction.y + 0.12, -0.15, 0.45)
+	ai_runner_throw_cooldown = THROWABLE_AI_THROW_COOLDOWN
+	_throw_throwable_on_authority(origin, direction)
+
+func _ground_throwable_positions() -> Array[Vector3]:
+	var positions: Array[Vector3] = []
+	for data in ground_throwables.values():
+		positions.append(data.get("position", Vector3.ZERO))
+	return positions
+
+func _has_clear_throw_line(from: Vector3, to: Vector3) -> bool:
+	if get_world_3d() == null:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	if player != null and is_instance_valid(player) and tagger != null and is_instance_valid(tagger):
+		query.exclude = [player.get_rid(), tagger.get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return hit.is_empty()
 
 func _maybe_fill_throwable_spawns(force_fill: bool) -> void:
 	if not _throwable_system_active():
@@ -2264,21 +2557,42 @@ func _find_throwable_spawn_position():
 	if get_world_3d() == null:
 		return null
 	var center := runner_spawn_position.lerp(tagger_spawn_position, 0.5)
-	var base_radius := maxf(12.0, runner_spawn_position.distance_to(tagger_spawn_position) * 0.8)
-	for _attempt in range(THROWABLE_SPAWN_ATTEMPTS):
+	var span := runner_spawn_position.distance_to(tagger_spawn_position)
+	# Clamp the search radius so probes stay inside compact maps instead of
+	# overshooting the map bounds (which previously yielded zero valid spawns).
+	var max_radius := clampf(span * 0.5, 10.0, 26.0)
+	var ground_level := (runner_spawn_position.y + tagger_spawn_position.y) * 0.5
+	var space_state := get_world_3d().direct_space_state
+	var total_attempts: int = maxi(THROWABLE_SPAWN_ATTEMPTS, 64)
+	for attempt in range(total_attempts):
 		var angle := randf() * TAU
-		var radius := randf_range(base_radius * 0.3, base_radius)
-		var probe := center + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
-		var from := probe + Vector3.UP * 18.0
-		var to := probe + Vector3.DOWN * 28.0
+		# Late attempts shrink toward the guaranteed-walkable centre so a slot
+		# can still be found on small or crowded maps.
+		var falloff := 1.0 - float(attempt) / float(total_attempts)
+		var radius := randf_range(4.0, lerpf(6.0, max_radius, falloff))
+		# Alternate the sampling origin so playable ground offset from the
+		# midpoint (e.g. multi-room maps) is still covered.
+		var origin := center
+		match attempt % 3:
+			1:
+				origin = runner_spawn_position
+			2:
+				origin = tagger_spawn_position
+		var probe := origin + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+		var from := probe + Vector3.UP * 12.0
+		var to := probe + Vector3.DOWN * 24.0
 		var query := PhysicsRayQueryParameters3D.create(from, to)
 		query.collision_mask = 1
-		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		var hit := space_state.intersect_ray(query)
 		if hit.is_empty():
 			continue
 		var position: Vector3 = hit.get("position", probe)
+		# Reject hits that landed on an upper floor / roof so items stay on the
+		# level the players start on and remain reachable.
+		if position.y - ground_level > 2.5:
+			continue
 		position.y += 0.28
-		if position.distance_to(runner_spawn_position) < 5.0 or position.distance_to(tagger_spawn_position) < 5.0:
+		if position.distance_to(runner_spawn_position) < 4.0 or position.distance_to(tagger_spawn_position) < 4.0:
 			continue
 		var too_close := false
 		for data in ground_throwables.values():
@@ -2324,7 +2638,7 @@ func _request_local_throwable_pickup() -> void:
 	if not _local_is_runner():
 		return
 	if runner_has_throwable:
-		_show_throwable_notice("已经持有道具，按 E 投掷", Color(0.36, 0.94, 1.0), false)
+		_show_throwable_notice("已经持有道具，单击左键投掷", Color(0.36, 0.94, 1.0), false)
 		return
 	var nearest_id := _find_pickup_candidate_id()
 	if nearest_id < 0:
@@ -2336,12 +2650,14 @@ func _request_local_throwable_pickup() -> void:
 	_pickup_throwable_on_authority(nearest_id)
 
 func _find_pickup_candidate_id() -> int:
-	var actor = _get_local_actor()
+	return _find_pickup_candidate_for_actor(_get_local_actor(), THROWABLE_PICKUP_RANGE)
+
+func _find_pickup_candidate_for_actor(actor: Node3D, pickup_range: float) -> int:
 	if actor == null or not is_instance_valid(actor):
 		return -1
 	var actor_position: Vector3 = actor.global_position
 	var best_id := -1
-	var best_distance := THROWABLE_PICKUP_RANGE
+	var best_distance := pickup_range
 	for item_id in ground_throwables.keys():
 		var data: Dictionary = ground_throwables[item_id]
 		var position: Vector3 = data.get("position", Vector3.ZERO)
@@ -2362,19 +2678,29 @@ func _pickup_throwable_on_authority(item_id: int) -> void:
 	if runner_actor.global_position.distance_to(position) > THROWABLE_PICKUP_RANGE + 0.25:
 		return
 	runner_has_throwable = true
+	_update_held_throwable_visual()
 	_remove_ground_throwable(item_id, true)
+	if _local_is_runner():
+		_show_throwable_notice("已拾取道具！单击左键投掷", Color(0.34, 1.0, 0.58), true)
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
 		rpc_id(remote_peer_id, "_rpc_set_runner_throwable_state", true)
 
 func _request_local_throwable_throw() -> void:
-	if not _local_is_runner() or not runner_has_throwable:
+	if not _local_is_runner():
+		return
+	if not runner_has_throwable:
+		_show_throwable_notice("没有道具，先靠近道具按 F 拾取", Color(1.0, 0.78, 0.22), false)
 		return
 	var actor = _get_local_actor()
 	if actor == null or not is_instance_valid(actor):
 		return
-	var origin: Vector3 = actor.get_throw_origin() if actor.has_method("get_throw_origin") else actor.global_position + Vector3.UP * 1.15
+	var origin: Vector3 = _runner_throw_origin(actor)
 	var direction: Vector3 = actor.get_throw_direction() if actor.has_method("get_throw_direction") else -actor.global_transform.basis.z.normalized()
 	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
+		runner_has_throwable = false
+		_hide_held_throwable_visual()
+		_hide_throwable_trajectory()
+		_show_throwable_notice("已投掷", Color(0.35, 0.92, 1.0), true)
 		rpc_id(1, "_rpc_request_throw_throwable", origin, direction)
 		return
 	_throw_throwable_on_authority(origin, direction)
@@ -2385,20 +2711,24 @@ func _throw_throwable_on_authority(origin: Vector3, direction: Vector3) -> void:
 	var runner_actor = player
 	if runner_actor == null or not is_instance_valid(runner_actor):
 		return
-	var expected_origin: Vector3 = runner_actor.get_throw_origin() if runner_actor.has_method("get_throw_origin") else runner_actor.global_position + Vector3.UP * 1.15
+	var expected_origin: Vector3 = _runner_throw_origin(runner_actor)
 	if origin.distance_to(expected_origin) > THROWABLE_THROW_ORIGIN_TOLERANCE:
 		origin = expected_origin
 	var throw_direction := direction.normalized()
 	if throw_direction.length_squared() < 0.01:
 		throw_direction = runner_actor.get_throw_direction() if runner_actor.has_method("get_throw_direction") else -runner_actor.global_transform.basis.z.normalized()
 	runner_has_throwable = false
+	_hide_held_throwable_visual()
+	_hide_throwable_trajectory()
+	if _local_is_runner():
+		_show_throwable_notice("已投掷", Color(0.35, 0.92, 1.0), true)
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
 		rpc_id(remote_peer_id, "_rpc_set_runner_throwable_state", false)
-	var velocity := throw_direction * THROWABLE_THROW_SPEED
-	velocity.y += THROWABLE_THROW_UPWARD_BONUS
+	var velocity := _throw_velocity_from_direction(throw_direction)
 	_spawn_flying_throwable(origin, velocity)
 
 func _spawn_flying_throwable(origin: Vector3, velocity: Vector3, projectile_id: int = -1) -> int:
+	_ensure_throwable_root()
 	if throwable_root == null or not is_instance_valid(throwable_root):
 		return -1
 	var resolved_id: int = projectile_id if projectile_id > 0 else next_flying_throwable_id
@@ -2444,7 +2774,7 @@ func _update_flying_throwables(delta: float, authority_checks: bool) -> void:
 			removal_ids.append(int(projectile_id))
 			continue
 		if authority_checks and _projectile_hits_tagger(position):
-			_apply_tagger_slow_effect(THROWABLE_SLOW_MULTIPLIER, THROWABLE_SLOW_DURATION, position)
+			_register_tagger_hit(position)
 			removal_ids.append(int(projectile_id))
 	for projectile_id in removal_ids:
 		_remove_flying_throwable(projectile_id, authority_checks)
@@ -2471,21 +2801,36 @@ func _remove_flying_throwable(projectile_id: int, sync_remote: bool, impact_posi
 	if sync_remote and multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
 		rpc_id(remote_peer_id, "_rpc_remove_flying_throwable", projectile_id, resolved_impact)
 
-func _apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3) -> void:
+func _register_tagger_hit(impact_position: Vector3) -> void:
+	if caught:
+		return
+	tagger_hit_count += 1
+	_apply_tagger_slow_effect(THROWABLE_SLOW_MULTIPLIER, THROWABLE_SLOW_DURATION, impact_position, tagger_hit_count)
+	if tagger_hit_count >= TAGGER_HITS_TO_WIN:
+		_on_runner_survived()
+
+func _apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3, current_hit_count: int = -1) -> void:
+	if current_hit_count >= 0:
+		tagger_hit_count = current_hit_count
 	if tagger != null and is_instance_valid(tagger) and tagger.has_method("apply_speed_multiplier"):
 		tagger.apply_speed_multiplier(multiplier, duration)
 		_start_tagger_slow_particles(duration)
 	_play_throwable_hit_effect(impact_position)
+	if _local_is_runner():
+		_show_throwable_notice("命中追逐者！%d / %d" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(0.34, 1.0, 0.58), true)
+	elif _local_is_tagger():
+		_show_throwable_notice("被击中 %d / %d 次，暂时减速" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(1.0, 0.46, 0.32), true)
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
-		rpc_id(remote_peer_id, "_rpc_apply_tagger_slow_effect", multiplier, duration, impact_position)
+		rpc_id(remote_peer_id, "_rpc_apply_tagger_slow_effect", multiplier, duration, impact_position, tagger_hit_count)
 
 func _start_tagger_slow_particles(duration: float) -> void:
 	if tagger == null or not is_instance_valid(tagger):
 		return
 	tagger_slow_particle_timer = maxf(tagger_slow_particle_timer, duration)
 	tagger_slow_particle_elapsed = 0.0
+	tagger_slow_particle_last_position = tagger.global_position
 	if tagger_slow_particles != null and is_instance_valid(tagger_slow_particles):
-		tagger_slow_particles.visible = true
+		tagger_slow_particles.visible = false
 		return
 	tagger_slow_particles = Node3D.new()
 	tagger_slow_particles.name = "TaggerSlowParticles"
@@ -2536,8 +2881,17 @@ func _update_tagger_slow_particles(delta: float) -> void:
 		return
 	tagger_slow_particle_timer = maxf(tagger_slow_particle_timer - delta, 0.0)
 	tagger_slow_particle_elapsed += delta
-	tagger_slow_particles.visible = true
-	tagger_slow_particles.global_position = tagger.global_position + Vector3.UP * 0.05
+	var current_position: Vector3 = tagger.global_position
+	var horizontal_delta := Vector2(current_position.x - tagger_slow_particle_last_position.x, current_position.z - tagger_slow_particle_last_position.z).length()
+	var moving_threshold := SLOW_PARTICLE_MOVE_THRESHOLD * maxf(delta, 0.016)
+	var is_walking := horizontal_delta > moving_threshold
+	tagger_slow_particle_last_position = current_position
+	tagger_slow_particles.visible = is_walking
+	if not is_walking:
+		if tagger_slow_particle_timer <= 0.0:
+			_clear_tagger_slow_particles()
+		return
+	tagger_slow_particles.global_position = current_position + Vector3.UP * 0.05
 	tagger_slow_particles.rotation.y += delta * 2.2
 	var ring := tagger_slow_particles.get_node_or_null("SlowGroundRing") as MeshInstance3D
 	if ring != null:
@@ -2560,6 +2914,7 @@ func _update_tagger_slow_particles(delta: float) -> void:
 func _clear_tagger_slow_particles() -> void:
 	tagger_slow_particle_timer = 0.0
 	tagger_slow_particle_elapsed = 0.0
+	tagger_slow_particle_last_position = Vector3.ZERO
 	if tagger_slow_particles != null and is_instance_valid(tagger_slow_particles):
 		tagger_slow_particles.queue_free()
 	tagger_slow_particles = null
@@ -2651,10 +3006,106 @@ func _update_throwable_notice(delta: float) -> void:
 		if throwable_notice_timer <= 0.0:
 			_hide_throwable_notice()
 
+func _ensure_held_throwable_visual() -> void:
+	if held_throwable_visual != null and is_instance_valid(held_throwable_visual):
+		return
+	held_throwable_visual = _create_throwable_visual(true)
+	held_throwable_visual.name = "HeldThrowable"
+	held_throwable_visual.scale = Vector3.ONE * 0.82
+	held_throwable_visual.visible = false
+	add_child(held_throwable_visual)
+
+func _hide_held_throwable_visual() -> void:
+	if held_throwable_visual != null and is_instance_valid(held_throwable_visual):
+		held_throwable_visual.visible = false
+
+func _update_held_throwable_visual() -> void:
+	if not _throwable_system_active() or not runner_has_throwable or caught or player == null or not is_instance_valid(player):
+		_hide_held_throwable_visual()
+		return
+	_ensure_held_throwable_visual()
+	if held_throwable_visual == null or not is_instance_valid(held_throwable_visual):
+		return
+	var origin := _runner_throw_origin(player)
+	held_throwable_visual.global_position = origin
+	held_throwable_visual.global_rotation = player.global_rotation
+	held_throwable_visual.visible = true
+
+func _runner_throw_origin(actor: Node3D) -> Vector3:
+	if actor == null or not is_instance_valid(actor):
+		return Vector3.ZERO
+	if actor.has_method("get_throw_origin"):
+		return actor.get_throw_origin()
+	var basis := actor.global_transform.basis
+	var right := basis.x.normalized()
+	var forward := -basis.z.normalized()
+	return actor.global_position + right * THROWABLE_HAND_OFFSET.x + Vector3.UP * THROWABLE_HAND_OFFSET.y + forward * absf(THROWABLE_HAND_OFFSET.z)
+
+func _throw_velocity_from_direction(direction: Vector3) -> Vector3:
+	var throw_direction := direction.normalized()
+	if throw_direction.length_squared() < 0.01:
+		throw_direction = Vector3.FORWARD
+	var velocity := throw_direction * THROWABLE_THROW_SPEED
+	velocity.y += THROWABLE_THROW_UPWARD_BONUS
+	return velocity
+
+func _compute_throw_trajectory(origin: Vector3, velocity: Vector3) -> Dictionary:
+	var points: Array[Vector3] = [origin]
+	var previous := origin
+	var landing := origin
+	var hit_ground := false
+	for step in range(1, THROWABLE_TRAJECTORY_STEPS + 1):
+		var t := float(step) * THROWABLE_TRAJECTORY_STEP_TIME
+		var point := origin + velocity * t + Vector3.DOWN * 0.5 * THROWABLE_PROJECTILE_GRAVITY * t * t
+		var query := PhysicsRayQueryParameters3D.create(previous, point)
+		query.collision_mask = 1
+		var hit := get_world_3d().direct_space_state.intersect_ray(query) if get_world_3d() != null else {}
+		if not hit.is_empty():
+			landing = hit.get("position", point)
+			points.append(landing)
+			hit_ground = true
+			break
+		points.append(point)
+		landing = point
+		previous = point
+	return {"points": points, "landing": landing, "hit": hit_ground}
+
+func _update_trajectory_dots(points: Array) -> void:
+	if throwable_trajectory_dots == null or not is_instance_valid(throwable_trajectory_dots):
+		return
+	var child_count := throwable_trajectory_dots.get_child_count()
+	for i in range(child_count):
+		var dot := throwable_trajectory_dots.get_child(i) as MeshInstance3D
+		if dot == null:
+			continue
+		if points.size() <= 1:
+			dot.visible = false
+			continue
+		var ratio := float(i + 1) / float(child_count + 1)
+		var point_index := clampi(roundi(ratio * float(points.size() - 1)), 0, points.size() - 1)
+		dot.global_position = points[point_index]
+		dot.scale = Vector3.ONE * (0.82 + ratio * 0.75)
+		dot.visible = true
+
+func _update_landing_marker(position: Vector3, has_ground_hit: bool) -> void:
+	if throwable_landing_marker == null or not is_instance_valid(throwable_landing_marker):
+		return
+	throwable_landing_marker.global_position = position + Vector3.UP * 0.035
+	throwable_landing_marker.rotation = Vector3.ZERO
+	var pulse := 1.0 + sin(Time.get_ticks_msec() * 0.008) * 0.08
+	throwable_landing_marker.scale = Vector3.ONE * (pulse if has_ground_hit else 0.72)
+	throwable_landing_marker.visible = true
+
 func _hide_throwable_trajectory() -> void:
 	if throwable_trajectory != null and is_instance_valid(throwable_trajectory):
 		throwable_trajectory.visible = false
 		throwable_trajectory.mesh = null
+	if throwable_trajectory_dots != null and is_instance_valid(throwable_trajectory_dots):
+		for child in throwable_trajectory_dots.get_children():
+			if child is MeshInstance3D:
+				(child as MeshInstance3D).visible = false
+	if throwable_landing_marker != null and is_instance_valid(throwable_landing_marker):
+		throwable_landing_marker.visible = false
 
 func _update_throwable_trajectory() -> void:
 	if not _local_is_runner() or not runner_has_throwable or caught or Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
@@ -2667,34 +3118,30 @@ func _update_throwable_trajectory() -> void:
 	_ensure_throwable_trajectory()
 	if throwable_trajectory == null or not is_instance_valid(throwable_trajectory):
 		return
-	var origin: Vector3 = actor.get_throw_origin() if actor.has_method("get_throw_origin") else actor.global_position + Vector3.UP * 1.15
+	var origin: Vector3 = _runner_throw_origin(actor)
 	var direction: Vector3 = actor.get_throw_direction() if actor.has_method("get_throw_direction") else -actor.global_transform.basis.z.normalized()
-	var velocity := direction.normalized() * THROWABLE_THROW_SPEED
-	velocity.y += THROWABLE_THROW_UPWARD_BONUS
+	var velocity := _throw_velocity_from_direction(direction)
+	var trajectory := _compute_throw_trajectory(origin, velocity)
+	var points: Array = trajectory.get("points", [])
+	if points.size() < 2:
+		_hide_throwable_trajectory()
+		return
 	var mesh := ImmediateMesh.new()
 	mesh.surface_begin(Mesh.PRIMITIVE_LINE_STRIP)
-	var previous := origin
-	mesh.surface_add_vertex(origin)
-	for step in range(1, THROWABLE_TRAJECTORY_STEPS + 1):
-		var t := float(step) * THROWABLE_TRAJECTORY_STEP_TIME
-		var point := origin + velocity * t + Vector3.DOWN * 0.5 * THROWABLE_PROJECTILE_GRAVITY * t * t
-		var query := PhysicsRayQueryParameters3D.create(previous, point)
-		query.collision_mask = 1
-		var hit := get_world_3d().direct_space_state.intersect_ray(query) if get_world_3d() != null else {}
-		if not hit.is_empty():
-			mesh.surface_add_vertex(hit.get("position", point))
-			break
+	for point in points:
 		mesh.surface_add_vertex(point)
-		previous = point
 	mesh.surface_end()
 	throwable_trajectory.mesh = mesh
 	throwable_trajectory.visible = true
+	_update_trajectory_dots(points)
+	var landing_position: Vector3 = trajectory.get("landing", points[points.size() - 1])
+	_update_landing_marker(landing_position, bool(trajectory.get("hit", false)))
 
 func _throwable_status_text() -> String:
 	if not _throwable_system_active():
 		return ""
 	if _local_is_runner():
-		return "道具：%s（场上 %d 个）" % ["已持有，可按 E 投掷" if runner_has_throwable else "未持有，靠近后按 F 拾取", ground_throwables.size()]
+		return "道具：%s（场上 %d 个）" % ["已持有，单击左键投掷" if runner_has_throwable else "未持有，靠近后按 F 拾取", ground_throwables.size()]
 	return "场上道具：%d 个" % ground_throwables.size()
 
 @rpc("call_remote", "reliable")
@@ -2708,12 +3155,16 @@ func _rpc_remove_ground_throwable(item_id: int) -> void:
 @rpc("call_remote", "reliable")
 func _rpc_set_runner_throwable_state(has_throwable: bool) -> void:
 	runner_has_throwable = has_throwable
+	if has_throwable:
+		_update_held_throwable_visual()
+	else:
+		_hide_held_throwable_visual()
 	if _local_is_runner():
 		if has_throwable:
-			_show_throwable_notice("已拾取道具！按 E 投掷", Color(0.34, 1.0, 0.58), true)
+			_show_throwable_notice("已拾取道具！单击左键投掷", Color(0.34, 1.0, 0.58), true)
 		else:
 			_hide_throwable_trajectory()
-			_show_throwable_notice("已投掷！命中追逐者会减速", Color(0.35, 0.92, 1.0), true)
+			_show_throwable_notice("已投掷", Color(0.35, 0.92, 1.0), true)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_pickup_throwable(item_id: int) -> void:
@@ -2736,8 +3187,13 @@ func _rpc_remove_flying_throwable(projectile_id: int, impact_position: Vector3) 
 	_remove_flying_throwable(projectile_id, false, impact_position)
 
 @rpc("call_remote", "reliable")
-func _rpc_apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3) -> void:
+func _rpc_apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3, current_hit_count: int) -> void:
+	tagger_hit_count = current_hit_count
 	if tagger != null and is_instance_valid(tagger) and tagger.has_method("apply_speed_multiplier"):
 		tagger.apply_speed_multiplier(multiplier, duration)
 		_start_tagger_slow_particles(duration)
 	_play_throwable_hit_effect(impact_position)
+	if _local_is_runner():
+		_show_throwable_notice("命中追逐者！%d / %d" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(0.34, 1.0, 0.58), true)
+	elif _local_is_tagger():
+		_show_throwable_notice("被击中 %d / %d 次，暂时减速" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(1.0, 0.46, 0.32), true)

@@ -14,6 +14,9 @@ const JUMP_COOLDOWN := 0.42
 var avoid_sign := 1.0
 var avoid_timer := 0.0
 var stuck_timer := 0.0
+var hard_stuck_timer := 0.0
+var escape_dir := Vector3.ZERO
+var escape_timer := 0.0
 var last_position := Vector3.ZERO
 var jump_cooldown := 0.0
 var descent_dir := Vector3.ZERO
@@ -78,6 +81,32 @@ func _physics_process(delta: float) -> void:
 	else:
 		stuck_timer = maxf(stuck_timer - delta * 2.0, 0.0)
 
+	# 硬性脱困：长时间几乎无位移（被卡在墙角/夹缝）时，强制朝最空旷方向冲刺 + 跳跃，
+	# 保证 AI 绝不会永久卡在墙里。
+	if move_dir.length_squared() > 0.01 and frame_move < 0.02:
+		hard_stuck_timer += delta
+	else:
+		hard_stuck_timer = maxf(hard_stuck_timer - delta * 1.5, 0.0)
+
+	escape_timer = maxf(escape_timer - delta, 0.0)
+	if hard_stuck_timer > 1.0 and escape_timer <= 0.0:
+		escape_dir = _best_escape_dir(move_dir)
+		escape_timer = 0.75
+		hard_stuck_timer = 0.0
+		_request_jump(jump_velocity)
+
+	if escape_timer > 0.0 and escape_dir.length_squared() > 0.01:
+		var burst_speed: float = chase_speed * move_speed_multiplier * 1.15
+		_apply_gravity(delta)
+		if velocity.y > MAX_UPWARD_VELOCITY:
+			velocity.y = MAX_UPWARD_VELOCITY
+		velocity.x = move_toward(velocity.x, escape_dir.x * burst_speed, acceleration * 1.6 * delta)
+		velocity.z = move_toward(velocity.z, escape_dir.z * burst_speed, acceleration * 1.6 * delta)
+		look_at(global_position + escape_dir, Vector3.UP)
+		move_and_slide()
+		last_position = global_position
+		return
+
 	if move_dir.length_squared() > 0.01 and (repath_timer <= 0.0 or stuck_timer > 0.22):
 		var planned_dir := _plan_local_navigation_dir(move_dir, target_pos)
 		if planned_dir.length_squared() > 0.01:
@@ -134,6 +163,9 @@ func _respawn() -> void:
 	global_position = spawn_position
 	velocity = Vector3.ZERO
 	stuck_timer = 0.0
+	hard_stuck_timer = 0.0
+	escape_dir = Vector3.ZERO
+	escape_timer = 0.0
 	jump_cooldown = 0.0
 	descent_dir = Vector3.ZERO
 	descent_repath_timer = 0.0
@@ -216,6 +248,35 @@ func _plan_local_navigation_dir(raw_dir: Vector3, target_pos: Vector3) -> Vector
 			wall_follow_timer = 0.55
 
 	return best_dir.normalized()
+
+func _best_escape_dir(current: Vector3) -> Vector3:
+	var dirs: Array[Vector3] = [
+		Vector3(1.0, 0.0, 0.0),
+		Vector3(-1.0, 0.0, 0.0),
+		Vector3(0.0, 0.0, 1.0),
+		Vector3(0.0, 0.0, -1.0),
+		Vector3(1.0, 0.0, 1.0).normalized(),
+		Vector3(1.0, 0.0, -1.0).normalized(),
+		Vector3(-1.0, 0.0, 1.0).normalized(),
+		Vector3(-1.0, 0.0, -1.0).normalized(),
+	]
+	var best: Vector3 = (-current).normalized() if current.length_squared() > 0.01 else Vector3(1.0, 0.0, 0.0)
+	var best_score := -1.0
+	var toward := Vector3.ZERO
+	if target != null and is_instance_valid(target):
+		toward = target.global_position - global_position
+		toward.y = 0.0
+		if toward.length_squared() > 0.01:
+			toward = toward.normalized()
+		else:
+			toward = Vector3.ZERO
+	for d in dirs:
+		var clearance := _sample_forward_clearance(d)
+		var score: float = clearance + d.dot(toward) * 0.4
+		if score > best_score:
+			best_score = score
+			best = d
+	return best.normalized()
 
 func _sample_forward_clearance(dir: Vector3) -> float:
 	if dir.length_squared() < 0.01:

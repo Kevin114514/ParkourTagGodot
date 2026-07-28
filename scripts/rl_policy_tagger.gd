@@ -25,6 +25,7 @@ var rl_max_relative_cells := 14
 var rl_catch_action_index := 8
 var wants_catch_attempt := false
 var vertical_fallback_active := false
+var rl_stuck_timer := 0.0
 
 func _ready() -> void:
 	super._ready()
@@ -60,11 +61,21 @@ func _physics_process(delta: float) -> void:
 	vertical_fallback_active = false
 
 	var move_dir := _policy_move_dir()
+	# 若正沿策略方向移动却几乎没有位移，说明被卡住了：交给基类的硬性脱困逻辑处理。
+	var frame_move := Vector2(global_position.x - last_position.x, global_position.z - last_position.z).length()
+	if not wants_catch_attempt and move_dir.length_squared() > 0.01 and frame_move < 0.02 and is_on_floor():
+		rl_stuck_timer += delta
+	else:
+		rl_stuck_timer = maxf(rl_stuck_timer - delta * 1.5, 0.0)
 	if _is_close_enough_for_catch():
 		wants_catch_attempt = true
 		move_dir = _direction_to_target()
 	elif wants_catch_attempt:
 		move_dir = _direction_to_target()
+	elif rl_stuck_timer > 0.7:
+		rl_stuck_timer = 0.0
+		super._physics_process(delta)
+		return
 	elif move_dir.length_squared() < 0.01:
 		super._physics_process(delta)
 		return
@@ -136,10 +147,11 @@ func _load_policy() -> void:
 
 func _policy_move_dir() -> Vector3:
 	wants_catch_attempt = false
-	var agent_cell := _world_to_policy_cell(global_position)
-	var target_cell := _world_to_policy_cell(target.global_position)
-	var dx := clampi(target_cell.x - agent_cell.x, -rl_max_relative_cells, rl_max_relative_cells)
-	var dz := clampi(target_cell.y - agent_cell.y, -rl_max_relative_cells, rl_max_relative_cells)
+	# 使用"相对目标偏移量"查表，与训练时 target_cell - agent_cell 一致；
+	# 不再依赖单张地图的绝对边界，因此在所有官方地图上都能命中策略。
+	var offset := target.global_position - global_position
+	var dx := clampi(int(round(offset.x / rl_cell_size)), -rl_max_relative_cells, rl_max_relative_cells)
+	var dz := clampi(int(round(offset.z / rl_cell_size)), -rl_max_relative_cells, rl_max_relative_cells)
 	var key := "%d,%d,%d" % [dx, dz, _blocked_mask()]
 	if not rl_policy.has(key):
 		return Vector3.ZERO
