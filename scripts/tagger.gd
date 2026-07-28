@@ -26,6 +26,9 @@ var spawn_position := Vector3.ZERO
 var move_speed_multiplier := 1.0
 var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
+const STEP_MAX_HEIGHT := 0.52
+const STEP_FORWARD_DISTANCE := 0.45
+var _step_inward_dir := Vector3.ZERO  # 上一次台阶检测的内侧方向（法线反向）
 
 func _ready() -> void:
 	collision_layer = 4
@@ -127,7 +130,7 @@ func _physics_process(delta: float) -> void:
 
 	if move_dir.length_squared() > 0.01:
 		look_at(global_position + move_dir, Vector3.UP)
-	move_and_slide()
+	_move_with_step_climbing(delta)
 	last_position = global_position
 
 func _respawn() -> void:
@@ -366,6 +369,118 @@ func _ray_blocked(dir: Vector3, distance: float, height: float = 0.65) -> bool:
 	query.collision_mask = 1
 	query.exclude = [get_rid()]
 	return not space.intersect_ray(query).is_empty()
+
+func _move_with_step_climbing(delta: float) -> void:
+	var horizontal_vel := Vector3(velocity.x, 0.0, velocity.z)
+	if horizontal_vel.length_squared() < 0.01 or not is_on_floor():
+		move_and_slide()
+		return
+
+	var move_dir_sc := horizontal_vel.normalized()
+	# 用当前实际水平速度推进台阶，保留 move_toward 的结果
+	var current_speed := horizontal_vel.length()
+	var space := get_world_3d().direct_space_state
+
+	# 子步进检测：将一帧拆成多次小步，更快捕捉台阶避免漂移
+	var sub_steps := 3
+	var sub_delta := delta / float(sub_steps)
+	for i in sub_steps:
+		var step_result := _detect_step_ahead(space, global_position, move_dir_sc)
+		if step_result != Vector3.ZERO:
+			global_position.y = step_result.y + 0.01
+			global_position.x += move_dir_sc.x * current_speed * sub_delta
+			global_position.z += move_dir_sc.z * current_speed * sub_delta
+			# 沿楼梯正交方向（内侧）补偿，防止漂移到楼梯侧面掉下去
+			if _step_inward_dir.length_squared() > 0.01:
+				global_position.x += _step_inward_dir.x * 0.04
+				global_position.z += _step_inward_dir.z * 0.04
+		else:
+			# 本子步没有台阶，正常移动（不覆盖 velocity）
+			move_and_slide()
+			return
+
+	# 所有子步都在爬台阶：保留水平速度供下一帧衔接，仅清零 Y
+	velocity.y = 0.0
+
+func _detect_step_ahead(space: PhysicsDirectSpaceState3D, origin: Vector3, move_dir: Vector3) -> Vector3:
+	# 横向平行射线 + 扇形角度射线，覆盖角色整个身宽，
+	# 解决斜向接近台阶时角色侧边先撞棱角、中心射线没命中导致被卡住的问题
+	var angles := [0.0, 22.0, -22.0, 45.0, -45.0]
+	var side := move_dir.cross(Vector3.UP).normalized()
+	var lateral_offsets := [0.0, 0.32, -0.32]
+	var rid := get_rid()
+	var mask := collision_mask
+	var best_result := Vector3.ZERO
+	var best_height := -1.0
+
+	for lo in lateral_offsets:
+		var ray_origin: Vector3 = origin + side * lo
+		for angle in angles:
+			var dir := move_dir.rotated(Vector3.UP, deg_to_rad(angle))
+			var result := _try_step_ray(space, ray_origin, dir, rid, mask)
+			if result != Vector3.ZERO:
+				var h := result.y - origin.y
+				if h > best_height:
+					best_height = h
+					best_result = result
+
+	return best_result
+
+func _try_step_ray(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, rid: RID, mask: int) -> Vector3:
+	var foot_height := 0.05
+	var low_ray_origin := origin + Vector3.UP * foot_height
+	var low_ray_end := low_ray_origin + dir * STEP_FORWARD_DISTANCE
+
+	var low_params := PhysicsRayQueryParameters3D.create(low_ray_origin, low_ray_end)
+	low_params.collision_mask = mask
+	low_params.exclude = [rid]
+	var low_hit := space.intersect_ray(low_params)
+	if low_hit.is_empty():
+		return Vector3.ZERO
+
+	# 高位射线检测是否为墙壁
+	var high_ray_origin := origin + Vector3.UP * (STEP_MAX_HEIGHT + 0.05)
+	var high_ray_end := high_ray_origin + dir * STEP_FORWARD_DISTANCE
+
+	var high_params := PhysicsRayQueryParameters3D.create(high_ray_origin, high_ray_end)
+	high_params.collision_mask = mask
+	high_params.exclude = [rid]
+	var high_hit := space.intersect_ray(high_params)
+	if not high_hit.is_empty():
+		return Vector3.ZERO
+
+	# 使用碰撞法线方向来确定台阶内侧偏移方向
+	var hit_point: Vector3 = low_hit["position"]
+	var hit_normal: Vector3 = low_hit["normal"]
+	var inward := -Vector3(hit_normal.x, 0.0, hit_normal.z).normalized()
+	if inward.length_squared() < 0.01:
+		inward = dir
+
+	# 从碰撞点沿法线向内偏移后，从上方向下射线找台阶顶面
+	var offset := inward * 0.08
+	var down_origin := Vector3(hit_point.x + offset.x, origin.y + STEP_MAX_HEIGHT + 0.05, hit_point.z + offset.z)
+	var down_end := Vector3(hit_point.x + offset.x, origin.y - 0.05, hit_point.z + offset.z)
+
+	var down_params := PhysicsRayQueryParameters3D.create(down_origin, down_end)
+	down_params.collision_mask = mask
+	down_params.exclude = [rid]
+	var down_hit := space.intersect_ray(down_params)
+	if down_hit.is_empty():
+		return Vector3.ZERO
+
+	var step_top: Vector3 = down_hit["position"]
+	var step_normal: Vector3 = down_hit["normal"]
+
+	if step_normal.angle_to(Vector3.UP) > floor_max_angle:
+		return Vector3.ZERO
+
+	var step_height := step_top.y - origin.y
+	if step_height < 0.02 or step_height > STEP_MAX_HEIGHT:
+		return Vector3.ZERO
+
+	# 记录台阶内侧方向，供传送补偿使用
+	_step_inward_dir = inward
+	return step_top
 
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor() and velocity.y < 0.0:
