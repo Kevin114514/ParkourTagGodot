@@ -67,6 +67,11 @@ const OFFICIAL_MAPS = [
 		"name": "森林小岛（外海+内湖）",
 		"path": "res://maps/forest_island_map.json",
 		"description": "森林小岛地图：使用 3D 森林岛屿模型，包含外海、内湖和开阔追逐空间。"
+	},
+	{
+		"name": "城市训练工地",
+		"path": "res://maps/urban_training_site.json",
+		"description": "v2 写实标杆地图：工业街区、仓库灯光、二层平台、低障碍翻越点和清晰追逐路线。"
 	}
 ]
 
@@ -116,6 +121,8 @@ var win_time_seconds := 60.0
 var is_leaving_room := false
 var round_transition_token := 0
 var map_root: Node3D
+var world_environment: WorldEnvironment
+var sun_light: DirectionalLight3D
 var map_name := "默认地图"
 var active_map_path := ""
 var selected_map_index := 0
@@ -1290,12 +1297,15 @@ func _collect_map_refs_recursive(value, base_dir: String, files: Array, seen: Di
 		for key in dict.keys():
 			var child = dict[key]
 			var key_text := String(key)
-			if child is String and (key_text == "path" or key_text == "texture" or key_text == "normal_texture"):
+			if child is String and _is_map_asset_key(key_text):
 				_append_sync_file(base_dir, String(child), files, seen)
 			_collect_map_refs_recursive(child, base_dir, files, seen)
 	elif value is Array:
 		for child in value:
 			_collect_map_refs_recursive(child, base_dir, files, seen)
+
+func _is_map_asset_key(key: String) -> bool:
+	return key in ["path", "texture", "albedo_texture", "normal_texture", "orm_texture", "roughness_texture", "metallic_texture", "emission_texture", "detail_texture"]
 
 func _append_sync_file(base_dir: String, relative_path: String, files: Array, seen: Dictionary) -> void:
 	var rel := relative_path.strip_edges().replace("\\", "/")
@@ -1794,23 +1804,121 @@ func _rpc_runner_failed(final_time: float, reason: String) -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _setup_world() -> void:
-	var environment := WorldEnvironment.new()
+	world_environment = WorldEnvironment.new()
+	world_environment.name = "WorldEnvironment"
+	world_environment.environment = _build_default_environment()
+	add_child(world_environment)
+
+	sun_light = DirectionalLight3D.new()
+	sun_light.name = "Sun"
+	sun_light.light_energy = 2.1
+	sun_light.rotation_degrees = Vector3(-48.0, 35.0, 0.0)
+	add_child(sun_light)
+	_ensure_throwable_root()
+	_ensure_throwable_trajectory()
+
+func _build_default_environment() -> Environment:
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.48, 0.78, 1.0)
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.95, 0.9, 0.78)
 	env.ambient_light_energy = 1.15
-	environment.environment = env
-	add_child(environment)
+	return env
 
-	var sun := DirectionalLight3D.new()
-	sun.name = "Sun"
-	sun.light_energy = 2.1
-	sun.rotation_degrees = Vector3(-48.0, 35.0, 0.0)
-	add_child(sun)
-	_ensure_throwable_root()
-	_ensure_throwable_trajectory()
+func _apply_map_environment(raw_environment) -> void:
+	if world_environment == null or not is_instance_valid(world_environment):
+		return
+	if not (raw_environment is Dictionary):
+		world_environment.environment = _build_default_environment()
+		_apply_default_sun()
+		return
+	var data := raw_environment as Dictionary
+	if data.is_empty():
+		world_environment.environment = _build_default_environment()
+		_apply_default_sun()
+		return
+	var env := _build_default_environment()
+	var background := String(data.get("background", "color")).to_lower()
+	if background == "sky":
+		env.background_mode = Environment.BG_SKY
+	else:
+		env.background_mode = Environment.BG_COLOR
+	env.background_color = _to_color(data.get("sky_color", data.get("background_color", env.background_color)), env.background_color)
+	env.ambient_light_color = _to_color(data.get("ambient_color", env.ambient_light_color), env.ambient_light_color)
+	env.ambient_light_energy = float(data.get("ambient_energy", env.ambient_light_energy))
+	env.fog_enabled = _to_bool(data.get("fog_enabled", false), false)
+	env.fog_light_color = _to_color(data.get("fog_color", env.background_color), env.background_color)
+	env.fog_density = float(data.get("fog_density", 0.01))
+	env.glow_enabled = _to_bool(data.get("glow", false), false)
+	env.ssr_enabled = _to_bool(data.get("ssr", false), false)
+	env.ssao_enabled = _to_bool(data.get("ssao", false), false)
+	env.tonemap_exposure = float(data.get("exposure", 1.0))
+	match String(data.get("tonemap", "linear")).to_lower():
+		"filmic":
+			env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+		"aces":
+			env.tonemap_mode = Environment.TONE_MAPPER_ACES
+		"reinhard", "reinhardt":
+			env.tonemap_mode = Environment.TONE_MAPPER_REINHARDT
+		_:
+			env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
+	world_environment.environment = env
+	_apply_map_sun(data.get("sun", {}))
+
+func _apply_default_sun() -> void:
+	if sun_light == null or not is_instance_valid(sun_light):
+		return
+	sun_light.light_color = Color.WHITE
+	sun_light.light_energy = 2.1
+	sun_light.rotation_degrees = Vector3(-48.0, 35.0, 0.0)
+	sun_light.shadow_enabled = false
+	sun_light.visible = true
+
+func _apply_map_sun(raw_sun) -> void:
+	if sun_light == null or not is_instance_valid(sun_light):
+		return
+	if not (raw_sun is Dictionary):
+		_apply_default_sun()
+		return
+	var data := raw_sun as Dictionary
+	sun_light.visible = _to_bool(data.get("visible", true), true)
+	sun_light.light_color = _to_color(data.get("color", Color.WHITE), Color.WHITE)
+	sun_light.light_energy = float(data.get("energy", 2.1))
+	sun_light.rotation_degrees = _to_vector3(data.get("rotation_degrees", Vector3(-48.0, 35.0, 0.0)), Vector3(-48.0, 35.0, 0.0))
+	sun_light.shadow_enabled = _to_bool(data.get("shadow", true), true)
+
+func _to_vector3(value, default_value: Vector3) -> Vector3:
+	if value is Vector3:
+		return value
+	if typeof(value) == TYPE_ARRAY and value.size() >= 3:
+		return Vector3(float(value[0]), float(value[1]), float(value[2]))
+	if typeof(value) == TYPE_DICTIONARY:
+		return Vector3(float(value.get("x", default_value.x)), float(value.get("y", default_value.y)), float(value.get("z", default_value.z)))
+	return default_value
+
+func _to_color(value, default_value: Color) -> Color:
+	if value is Color:
+		return value
+	if typeof(value) == TYPE_ARRAY:
+		if value.size() >= 4:
+			return Color(float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+		if value.size() >= 3:
+			return Color(float(value[0]), float(value[1]), float(value[2]))
+	if typeof(value) == TYPE_STRING:
+		return Color(value)
+	return default_value
+
+func _to_bool(value, default_value: bool) -> bool:
+	if typeof(value) == TYPE_BOOL:
+		return bool(value)
+	if typeof(value) == TYPE_STRING:
+		var text := String(value).to_lower()
+		if text == "true" or text == "yes" or text == "1":
+			return true
+		if text == "false" or text == "no" or text == "0":
+			return false
+	return default_value
 
 func _ensure_throwable_root() -> void:
 	if throwable_root != null and is_instance_valid(throwable_root):
@@ -1850,6 +1958,7 @@ func _load_active_map() -> bool:
 	_build_arena()
 	map_name = "内置备用地图"
 	active_map_path = "legacy_builtin"
+	_apply_map_environment({})
 	_update_map_ui()
 	if debug_mode:
 		_refresh_debug_collision_shapes()
@@ -1870,6 +1979,7 @@ func _load_map_from_path(map_path: String) -> bool:
 	active_map_path = map_path
 	runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
 	tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
+	_apply_map_environment(result.get("environment", {}))
 	_update_map_ui()
 	if debug_mode:
 		_refresh_debug_collision_shapes()

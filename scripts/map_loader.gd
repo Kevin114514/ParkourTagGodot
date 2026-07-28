@@ -10,6 +10,9 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 		"map_root": null,
 		"runner_spawn": DEFAULT_RUNNER_SPAWN,
 		"tagger_spawn": DEFAULT_TAGGER_SPAWN,
+		"environment": {},
+		"gameplay": {},
+		"format_version": 1,
 		"error": ""
 	}
 
@@ -34,36 +37,65 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 		result["error"] = "地图 objects 必须是数组：%s" % map_path
 		return result
 
+	var context := _build_context(data, map_path)
 	for raw_object in raw_objects:
 		if typeof(raw_object) == TYPE_DICTIONARY:
-			_add_object(root, raw_object, map_path)
+			_add_object(root, raw_object, context)
+
+	var raw_lights = data.get("lights", [])
+	if typeof(raw_lights) == TYPE_ARRAY:
+		for raw_light in raw_lights:
+			if typeof(raw_light) == TYPE_DICTIONARY:
+				_add_light(root, raw_light, context)
+
+	var raw_decals = data.get("decals", [])
+	if typeof(raw_decals) == TYPE_ARRAY:
+		for raw_decal in raw_decals:
+			if typeof(raw_decal) == TYPE_DICTIONARY:
+				_add_decal(root, raw_decal, context)
 
 	result["ok"] = true
 	result["name"] = String(data.get("name", root.name))
 	result["map_root"] = root
 	result["runner_spawn"] = _to_vector3(data.get("runner_spawn", DEFAULT_RUNNER_SPAWN), DEFAULT_RUNNER_SPAWN)
 	result["tagger_spawn"] = _to_vector3(data.get("tagger_spawn", DEFAULT_TAGGER_SPAWN), DEFAULT_TAGGER_SPAWN)
+	result["environment"] = data["environment"] if data.has("environment") and typeof(data["environment"]) == TYPE_DICTIONARY else {}
+	result["gameplay"] = data["gameplay"] if data.has("gameplay") and typeof(data["gameplay"]) == TYPE_DICTIONARY else {}
+	result["format_version"] = int(data.get("format_version", 1))
 	return result
 
-static func _add_object(root: Node3D, data: Dictionary, map_path: String) -> void:
+static func _build_context(data: Dictionary, map_path: String) -> Dictionary:
+	return {
+		"map_path": map_path,
+		"materials": data["materials"] if data.has("materials") and typeof(data["materials"]) == TYPE_DICTIONARY else {},
+		"prefabs": data["prefabs"] if data.has("prefabs") and typeof(data["prefabs"]) == TYPE_DICTIONARY else {}
+	}
+
+static func _add_object(root: Node3D, data: Dictionary, context: Dictionary) -> void:
 	var object_type := String(data.get("type", "box")).to_lower()
 	match object_type:
 		"box":
-			_add_box(root, data, map_path)
+			_add_box(root, data, context)
 		"sphere":
-			_add_sphere(root, data, map_path)
+			_add_sphere(root, data, context)
 		"cylinder":
-			_add_cylinder(root, data, map_path)
+			_add_cylinder(root, data, context)
 		"csg_cylinder":
-			_add_csg_cylinder(root, data, map_path)
+			_add_csg_cylinder(root, data, context)
 		"capsule":
-			_add_capsule(root, data, map_path)
+			_add_capsule(root, data, context)
 		"model", "scene", "mesh":
-			_add_model(root, data, map_path)
+			_add_model(root, data, context)
+		"prefab":
+			_add_prefab(root, data, context)
+		"light":
+			_add_light(root, data, context)
+		"decal":
+			_add_decal(root, data, context)
 		_:
 			push_warning("未知地图物体类型：%s" % object_type)
 
-static func _add_box(root: Node3D, data: Dictionary, map_path: String) -> StaticBody3D:
+static func _add_box(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:
 	var size := _to_vector3(data.get("size", Vector3.ONE), Vector3.ONE)
 	var body := _create_body(root, data)
 	if _collision_mode(data, "shape") != "none":
@@ -77,11 +109,11 @@ static func _add_box(root: Node3D, data: Dictionary, map_path: String) -> Static
 		var box := BoxMesh.new()
 		box.size = size
 		mesh.mesh = box
-		mesh.material_override = _material_from_data(data, map_path, Color(0.4, 0.4, 0.4))
+		mesh.material_override = _material_from_data(data, context, Color(0.4, 0.4, 0.4))
 		body.add_child(mesh)
 	return body
 
-static func _add_sphere(root: Node3D, data: Dictionary, map_path: String) -> StaticBody3D:
+static func _add_sphere(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:
 	var radius := float(data.get("radius", 1.0))
 	var body := _create_body(root, data)
 	if _collision_mode(data, "shape") != "none":
@@ -96,11 +128,11 @@ static func _add_sphere(root: Node3D, data: Dictionary, map_path: String) -> Sta
 		sphere.radius = radius
 		sphere.height = radius * 2.0
 		mesh.mesh = sphere
-		mesh.material_override = _material(_to_color(data.get("color", [0.4, 0.4, 0.4]), Color(0.4, 0.4, 0.4)))
+		mesh.material_override = _material_from_data(data, context, Color(0.4, 0.4, 0.4))
 		body.add_child(mesh)
 	return body
 
-static func _add_cylinder(root: Node3D, data: Dictionary, map_path: String) -> StaticBody3D:
+static func _add_cylinder(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:
 	var radius := float(data.get("radius", 1.0))
 	var height := float(data.get("height", 2.0))
 	var body := _create_body(root, data)
@@ -118,17 +150,17 @@ static func _add_cylinder(root: Node3D, data: Dictionary, map_path: String) -> S
 		cylinder.bottom_radius = radius
 		cylinder.height = height
 		mesh.mesh = cylinder
-		mesh.material_override = _material_from_data(data, map_path, Color(0.4, 0.4, 0.4))
+		mesh.material_override = _material_from_data(data, context, Color(0.4, 0.4, 0.4))
 		body.add_child(mesh)
 	return body
 
-static func _add_csg_cylinder(root: Node3D, data: Dictionary, map_path: String) -> CSGCylinder3D:
+static func _add_csg_cylinder(root: Node3D, data: Dictionary, context: Dictionary) -> CSGCylinder3D:
 	var cylinder := CSGCylinder3D.new()
 	cylinder.name = String(data.get("name", "MapCSGCylinder"))
 	cylinder.radius = float(data.get("radius", 1.0))
 	cylinder.height = float(data.get("height", 2.0))
 	cylinder.sides = maxi(8, int(data.get("sides", 64)))
-	cylinder.material = _material_from_data(data, map_path, Color(0.4, 0.4, 0.4))
+	cylinder.material = _material_from_data(data, context, Color(0.4, 0.4, 0.4))
 	cylinder.visible = _to_bool(data.get("visible", true), true)
 	cylinder.collision_layer = int(data.get("collision_layer", 1))
 	cylinder.collision_mask = int(data.get("collision_mask", 1))
@@ -152,7 +184,7 @@ static func _add_csg_cylinder(root: Node3D, data: Dictionary, map_path: String) 
 	cylinder.use_collision = _collision_mode(data, "shape") != "none"
 	return cylinder
 
-static func _add_capsule(root: Node3D, data: Dictionary, map_path: String) -> StaticBody3D:
+static func _add_capsule(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:
 	var radius := float(data.get("radius", 0.8))
 	var height := float(data.get("height", 2.0))
 	var body := _create_body(root, data)
@@ -169,17 +201,18 @@ static func _add_capsule(root: Node3D, data: Dictionary, map_path: String) -> St
 		capsule.radius = radius
 		capsule.height = height
 		mesh.mesh = capsule
-		mesh.material_override = _material_from_data(data, map_path, Color(0.4, 0.4, 0.4))
+		mesh.material_override = _material_from_data(data, context, Color(0.4, 0.4, 0.4))
 		body.add_child(mesh)
 	return body
 
-static func _add_model(root: Node3D, data: Dictionary, map_path: String) -> StaticBody3D:
+static func _add_model(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:
 	var body := _create_body(root, data)
 	var raw_path := String(data.get("path", ""))
 	if raw_path.is_empty():
 		push_warning("模型物体缺少 path：%s" % body.name)
 		return body
 
+	var map_path := String(context.get("map_path", ""))
 	var model_path := _resolve_asset_path(map_path, raw_path)
 	var instance := _load_model_node(model_path)
 	if instance == null:
@@ -189,28 +222,88 @@ static func _add_model(root: Node3D, data: Dictionary, map_path: String) -> Stat
 	instance.name = "Visual"
 	instance.visible = _to_bool(data.get("visible", true), true)
 	body.add_child(instance)
-	if data.has("material") or data.has("texture"):
-		_apply_material_to_meshes(instance, _material_from_data(data, map_path, Color.WHITE))
+	if data.has("material") or data.has("material_id") or data.has("texture") or data.has("albedo_texture"):
+		_apply_material_to_meshes(instance, _material_from_data(data, context, Color.WHITE))
 	var material_overrides: Dictionary = data["material_overrides"] if data.has("material_overrides") and typeof(data["material_overrides"]) == TYPE_DICTIONARY else {}
 	var node_material_overrides: Dictionary = data["node_material_overrides"] if data.has("node_material_overrides") and typeof(data["node_material_overrides"]) == TYPE_DICTIONARY else {}
 	if not material_overrides.is_empty() or not node_material_overrides.is_empty():
-		_apply_material_overrides_to_meshes(instance, material_overrides, node_material_overrides, map_path)
+		_apply_material_overrides_to_meshes(instance, material_overrides, node_material_overrides, context)
 
 	var mode := _collision_mode(data, "mesh")
 	if mode == "none":
 		return body
 	if mode == "box":
-		var collision := CollisionShape3D.new()
-		var shape := BoxShape3D.new()
-		shape.size = _to_vector3(data.get("size", Vector3.ONE), Vector3.ONE)
-		collision.shape = shape
-		body.add_child(collision)
+		_add_collision_shape(body, {"type": "box", "size": data.get("size", Vector3.ONE)})
+		return body
+	if mode == "proxy" or data.has("collision_shapes"):
+		var proxy_count := _add_collision_shapes(body, data.get("collision_shapes", []))
+		if proxy_count == 0:
+			push_warning("模型代理碰撞为空：%s" % model_path)
 		return body
 
 	var collision_count := _add_mesh_collisions(body, instance, Transform3D.IDENTITY)
 	if collision_count == 0:
 		push_warning("模型没有可用网格碰撞：%s" % model_path)
 	return body
+
+static func _add_prefab(root: Node3D, data: Dictionary, context: Dictionary) -> void:
+	var prefab_id := String(data.get("prefab", data.get("id", "")))
+	var prefabs: Dictionary = context.get("prefabs", {})
+	if prefab_id.is_empty() or not prefabs.has(prefab_id) or typeof(prefabs[prefab_id]) != TYPE_DICTIONARY:
+		push_warning("未知 prefab：%s" % prefab_id)
+		return
+	var merged: Dictionary = (prefabs[prefab_id] as Dictionary).duplicate(true)
+	if not merged.has("type"):
+		merged["type"] = "model" if merged.has("path") else "box"
+	for key in data.keys():
+		if String(key) == "type" or String(key) == "prefab":
+			continue
+		merged[key] = data[key]
+	_add_object(root, merged, context)
+
+static func _add_light(root: Node3D, data: Dictionary, context: Dictionary) -> Light3D:
+	var light_type := String(data.get("light_type", data.get("kind", "omni"))).to_lower()
+	var light: Light3D
+	match light_type:
+		"directional", "sun":
+			light = DirectionalLight3D.new()
+		"spot":
+			var spot := SpotLight3D.new()
+			spot.spot_range = float(data.get("range", 18.0))
+			spot.spot_angle = float(data.get("spot_angle", 42.0))
+			light = spot
+		_:
+			var omni := OmniLight3D.new()
+			omni.omni_range = float(data.get("range", 14.0))
+			light = omni
+	light.name = String(data.get("name", "MapLight"))
+	light.light_color = _to_color(data.get("color", Color.WHITE), Color.WHITE)
+	light.light_energy = float(data.get("energy", 2.5))
+	light.shadow_enabled = _to_bool(data.get("shadow", false), false)
+	_apply_transform(light, data)
+	root.add_child(light)
+	return light
+
+static func _add_decal(root: Node3D, data: Dictionary, context: Dictionary) -> Decal:
+	var decal := Decal.new()
+	decal.name = String(data.get("name", "MapDecal"))
+	decal.size = _to_vector3(data.get("size", Vector3(2.0, 2.0, 0.4)), Vector3(2.0, 2.0, 0.4))
+	var map_path := String(context.get("map_path", ""))
+	var texture_path := String(data.get("texture", data.get("albedo_texture", "")))
+	var texture := _load_texture(_resolve_asset_path(map_path, texture_path))
+	if texture != null:
+		decal.texture_albedo = texture
+	var normal_texture := _load_texture(_resolve_asset_path(map_path, String(data.get("normal_texture", ""))))
+	if normal_texture != null:
+		decal.texture_normal = normal_texture
+	var orm_texture := _load_texture(_resolve_asset_path(map_path, String(data.get("orm_texture", ""))))
+	if orm_texture != null:
+		decal.texture_orm = orm_texture
+	decal.albedo_mix = float(data.get("albedo_mix", 1.0))
+	decal.modulate = _to_color(data.get("color", Color.WHITE), Color.WHITE)
+	_apply_transform(decal, data)
+	root.add_child(decal)
+	return decal
 
 static func _create_body(root: Node3D, data: Dictionary) -> StaticBody3D:
 	var body := StaticBody3D.new()
@@ -228,6 +321,46 @@ static func _apply_transform(node: Node3D, data: Dictionary) -> void:
 	elif data.has("rotation"):
 		node.rotation = _to_vector3(data.get("rotation", Vector3.ZERO), Vector3.ZERO)
 	node.scale = _to_vector3(data.get("scale", Vector3.ONE), Vector3.ONE)
+
+static func _add_collision_shapes(body: StaticBody3D, raw_shapes) -> int:
+	if typeof(raw_shapes) != TYPE_ARRAY:
+		return 0
+	var count := 0
+	for raw_shape in raw_shapes:
+		if typeof(raw_shape) == TYPE_DICTIONARY and _add_collision_shape(body, raw_shape):
+			count += 1
+	return count
+
+static func _add_collision_shape(parent: Node3D, data: Dictionary) -> bool:
+	var shape_type := String(data.get("type", "box")).to_lower()
+	var shape: Shape3D
+	match shape_type:
+		"sphere":
+			var sphere := SphereShape3D.new()
+			sphere.radius = float(data.get("radius", 1.0))
+			shape = sphere
+		"cylinder":
+			var cylinder := CylinderShape3D.new()
+			cylinder.radius = float(data.get("radius", 1.0))
+			cylinder.height = float(data.get("height", 2.0))
+			shape = cylinder
+		"capsule":
+			var capsule := CapsuleShape3D.new()
+			capsule.radius = float(data.get("radius", 0.8))
+			capsule.height = float(data.get("height", 2.0))
+			shape = capsule
+		_:
+			var box := BoxShape3D.new()
+			box.size = _to_vector3(data.get("size", Vector3.ONE), Vector3.ONE)
+			shape = box
+	if shape == null:
+		return false
+	var collision := CollisionShape3D.new()
+	collision.name = String(data.get("name", "CollisionProxy"))
+	collision.shape = shape
+	_apply_transform(collision, data)
+	parent.add_child(collision)
+	return true
 
 static func _load_model_node(path: String) -> Node3D:
 	var extension := path.get_extension().to_lower()
@@ -291,6 +424,8 @@ static func _add_mesh_collisions(body: StaticBody3D, node: Node, parent_transfor
 	return count
 
 static func _resolve_asset_path(map_path: String, raw_path: String) -> String:
+	if raw_path.is_empty():
+		return ""
 	if raw_path.begins_with("res://") or raw_path.begins_with("user://") or raw_path.begins_with("/") or raw_path.find(":/") != -1 or raw_path.find(":\\") != -1:
 		return raw_path
 	return map_path.get_base_dir().path_join(raw_path)
@@ -301,7 +436,7 @@ static func _apply_material_to_meshes(node: Node, material: StandardMaterial3D) 
 	for child in node.get_children():
 		_apply_material_to_meshes(child, material)
 
-static func _apply_material_overrides_to_meshes(node: Node, material_overrides: Dictionary, node_overrides: Dictionary, map_path: String) -> void:
+static func _apply_material_overrides_to_meshes(node: Node, material_overrides: Dictionary, node_overrides: Dictionary, context: Dictionary) -> void:
 	if node is MeshInstance3D:
 		var mesh_instance := node as MeshInstance3D
 		var matched_surface := false
@@ -312,16 +447,16 @@ static func _apply_material_overrides_to_meshes(node: Node, material_overrides: 
 					continue
 				var material_name := surface_material.resource_name
 				if material_overrides.has(material_name) and typeof(material_overrides[material_name]) == TYPE_DICTIONARY:
-					var override_material := _material_from_data(material_overrides[material_name], map_path, Color.WHITE)
+					var override_material := _material_from_data(material_overrides[material_name], context, Color.WHITE)
 					override_material.resource_name = material_name
 					mesh_instance.set_surface_override_material(surface, override_material)
 					matched_surface = true
 		if not matched_surface:
 			var node_data := _find_node_material_override(mesh_instance.name, node_overrides)
 			if not node_data.is_empty():
-				mesh_instance.material_override = _material_from_data(node_data, map_path, Color.WHITE)
+				mesh_instance.material_override = _material_from_data(node_data, context, Color.WHITE)
 	for child in node.get_children():
-		_apply_material_overrides_to_meshes(child, material_overrides, node_overrides, map_path)
+		_apply_material_overrides_to_meshes(child, material_overrides, node_overrides, context)
 
 static func _find_node_material_override(node_name: String, overrides: Dictionary) -> Dictionary:
 	for key in overrides.keys():
@@ -330,31 +465,53 @@ static func _find_node_material_override(node_name: String, overrides: Dictionar
 			return overrides[key]
 	return {}
 
-static func _material_from_data(data: Dictionary, map_path: String, default_color: Color) -> StandardMaterial3D:
-	var material_data := data
+static func _material_from_data(data: Dictionary, context: Dictionary, default_color: Color) -> StandardMaterial3D:
+	var material_data := {}
+	var materials: Dictionary = context.get("materials", {})
+	var material_id := String(data.get("material_id", ""))
+	if not material_id.is_empty() and materials.has(material_id) and typeof(materials[material_id]) == TYPE_DICTIONARY:
+		material_data = (materials[material_id] as Dictionary).duplicate(true)
 	if data.has("material") and typeof(data["material"]) == TYPE_DICTIONARY:
-		material_data = data["material"]
+		for key in (data["material"] as Dictionary).keys():
+			material_data[key] = data["material"][key]
+	for key in ["color", "texture", "albedo_texture", "normal_texture", "orm_texture", "roughness_texture", "metallic_texture", "emission", "emission_texture", "roughness", "metallic", "uv_scale", "uv_offset"]:
+		if data.has(key) and not material_data.has(key):
+			material_data[key] = data[key]
+
+	var map_path := String(context.get("map_path", ""))
 	var color := _to_color(material_data.get("color", data.get("color", default_color)), default_color)
 	var mat := _material(color)
 	mat.roughness = float(material_data.get("roughness", 0.82))
 	mat.metallic = float(material_data.get("metallic", 0.0))
-	if material_data.has("texture"):
-		var texture_path := _resolve_asset_path(map_path, String(material_data.get("texture", "")))
-		var texture := _load_texture(texture_path)
-		if texture != null:
-			mat.albedo_texture = texture
-	if material_data.has("normal_texture"):
-		var normal_path := _resolve_asset_path(map_path, String(material_data.get("normal_texture", "")))
-		var normal_texture := _load_texture(normal_path)
-		if normal_texture != null:
-			mat.normal_enabled = true
-			mat.normal_texture = normal_texture
+	var albedo_path := String(material_data.get("albedo_texture", material_data.get("texture", "")))
+	var albedo_texture := _load_texture(_resolve_asset_path(map_path, albedo_path))
+	if albedo_texture != null:
+		mat.albedo_texture = albedo_texture
+	var normal_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("normal_texture", ""))))
+	if normal_texture != null:
+		mat.normal_enabled = true
+		mat.normal_texture = normal_texture
+	var orm_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("orm_texture", ""))))
+	if orm_texture != null:
+		mat.set("orm_texture", orm_texture)
+	var roughness_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("roughness_texture", ""))))
+	if roughness_texture != null:
+		mat.set("roughness_texture", roughness_texture)
+	var metallic_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("metallic_texture", ""))))
+	if metallic_texture != null:
+		mat.set("metallic_texture", metallic_texture)
+	var emission_color := _to_color(material_data.get("emission", Color.BLACK), Color.BLACK)
+	if emission_color != Color.BLACK or material_data.has("emission_texture"):
+		mat.emission_enabled = true
+		mat.emission = emission_color
+		mat.emission_energy_multiplier = float(material_data.get("emission_energy", 1.0))
+		var emission_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("emission_texture", ""))))
+		if emission_texture != null:
+			mat.emission_texture = emission_texture
 	if material_data.has("uv_scale"):
-		var uv_scale := _to_vector3(material_data.get("uv_scale", [1.0, 1.0, 1.0]), Vector3.ONE)
-		mat.uv1_scale = uv_scale
+		mat.uv1_scale = _to_vector3(material_data.get("uv_scale", [1.0, 1.0, 1.0]), Vector3.ONE)
 	if material_data.has("uv_offset"):
-		var uv_offset := _to_vector3(material_data.get("uv_offset", [0.0, 0.0, 0.0]), Vector3.ZERO)
-		mat.uv1_offset = uv_offset
+		mat.uv1_offset = _to_vector3(material_data.get("uv_offset", [0.0, 0.0, 0.0]), Vector3.ZERO)
 	return mat
 
 static func _load_texture(path: String) -> Texture2D:
