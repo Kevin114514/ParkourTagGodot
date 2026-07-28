@@ -1,0 +1,5301 @@
+{
+  "format_version": 1,
+  "name": "下界要塞",
+  "runner_spawn": [
+    -72.8,
+    0.72,
+    0.0
+  ],
+  "tagger_spawn": [
+    72.8,
+    0.72,
+    0.0
+  ],
+  "environment": {
+    "sky_color": [
+      0.78,
+      0.32,
+      0.12
+    ],
+    "ambient_color": [
+      0.95,
+      0.5,
+      0.3
+    ],
+    "ambient_energy": 1.35,
+    "sun_color": [
+      1.0,
+      0.7,
+      0.45
+    ],
+    "sun_energy": 2.5,
+    "fog_enabled": true,
+    "fog_color": [
+      0.7,
+      0.3,
+      0.14
+    ],
+    "fog_density": 0.006
+  },
+  "objects": [
+    {
+      "type": "box",
+      "name": "CenterHubFloorL1",
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        22.4,
+        0.6,
+        22.4
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "CenterHubTrimNorth",
+      "position": [
+        0.0,
+        0.764,
+        -10.64
+      ],
+      "size": [
+        22.4,
+        0.35,
+        1.12
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "CenterHubTrimSouth",
+      "position": [
+        0.0,
+        0.764,
+        10.64
+      ],
+      "size": [
+        22.4,
+        0.35,
+        1.12
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "CenterHubTrimWest",
+      "position": [
+        -10.64,
+        0.764,
+        0.0
+      ],
+      "size": [
+        1.12,
+        0.35,
+        22.4
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "CenterHubTrimEast",
+      "position": [
+        10.64,
+        0.764,
+        0.0
+      ],
+      "size": [
+        1.12,
+        0.35,
+        22.4
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestBridgeL1A",
+      "position": [
+        -19.6,
+        0.0,
+        0.0
+      ],
+      "size": [
+        16.8,
+        0.6,
+        8.4
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestBridgeGap",
+      "position": [
+        -30.8,
+        0.0,
+        0.0
+      ],
+      "size": [
+        5.6,
+        0.6,
+        8.4
+      ],
+      "visible": false,
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "WestBridgeL1B",
+      "position": [
+        -42.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        16.8,
+        0.6,
+        8.4
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestBridgeRailN",
+      "position": [
+        -42.0,
+        1.364,
+        -4.06
+      ],
+      "size": [
+        16.8,
+        1.53,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestBridgeRailS",
+      "position": [
+        -42.0,
+        1.364,
+        4.06
+      ],
+      "size": [
+        16.8,
+        1.53,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastBridgeL1A",
+      "position": [
+        19.6,
+        0.0,
+        0.0
+      ],
+      "size": [
+        16.8,
+        0.6,
+        8.4
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastBridgeGap",
+      "position": [
+        30.8,
+        0.0,
+        0.0
+      ],
+      "size": [
+        5.6,
+        0.6,
+        8.4
+      ],
+      "visible": false,
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "EastBridgeL1B",
+      "position": [
+        42.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        16.8,
+        0.6,
+        8.4
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastBridgeRailN",
+      "position": [
+        42.0,
+        1.364,
+        -4.06
+      ],
+      "size": [
+        16.8,
+        1.53,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastBridgeRailS",
+      "position": [
+        42.0,
+        1.364,
+        4.06
+      ],
+      "size": [
+        16.8,
+        1.53,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthBridgeL1",
+      "position": [
+        0.0,
+        0.0,
+        -22.4
+      ],
+      "size": [
+        8.4,
+        0.6,
+        22.4
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthBridgeRailW",
+      "position": [
+        -4.06,
+        1.364,
+        -22.4
+      ],
+      "size": [
+        0.42,
+        1.53,
+        22.4
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthBridgeRailE",
+      "position": [
+        4.06,
+        1.364,
+        -22.4
+      ],
+      "size": [
+        0.42,
+        1.53,
+        22.4
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthBridgeL1",
+      "position": [
+        0.0,
+        0.0,
+        22.4
+      ],
+      "size": [
+        8.4,
+        0.6,
+        22.4
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthBridgeRailW",
+      "position": [
+        -4.06,
+        1.364,
+        22.4
+      ],
+      "size": [
+        0.42,
+        1.53,
+        22.4
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthBridgeRailE",
+      "position": [
+        4.06,
+        1.364,
+        22.4
+      ],
+      "size": [
+        0.42,
+        1.53,
+        22.4
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestPlazaL1",
+      "position": [
+        -56.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        16.8,
+        0.6,
+        28.0
+      ],
+      "color": [
+        0.36,
+        0.24,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestPlazaTrimN",
+      "position": [
+        -56.0,
+        0.764,
+        -13.44
+      ],
+      "size": [
+        16.8,
+        0.35,
+        1.12
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestPlazaTrimS",
+      "position": [
+        -56.0,
+        0.764,
+        13.44
+      ],
+      "size": [
+        16.8,
+        0.35,
+        1.12
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "RunnerSpawnPad",
+      "position": [
+        -72.8,
+        0.582,
+        0.0
+      ],
+      "size": [
+        8.4,
+        0.6,
+        14.0
+      ],
+      "color": [
+        0.36,
+        0.24,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "RunnerSpawnMark",
+      "position": [
+        -72.8,
+        1.145,
+        0.0
+      ],
+      "size": [
+        4.76,
+        0.06,
+        4.76
+      ],
+      "color": [
+        0.1,
+        0.34,
+        0.8
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "EastPlazaL1",
+      "position": [
+        56.0,
+        0.0,
+        0.0
+      ],
+      "size": [
+        16.8,
+        0.6,
+        28.0
+      ],
+      "color": [
+        0.36,
+        0.24,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastPlazaTrimN",
+      "position": [
+        56.0,
+        0.764,
+        -13.44
+      ],
+      "size": [
+        16.8,
+        0.35,
+        1.12
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastPlazaTrimS",
+      "position": [
+        56.0,
+        0.764,
+        13.44
+      ],
+      "size": [
+        16.8,
+        0.35,
+        1.12
+      ],
+      "color": [
+        0.5,
+        0.36,
+        0.23
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TaggerSpawnPad",
+      "position": [
+        72.8,
+        0.582,
+        0.0
+      ],
+      "size": [
+        8.4,
+        0.6,
+        14.0
+      ],
+      "color": [
+        0.36,
+        0.24,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "TaggerSpawnMark",
+      "position": [
+        72.8,
+        1.145,
+        0.0
+      ],
+      "size": [
+        4.76,
+        0.06,
+        4.76
+      ],
+      "color": [
+        0.8,
+        0.16,
+        0.06
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtL1",
+      "position": [
+        0.0,
+        0.0,
+        -44.8
+      ],
+      "size": [
+        36.4,
+        0.6,
+        16.8
+      ],
+      "color": [
+        0.36,
+        0.24,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtWallW",
+      "position": [
+        -17.64,
+        2.909,
+        -44.8
+      ],
+      "size": [
+        1.12,
+        5.44,
+        16.8
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtWallE",
+      "position": [
+        17.64,
+        2.909,
+        -44.8
+      ],
+      "size": [
+        1.12,
+        5.44,
+        16.8
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtWallNWest",
+      "position": [
+        -11.9,
+        2.909,
+        -52.64
+      ],
+      "size": [
+        12.6,
+        5.44,
+        1.12
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtWallNEast",
+      "position": [
+        11.9,
+        2.909,
+        -52.64
+      ],
+      "size": [
+        12.6,
+        5.44,
+        1.12
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthCourtL1",
+      "position": [
+        0.0,
+        0.0,
+        44.8
+      ],
+      "size": [
+        36.4,
+        0.6,
+        16.8
+      ],
+      "color": [
+        0.36,
+        0.24,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthCourtWallW",
+      "position": [
+        -17.64,
+        2.909,
+        44.8
+      ],
+      "size": [
+        1.12,
+        5.44,
+        16.8
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthCourtWallE",
+      "position": [
+        17.64,
+        2.909,
+        44.8
+      ],
+      "size": [
+        1.12,
+        5.44,
+        16.8
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthCourtWallSWest",
+      "position": [
+        -11.9,
+        2.909,
+        52.64
+      ],
+      "size": [
+        12.6,
+        5.44,
+        1.12
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "SouthCourtWallSEast",
+      "position": [
+        11.9,
+        2.909,
+        52.64
+      ],
+      "size": [
+        12.6,
+        5.44,
+        1.12
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "cylinder",
+      "name": "SupportPillarNW",
+      "position": [
+        -19.6,
+        -10.909,
+        -19.6
+      ],
+      "radius": 2.24,
+      "height": 20.4,
+      "color": [
+        0.29,
+        0.19,
+        0.12
+      ]
+    },
+    {
+      "type": "cylinder",
+      "name": "SupportPillarNE",
+      "position": [
+        19.6,
+        -10.909,
+        -19.6
+      ],
+      "radius": 2.24,
+      "height": 20.4,
+      "color": [
+        0.29,
+        0.19,
+        0.12
+      ]
+    },
+    {
+      "type": "cylinder",
+      "name": "SupportPillarSW",
+      "position": [
+        -19.6,
+        -10.909,
+        19.6
+      ],
+      "radius": 2.24,
+      "height": 20.4,
+      "color": [
+        0.29,
+        0.19,
+        0.12
+      ]
+    },
+    {
+      "type": "cylinder",
+      "name": "SupportPillarSE",
+      "position": [
+        19.6,
+        -10.909,
+        19.6
+      ],
+      "radius": 2.24,
+      "height": 20.4,
+      "color": [
+        0.29,
+        0.19,
+        0.12
+      ]
+    },
+    {
+      "type": "box",
+      "name": "PillarTopNW",
+      "position": [
+        -19.6,
+        0.545,
+        -19.6
+      ],
+      "size": [
+        4.48,
+        0.5,
+        4.48
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "PillarTopNE",
+      "position": [
+        19.6,
+        0.545,
+        -19.6
+      ],
+      "size": [
+        4.48,
+        0.5,
+        4.48
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "PillarTopSW",
+      "position": [
+        -19.6,
+        0.545,
+        19.6
+      ],
+      "size": [
+        4.48,
+        0.5,
+        4.48
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "PillarTopSE",
+      "position": [
+        19.6,
+        0.545,
+        19.6
+      ],
+      "size": [
+        4.48,
+        0.5,
+        4.48
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CenterRing_N",
+      "position": [
+        0.0,
+        8.0,
+        -6.75
+      ],
+      "size": [
+        28,
+        0.5,
+        14.5
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CenterRing_S",
+      "position": [
+        0.0,
+        8.0,
+        10.8
+      ],
+      "size": [
+        28,
+        0.5,
+        6.4
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CenterRing_W",
+      "position": [
+        -4.05,
+        8.0,
+        4.05
+      ],
+      "size": [
+        19.9,
+        0.5,
+        7.1
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CenterRing_E",
+      "position": [
+        12.5,
+        8.0,
+        4.05
+      ],
+      "size": [
+        3.0,
+        0.5,
+        7.1
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CenterHole",
+      "position": [
+        0.0,
+        8.0,
+        0.0
+      ],
+      "size": [
+        14.0,
+        0.5,
+        14.0
+      ],
+      "visible": false,
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "L2RingCutFloorN",
+      "position": [
+        0.0,
+        8.0,
+        -10.5
+      ],
+      "size": [
+        14.0,
+        0.5,
+        7.0
+      ],
+      "visible": false,
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "L2RailInnerN",
+      "position": [
+        0.0,
+        9.545,
+        -7.14
+      ],
+      "size": [
+        14.0,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2RailInnerS",
+      "position": [
+        0.0,
+        9.545,
+        7.14
+      ],
+      "size": [
+        14.0,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2RailInnerW",
+      "position": [
+        -7.14,
+        9.545,
+        0.0
+      ],
+      "size": [
+        0.42,
+        2.04,
+        14.0
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2RailInnerE",
+      "position": [
+        7.14,
+        9.545,
+        0.0
+      ],
+      "size": [
+        0.42,
+        2.04,
+        14.0
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorWest",
+      "position": [
+        -33.6,
+        8.0,
+        0.0
+      ],
+      "size": [
+        39.2,
+        0.5,
+        9.8
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorWestRailN",
+      "position": [
+        -33.6,
+        9.545,
+        -4.76
+      ],
+      "size": [
+        39.2,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorWestRailS",
+      "position": [
+        -33.6,
+        9.545,
+        4.76
+      ],
+      "size": [
+        39.2,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorWestPillarA",
+      "position": [
+        -25.2,
+        9.818,
+        -4.2
+      ],
+      "size": [
+        1.4,
+        3.4,
+        1.4
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorWestPillarB",
+      "position": [
+        -42.0,
+        9.818,
+        4.2
+      ],
+      "size": [
+        1.4,
+        3.4,
+        1.4
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorEast",
+      "position": [
+        33.6,
+        8.0,
+        0.0
+      ],
+      "size": [
+        39.2,
+        0.5,
+        9.8
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorEastRailN",
+      "position": [
+        33.6,
+        9.545,
+        -4.76
+      ],
+      "size": [
+        39.2,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorEastRailS",
+      "position": [
+        33.6,
+        9.545,
+        4.76
+      ],
+      "size": [
+        39.2,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorEastPillarA",
+      "position": [
+        25.2,
+        9.818,
+        4.2
+      ],
+      "size": [
+        1.4,
+        3.4,
+        1.4
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorEastPillarB",
+      "position": [
+        42.0,
+        9.818,
+        -4.2
+      ],
+      "size": [
+        1.4,
+        3.4,
+        1.4
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorNorth",
+      "position": [
+        0.0,
+        8.0,
+        -30.8
+      ],
+      "size": [
+        9.8,
+        0.5,
+        33.6
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorNorthRailW",
+      "position": [
+        -4.76,
+        9.545,
+        -30.8
+      ],
+      "size": [
+        0.42,
+        2.04,
+        33.6
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorNorthRailE",
+      "position": [
+        4.76,
+        9.545,
+        -30.8
+      ],
+      "size": [
+        0.42,
+        2.04,
+        33.6
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorSouth",
+      "position": [
+        0.0,
+        8.0,
+        30.8
+      ],
+      "size": [
+        9.8,
+        0.5,
+        33.6
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorSouthRailW",
+      "position": [
+        -4.76,
+        9.545,
+        30.8
+      ],
+      "size": [
+        0.42,
+        2.04,
+        33.6
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2CorridorSouthRailE",
+      "position": [
+        4.76,
+        9.545,
+        30.8
+      ],
+      "size": [
+        0.42,
+        2.04,
+        33.6
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatform_N",
+      "position": [
+        -56.0,
+        8.0,
+        -7.35
+      ],
+      "size": [
+        19.6,
+        0.5,
+        7.7
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatform_S",
+      "position": [
+        -56.0,
+        8.0,
+        6.85
+      ],
+      "size": [
+        19.6,
+        0.5,
+        8.7
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatform_W",
+      "position": [
+        -63.9,
+        8.0,
+        -0.5
+      ],
+      "size": [
+        3.8,
+        0.5,
+        6.0
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatform_E",
+      "position": [
+        -48.1,
+        8.0,
+        -0.5
+      ],
+      "size": [
+        3.8,
+        0.5,
+        6.0
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatformRailN",
+      "position": [
+        -56.0,
+        9.545,
+        -10.64
+      ],
+      "size": [
+        19.6,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatformRailS",
+      "position": [
+        -56.0,
+        9.545,
+        10.64
+      ],
+      "size": [
+        19.6,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2WestPlatformRailW",
+      "position": [
+        -65.66,
+        9.545,
+        0.0
+      ],
+      "size": [
+        0.42,
+        2.04,
+        22.4
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2EastPlatform",
+      "position": [
+        56.0,
+        8.0,
+        0.0
+      ],
+      "size": [
+        19.6,
+        0.5,
+        22.4
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2EastPlatformRailN",
+      "position": [
+        56.0,
+        9.545,
+        -10.64
+      ],
+      "size": [
+        19.6,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2EastPlatformRailS",
+      "position": [
+        56.0,
+        9.545,
+        10.64
+      ],
+      "size": [
+        19.6,
+        2.04,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2EastPlatformRailE",
+      "position": [
+        65.66,
+        9.545,
+        0.0
+      ],
+      "size": [
+        0.42,
+        2.04,
+        22.4
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerFloor_N",
+      "position": [
+        0.0,
+        16.0,
+        -6.85
+      ],
+      "size": [
+        22.4,
+        0.5,
+        8.7
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerFloor_S",
+      "position": [
+        0.0,
+        16.0,
+        7.35
+      ],
+      "size": [
+        22.4,
+        0.5,
+        7.7
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerFloor_W",
+      "position": [
+        -7.35,
+        16.0,
+        0.5
+      ],
+      "size": [
+        7.7,
+        0.5,
+        6.0
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerFloor_E",
+      "position": [
+        7.35,
+        16.0,
+        0.5
+      ],
+      "size": [
+        7.7,
+        0.5,
+        6.0
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerRailN",
+      "position": [
+        0.0,
+        17.636,
+        -10.64
+      ],
+      "size": [
+        22.4,
+        2.38,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerRailS",
+      "position": [
+        0.0,
+        17.636,
+        10.64
+      ],
+      "size": [
+        22.4,
+        2.38,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerRailWNorth",
+      "position": [
+        -10.64,
+        17.636,
+        -6.65
+      ],
+      "size": [
+        0.42,
+        2.38,
+        7.7
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerRailWSouth",
+      "position": [
+        -10.64,
+        17.636,
+        6.65
+      ],
+      "size": [
+        0.42,
+        2.38,
+        7.7
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerRailENorth",
+      "position": [
+        10.64,
+        17.636,
+        -6.65
+      ],
+      "size": [
+        0.42,
+        2.38,
+        7.7
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3BlazeTowerRailESouth",
+      "position": [
+        10.64,
+        17.636,
+        6.65
+      ],
+      "size": [
+        0.42,
+        2.38,
+        7.7
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "BlazeSpawnerCore",
+      "position": [
+        0.0,
+        18.727,
+        0.0
+      ],
+      "radius": 1.54,
+      "color": [
+        0.98,
+        0.55,
+        0.1
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "L3SkyBridgeNorth",
+      "position": [
+        0.0,
+        16.0,
+        -19.6
+      ],
+      "size": [
+        7.0,
+        0.5,
+        16.8
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SkyBridgeNorthGap",
+      "position": [
+        0.0,
+        16.0,
+        -30.8
+      ],
+      "visible": false,
+      "collision": "none",
+      "size": [
+        7.0,
+        0.5,
+        5.6
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SkyBridgeNorthFar",
+      "position": [
+        0.0,
+        16.0,
+        -39.2
+      ],
+      "size": [
+        7.0,
+        0.5,
+        11.2
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3StalkRoomFloor",
+      "position": [
+        0.0,
+        16.0,
+        -50.4
+      ],
+      "size": [
+        25.2,
+        0.5,
+        16.8
+      ],
+      "color": [
+        0.35,
+        0.23,
+        0.15
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3StalkRoomWallW",
+      "position": [
+        -12.04,
+        18.182,
+        -50.4
+      ],
+      "size": [
+        1.12,
+        4.76,
+        16.8
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3StalkRoomWallE",
+      "position": [
+        12.04,
+        18.182,
+        -50.4
+      ],
+      "size": [
+        1.12,
+        4.76,
+        16.8
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3StalkRoomWallN",
+      "position": [
+        0.0,
+        18.182,
+        -58.24
+      ],
+      "size": [
+        25.2,
+        4.76,
+        1.12
+      ],
+      "color": [
+        0.33,
+        0.22,
+        0.14
+      ]
+    },
+    {
+      "type": "box",
+      "name": "StalkPlanterA",
+      "position": [
+        -7.0,
+        17.0,
+        -47.6
+      ],
+      "size": [
+        4.2,
+        0.7,
+        4.2
+      ],
+      "color": [
+        0.36,
+        0.12,
+        0.18
+      ]
+    },
+    {
+      "type": "box",
+      "name": "StalkPlanterB",
+      "position": [
+        7.0,
+        17.0,
+        -53.2
+      ],
+      "size": [
+        4.2,
+        0.7,
+        4.2
+      ],
+      "color": [
+        0.36,
+        0.12,
+        0.18
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SkyBridgeSouth",
+      "position": [
+        0.0,
+        16.0,
+        19.6
+      ],
+      "size": [
+        7.0,
+        0.5,
+        16.8
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SkyBridgeSouthPadA",
+      "position": [
+        0.0,
+        16.0,
+        30.8
+      ],
+      "size": [
+        3.64,
+        0.5,
+        3.64
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SkyBridgeSouthPadB",
+      "position": [
+        0.0,
+        16.0,
+        37.8
+      ],
+      "size": [
+        3.64,
+        0.5,
+        3.64
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SouthTowerTop",
+      "position": [
+        0.0,
+        16.0,
+        46.2
+      ],
+      "size": [
+        14.0,
+        0.5,
+        14.0
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SouthTowerRailW",
+      "position": [
+        -6.44,
+        17.636,
+        46.2
+      ],
+      "size": [
+        0.42,
+        2.38,
+        14.0
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SouthTowerRailE",
+      "position": [
+        6.44,
+        17.636,
+        46.2
+      ],
+      "size": [
+        0.42,
+        2.38,
+        14.0
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3SouthTowerRailS",
+      "position": [
+        0.0,
+        17.636,
+        52.64
+      ],
+      "size": [
+        14.0,
+        2.38,
+        0.42
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ]
+    },
+    {
+      "type": "cylinder",
+      "name": "CrimsonFungusStemW1",
+      "position": [
+        -61.6,
+        11.545,
+        -8.4
+      ],
+      "radius": 0.77,
+      "height": 5.78,
+      "color": [
+        0.55,
+        0.15,
+        0.22
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "CrimsonFungusCapW1",
+      "position": [
+        -61.6,
+        15.636,
+        -8.4
+      ],
+      "radius": 2.38,
+      "color": [
+        0.7,
+        0.12,
+        0.3
+      ],
+      "collision": false
+    },
+    {
+      "type": "cylinder",
+      "name": "CrimsonFungusStemE1",
+      "position": [
+        61.6,
+        11.545,
+        8.4
+      ],
+      "radius": 0.77,
+      "height": 5.78,
+      "color": [
+        0.55,
+        0.15,
+        0.22
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "CrimsonFungusCapE1",
+      "position": [
+        61.6,
+        15.636,
+        8.4
+      ],
+      "radius": 2.38,
+      "color": [
+        0.7,
+        0.12,
+        0.3
+      ],
+      "collision": false
+    },
+    {
+      "type": "cylinder",
+      "name": "CrimsonFungusStemN1",
+      "position": [
+        14.7,
+        2.0,
+        -42.0
+      ],
+      "radius": 0.7,
+      "height": 1.6,
+      "color": [
+        0.55,
+        0.15,
+        0.22
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "CrimsonFungusCapN1",
+      "position": [
+        14.7,
+        4.182,
+        -42.0
+      ],
+      "radius": 1.82,
+      "color": [
+        0.7,
+        0.12,
+        0.3
+      ],
+      "collision": false
+    },
+    {
+      "type": "cylinder",
+      "name": "CrimsonFungusStemS1",
+      "position": [
+        -14.7,
+        2.0,
+        42.0
+      ],
+      "radius": 0.7,
+      "height": 1.6,
+      "color": [
+        0.55,
+        0.15,
+        0.22
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "CrimsonFungusCapS1",
+      "position": [
+        -14.7,
+        4.182,
+        42.0
+      ],
+      "radius": 1.82,
+      "color": [
+        0.7,
+        0.12,
+        0.3
+      ],
+      "collision": false
+    },
+    {
+      "type": "cylinder",
+      "name": "CrimsonFungusStemL3",
+      "position": [
+        -8.4,
+        17.273,
+        -50.4
+      ],
+      "radius": 0.7,
+      "height": 6.12,
+      "color": [
+        0.55,
+        0.15,
+        0.22
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "CrimsonFungusCapL3",
+      "position": [
+        -8.4,
+        21.091,
+        -50.4
+      ],
+      "radius": 2.24,
+      "color": [
+        0.75,
+        0.14,
+        0.32
+      ],
+      "collision": false
+    },
+    {
+      "type": "cylinder",
+      "name": "WartWartDecoW",
+      "position": [
+        -53.2,
+        1.636,
+        -8.4
+      ],
+      "radius": 0.49,
+      "height": 1.0,
+      "color": [
+        0.62,
+        0.18,
+        0.28
+      ]
+    },
+    {
+      "type": "cylinder",
+      "name": "WartWartDecoE",
+      "position": [
+        53.2,
+        1.636,
+        8.4
+      ],
+      "radius": 0.49,
+      "height": 1.0,
+      "color": [
+        0.62,
+        0.18,
+        0.28
+      ]
+    },
+    {
+      "type": "sphere",
+      "name": "GlowBlobHub",
+      "position": [
+        0.0,
+        2.545,
+        0.0
+      ],
+      "radius": 1.26,
+      "color": [
+        0.95,
+        0.45,
+        0.12
+      ],
+      "collision": false
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_01",
+      "position": [
+        8.4,
+        0.5,
+        -9.0
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_02",
+      "position": [
+        8.4,
+        0.9,
+        -8.15
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_03",
+      "position": [
+        8.4,
+        1.3,
+        -7.3
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_04",
+      "position": [
+        8.4,
+        1.7,
+        -6.45
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_05",
+      "position": [
+        8.4,
+        2.1,
+        -5.6
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_06",
+      "position": [
+        8.4,
+        2.5,
+        -4.75
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_07",
+      "position": [
+        8.4,
+        2.9,
+        -3.9
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_08",
+      "position": [
+        8.4,
+        3.3,
+        -3.05
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_09",
+      "position": [
+        8.4,
+        3.7,
+        -2.2
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_10",
+      "position": [
+        8.4,
+        4.1,
+        -1.35
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_11",
+      "position": [
+        8.4,
+        4.5,
+        -0.5
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_12",
+      "position": [
+        8.4,
+        4.9,
+        0.35
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_13",
+      "position": [
+        8.4,
+        5.3,
+        1.2
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_14",
+      "position": [
+        8.4,
+        5.7,
+        2.05
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_15",
+      "position": [
+        8.4,
+        6.1,
+        2.9
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_16",
+      "position": [
+        8.4,
+        6.5,
+        3.75
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_17",
+      "position": [
+        8.4,
+        6.9,
+        4.6
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_18",
+      "position": [
+        8.4,
+        7.3,
+        5.45
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_19",
+      "position": [
+        8.4,
+        7.7,
+        6.3
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "HubStairToL2_20",
+      "position": [
+        8.4,
+        8.1,
+        7.15
+      ],
+      "size": [
+        5.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_01",
+      "position": [
+        -56.0,
+        0.5,
+        13.0
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_02",
+      "position": [
+        -56.0,
+        0.9,
+        12.15
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_03",
+      "position": [
+        -56.0,
+        1.3,
+        11.3
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_04",
+      "position": [
+        -56.0,
+        1.7,
+        10.45
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_05",
+      "position": [
+        -56.0,
+        2.1,
+        9.6
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_06",
+      "position": [
+        -56.0,
+        2.5,
+        8.75
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_07",
+      "position": [
+        -56.0,
+        2.9,
+        7.9
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_08",
+      "position": [
+        -56.0,
+        3.3,
+        7.05
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_09",
+      "position": [
+        -56.0,
+        3.7,
+        6.2
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_10",
+      "position": [
+        -56.0,
+        4.1,
+        5.35
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_11",
+      "position": [
+        -56.0,
+        4.5,
+        4.5
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_12",
+      "position": [
+        -56.0,
+        4.9,
+        3.65
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_13",
+      "position": [
+        -56.0,
+        5.3,
+        2.8
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_14",
+      "position": [
+        -56.0,
+        5.7,
+        1.95
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_15",
+      "position": [
+        -56.0,
+        6.1,
+        1.1
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_16",
+      "position": [
+        -56.0,
+        6.5,
+        0.25
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_17",
+      "position": [
+        -56.0,
+        6.9,
+        -0.6
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_18",
+      "position": [
+        -56.0,
+        7.3,
+        -1.45
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_19",
+      "position": [
+        -56.0,
+        7.7,
+        -2.3
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStair_20",
+      "position": [
+        -56.0,
+        8.1,
+        -3.15
+      ],
+      "size": [
+        12.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStairRailW",
+      "position": [
+        -62.0,
+        4.475,
+        4.925
+      ],
+      "size": [
+        0.4,
+        1.4,
+        17.0
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ],
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "WestGrandStairRailE",
+      "position": [
+        -50.0,
+        4.475,
+        4.925
+      ],
+      "size": [
+        0.4,
+        1.4,
+        17.0
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ],
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_01",
+      "position": [
+        12.0,
+        0.5,
+        -52.0
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_02",
+      "position": [
+        12.0,
+        0.9,
+        -51.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_03",
+      "position": [
+        12.0,
+        1.3,
+        -50.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_04",
+      "position": [
+        12.0,
+        1.7,
+        -49.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_05",
+      "position": [
+        12.0,
+        2.1,
+        -48.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_06",
+      "position": [
+        12.0,
+        2.5,
+        -47.75
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_07",
+      "position": [
+        12.0,
+        2.9,
+        -46.9
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_08",
+      "position": [
+        12.0,
+        3.3,
+        -46.05
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_09",
+      "position": [
+        12.0,
+        3.7,
+        -45.2
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_10",
+      "position": [
+        12.0,
+        4.1,
+        -44.35
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_11",
+      "position": [
+        12.0,
+        4.5,
+        -43.5
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_12",
+      "position": [
+        12.0,
+        4.9,
+        -42.65
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_13",
+      "position": [
+        12.0,
+        5.3,
+        -41.8
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_14",
+      "position": [
+        12.0,
+        5.7,
+        -40.95
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_15",
+      "position": [
+        12.0,
+        6.1,
+        -40.1
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_16",
+      "position": [
+        12.0,
+        6.5,
+        -39.25
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_17",
+      "position": [
+        12.0,
+        6.9,
+        -38.4
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_18",
+      "position": [
+        12.0,
+        7.3,
+        -37.55
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_19",
+      "position": [
+        12.0,
+        7.7,
+        -36.7
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStair_20",
+      "position": [
+        12.0,
+        8.1,
+        -35.85
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStairTopA",
+      "position": [
+        12.0,
+        8.0,
+        -35.85
+      ],
+      "size": [
+        6.0,
+        0.5,
+        4.0
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthCourtStairTopLink",
+      "position": [
+        6.0,
+        8.0,
+        -35.85
+      ],
+      "size": [
+        18.0,
+        0.5,
+        5.0
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_01",
+      "position": [
+        0.0,
+        8.45,
+        -13.0
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_02",
+      "position": [
+        0.0,
+        8.85,
+        -12.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_03",
+      "position": [
+        0.0,
+        9.25,
+        -11.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_04",
+      "position": [
+        0.0,
+        9.65,
+        -10.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_05",
+      "position": [
+        0.0,
+        10.05,
+        -9.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_06",
+      "position": [
+        0.0,
+        10.45,
+        -8.75
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_07",
+      "position": [
+        0.0,
+        10.85,
+        -7.9
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_08",
+      "position": [
+        0.0,
+        11.25,
+        -7.05
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_09",
+      "position": [
+        0.0,
+        11.65,
+        -6.2
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_10",
+      "position": [
+        0.0,
+        12.05,
+        -5.35
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_11",
+      "position": [
+        0.0,
+        12.45,
+        -4.5
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_12",
+      "position": [
+        0.0,
+        12.85,
+        -3.65
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_13",
+      "position": [
+        0.0,
+        13.25,
+        -2.8
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_14",
+      "position": [
+        0.0,
+        13.65,
+        -1.95
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_15",
+      "position": [
+        0.0,
+        14.05,
+        -1.1
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_16",
+      "position": [
+        0.0,
+        14.45,
+        -0.25
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_17",
+      "position": [
+        0.0,
+        14.85,
+        0.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_18",
+      "position": [
+        0.0,
+        15.25,
+        1.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_19",
+      "position": [
+        0.0,
+        15.65,
+        2.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStair_20",
+      "position": [
+        0.0,
+        16.05,
+        3.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "NorthTowerStairTop",
+      "position": [
+        0.0,
+        16.0,
+        3.15
+      ],
+      "size": [
+        6.0,
+        0.5,
+        4.0
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_01",
+      "position": [
+        -56.0,
+        8.45,
+        8.0
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_02",
+      "position": [
+        -56.0,
+        8.85,
+        7.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_03",
+      "position": [
+        -56.0,
+        9.25,
+        6.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_04",
+      "position": [
+        -56.0,
+        9.65,
+        5.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_05",
+      "position": [
+        -56.0,
+        10.05,
+        4.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_06",
+      "position": [
+        -56.0,
+        10.45,
+        3.75
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_07",
+      "position": [
+        -56.0,
+        10.85,
+        2.9
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_08",
+      "position": [
+        -56.0,
+        11.25,
+        2.05
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_09",
+      "position": [
+        -56.0,
+        11.65,
+        1.2
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_10",
+      "position": [
+        -56.0,
+        12.05,
+        0.35
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_11",
+      "position": [
+        -56.0,
+        12.45,
+        -0.5
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_12",
+      "position": [
+        -56.0,
+        12.85,
+        -1.35
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_13",
+      "position": [
+        -56.0,
+        13.25,
+        -2.2
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_14",
+      "position": [
+        -56.0,
+        13.65,
+        -3.05
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_15",
+      "position": [
+        -56.0,
+        14.05,
+        -3.9
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_16",
+      "position": [
+        -56.0,
+        14.45,
+        -4.75
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_17",
+      "position": [
+        -56.0,
+        14.85,
+        -5.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_18",
+      "position": [
+        -56.0,
+        15.25,
+        -6.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_19",
+      "position": [
+        -56.0,
+        15.65,
+        -7.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStair_20",
+      "position": [
+        -56.0,
+        16.05,
+        -8.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStairTop",
+      "position": [
+        -56.0,
+        16.0,
+        -8.15
+      ],
+      "size": [
+        6.0,
+        0.5,
+        4.0
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStairBridge",
+      "position": [
+        -34.0,
+        16.0,
+        -8.15
+      ],
+      "size": [
+        48.0,
+        0.5,
+        4.0
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStairBridgeRailN",
+      "position": [
+        -34.0,
+        16.7,
+        -10.3
+      ],
+      "size": [
+        48.0,
+        1.2,
+        0.3
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ],
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "WestTowerStairBridgeRailS",
+      "position": [
+        -34.0,
+        16.7,
+        -6.0
+      ],
+      "size": [
+        48.0,
+        1.2,
+        0.3
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ],
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_01",
+      "position": [
+        56.0,
+        8.45,
+        -8.0
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_02",
+      "position": [
+        56.0,
+        8.85,
+        -7.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_03",
+      "position": [
+        56.0,
+        9.25,
+        -6.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_04",
+      "position": [
+        56.0,
+        9.65,
+        -5.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_05",
+      "position": [
+        56.0,
+        10.05,
+        -4.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_06",
+      "position": [
+        56.0,
+        10.45,
+        -3.75
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_07",
+      "position": [
+        56.0,
+        10.85,
+        -2.9
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_08",
+      "position": [
+        56.0,
+        11.25,
+        -2.05
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_09",
+      "position": [
+        56.0,
+        11.65,
+        -1.2
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_10",
+      "position": [
+        56.0,
+        12.05,
+        -0.35
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_11",
+      "position": [
+        56.0,
+        12.45,
+        0.5
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_12",
+      "position": [
+        56.0,
+        12.85,
+        1.35
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_13",
+      "position": [
+        56.0,
+        13.25,
+        2.2
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_14",
+      "position": [
+        56.0,
+        13.65,
+        3.05
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_15",
+      "position": [
+        56.0,
+        14.05,
+        3.9
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_16",
+      "position": [
+        56.0,
+        14.45,
+        4.75
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_17",
+      "position": [
+        56.0,
+        14.85,
+        5.6
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_18",
+      "position": [
+        56.0,
+        15.25,
+        6.45
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_19",
+      "position": [
+        56.0,
+        15.65,
+        7.3
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStair_20",
+      "position": [
+        56.0,
+        16.05,
+        8.15
+      ],
+      "size": [
+        6.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStairTop",
+      "position": [
+        56.0,
+        16.0,
+        8.15
+      ],
+      "size": [
+        6.0,
+        0.5,
+        4.0
+      ],
+      "color": [
+        0.37,
+        0.25,
+        0.16
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStairBridge",
+      "position": [
+        34.0,
+        16.0,
+        8.15
+      ],
+      "size": [
+        48.0,
+        0.5,
+        4.0
+      ],
+      "color": [
+        0.38,
+        0.26,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStairBridgeRailN",
+      "position": [
+        34.0,
+        16.7,
+        6.0
+      ],
+      "size": [
+        48.0,
+        1.2,
+        0.3
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ],
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "EastTowerStairBridgeRailS",
+      "position": [
+        34.0,
+        16.7,
+        10.3
+      ],
+      "size": [
+        48.0,
+        1.2,
+        0.3
+      ],
+      "color": [
+        0.27,
+        0.18,
+        0.11
+      ],
+      "collision": "none"
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_01",
+      "position": [
+        13.0,
+        8.45,
+        12.0
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_02",
+      "position": [
+        13.0,
+        8.85,
+        11.15
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_03",
+      "position": [
+        13.0,
+        9.25,
+        10.3
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_04",
+      "position": [
+        13.0,
+        9.65,
+        9.45
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_05",
+      "position": [
+        13.0,
+        10.05,
+        8.6
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_06",
+      "position": [
+        13.0,
+        10.45,
+        7.75
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_07",
+      "position": [
+        13.0,
+        10.85,
+        6.9
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_08",
+      "position": [
+        13.0,
+        11.25,
+        6.05
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_09",
+      "position": [
+        13.0,
+        11.65,
+        5.2
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_10",
+      "position": [
+        13.0,
+        12.05,
+        4.35
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_11",
+      "position": [
+        13.0,
+        12.45,
+        3.5
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_12",
+      "position": [
+        13.0,
+        12.85,
+        2.65
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_13",
+      "position": [
+        13.0,
+        13.25,
+        1.8
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_14",
+      "position": [
+        13.0,
+        13.65,
+        0.95
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_15",
+      "position": [
+        13.0,
+        14.05,
+        0.1
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_16",
+      "position": [
+        13.0,
+        14.45,
+        -0.75
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_17",
+      "position": [
+        13.0,
+        14.85,
+        -1.6
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_18",
+      "position": [
+        13.0,
+        15.25,
+        -2.45
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_19",
+      "position": [
+        13.0,
+        15.65,
+        -3.3
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.44,
+        0.31,
+        0.19
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L2ToL3Stair_20",
+      "position": [
+        13.0,
+        16.05,
+        -4.15
+      ],
+      "size": [
+        4.0,
+        0.4,
+        0.85
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    },
+    {
+      "type": "box",
+      "name": "L3StairLanding",
+      "position": [
+        10.0,
+        16.0,
+        -4.15
+      ],
+      "size": [
+        10.0,
+        0.5,
+        4.5
+      ],
+      "color": [
+        0.39,
+        0.27,
+        0.17
+      ]
+    }
+  ]
+}

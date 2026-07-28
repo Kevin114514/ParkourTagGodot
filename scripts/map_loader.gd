@@ -10,6 +10,7 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 		"map_root": null,
 		"runner_spawn": DEFAULT_RUNNER_SPAWN,
 		"tagger_spawn": DEFAULT_TAGGER_SPAWN,
+		"environment": {},
 		"error": ""
 	}
 
@@ -43,6 +44,8 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 	result["map_root"] = root
 	result["runner_spawn"] = _to_vector3(data.get("runner_spawn", DEFAULT_RUNNER_SPAWN), DEFAULT_RUNNER_SPAWN)
 	result["tagger_spawn"] = _to_vector3(data.get("tagger_spawn", DEFAULT_TAGGER_SPAWN), DEFAULT_TAGGER_SPAWN)
+	if data.has("environment") and typeof(data["environment"]) == TYPE_DICTIONARY:
+		result["environment"] = data["environment"]
 	return result
 
 static func _add_object(root: Node3D, data: Dictionary, map_path: String) -> void:

@@ -2,6 +2,7 @@ extends Node3D
 
 const PlayerScript = preload("res://scripts/player.gd")
 const RunnerAIScript = preload("res://scripts/runner_ai.gd")
+const RLPolicyRunnerScript = preload("res://scripts/rl_policy_runner.gd")
 const TaggerScript = preload("res://scripts/tagger.gd")
 const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
@@ -9,6 +10,7 @@ const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
 const PORT = 24591
 const USE_RL_POLICY_TAGGER := true
+const USE_RL_POLICY_RUNNER := true
 const VOID_Y = -12.0
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const USER_MAP_PATH = "user://maps/current_map.json"
@@ -35,6 +37,12 @@ const THROWABLE_TRAJECTORY_STEPS := 30
 const THROWABLE_TRAJECTORY_STEP_TIME := 0.075
 const THROWABLE_NOTICE_DURATION := 2.2
 const THROWABLE_PICKUP_NOTICE_PROTECT := 1.15
+
+const DEFAULT_SKY_COLOR := Color(0.48, 0.78, 1.0)
+const DEFAULT_AMBIENT_COLOR := Color(0.95, 0.9, 0.78)
+const DEFAULT_AMBIENT_ENERGY := 1.15
+const DEFAULT_SUN_ENERGY := 2.1
+const DEFAULT_SUN_COLOR := Color(1.0, 1.0, 1.0)
 const OFFICIAL_MAPS = [
 	{
 		"name": "默认跑酷竞技场",
@@ -65,6 +73,11 @@ const OFFICIAL_MAPS = [
 		"name": "森林小岛（外海+内湖）",
 		"path": "res://maps/forest_island_map.json",
 		"description": "森林小岛地图：使用 3D 森林岛屿模型，包含外海、内湖和开阔追逐空间。"
+	},
+	{
+		"name": "下界要塞",
+		"path": "res://maps/nether_fortress.json",
+		"description": "大尺度三层露顶下界要塞：中央四向悬空桥、环形回廊与多座楼梯塔，断桥跳台、柱顶捷径与烈焰塔、下界疣房；无岩浆改为虚空坠落风险，点缀大型绯红菌。"
 	}
 ]
 
@@ -131,6 +144,8 @@ var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
 
 var throwable_root: Node3D
 var throwable_trajectory: MeshInstance3D
+var world_environment: WorldEnvironment
+var world_sun: DirectionalLight3D
 var ground_throwables: Dictionary = {}
 var flying_throwables: Dictionary = {}
 var runner_has_throwable := false
@@ -1252,12 +1267,18 @@ func _spawn_single_characters() -> void:
 	tagger.skin_id = tagger_skin_id
 	add_child(tagger)
 	tagger.global_position = _grounded_spawn_position(tagger_spawn_position)
+	# add_child 已触发 _ready()，此时位置还是 (0,0,0)，spawn_position 会被记成地图中心圆球。
+	# 位置摆到真正出生点后，这里显式回写复活点，确保掉进虚空重生回出生点而非中心。
+	if "spawn_position" in tagger:
+		tagger.spawn_position = tagger.global_position
+	if "last_position" in tagger:
+		tagger.last_position = tagger.global_position
 	tagger.target = player
 
 func _spawn_single_chase_characters() -> void:
 	player = CharacterBody3D.new()
 	player.name = "AIRunner"
-	player.set_script(RunnerAIScript)
+	player.set_script(RLPolicyRunnerScript if USE_RL_POLICY_RUNNER else RunnerAIScript)
 	player.skin_id = runner_skin_id
 	add_child(player)
 	player.global_position = _grounded_spawn_position(runner_spawn_position)
@@ -1566,20 +1587,78 @@ func _setup_world() -> void:
 	var environment := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.48, 0.78, 1.0)
+	env.background_color = DEFAULT_SKY_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.95, 0.9, 0.78)
-	env.ambient_light_energy = 1.15
+	env.ambient_light_color = DEFAULT_AMBIENT_COLOR
+	env.ambient_light_energy = DEFAULT_AMBIENT_ENERGY
 	environment.environment = env
 	add_child(environment)
+	world_environment = environment
 
 	var sun := DirectionalLight3D.new()
 	sun.name = "Sun"
-	sun.light_energy = 2.1
+	sun.light_energy = DEFAULT_SUN_ENERGY
 	sun.rotation_degrees = Vector3(-48.0, 35.0, 0.0)
 	add_child(sun)
+	world_sun = sun
 	_ensure_throwable_root()
 	_ensure_throwable_trajectory()
+
+func _apply_map_environment(env_data: Dictionary) -> void:
+	if world_environment == null or not is_instance_valid(world_environment):
+		return
+	var env: Environment = world_environment.environment
+	if env == null:
+		return
+	# 无自定义环境时恢复默认
+	var sky_color := DEFAULT_SKY_COLOR
+	var ambient_color := DEFAULT_AMBIENT_COLOR
+	var ambient_energy := DEFAULT_AMBIENT_ENERGY
+	var sun_energy := DEFAULT_SUN_ENERGY
+	var sun_color := DEFAULT_SUN_COLOR
+	if not env_data.is_empty():
+		sky_color = _color_or(env_data.get("sky_color", env_data.get("background_color", null)), sky_color)
+		ambient_color = _color_or(env_data.get("ambient_color", null), ambient_color)
+		ambient_energy = float(env_data.get("ambient_energy", ambient_energy))
+		sun_energy = float(env_data.get("sun_energy", sun_energy))
+		sun_color = _color_or(env_data.get("sun_color", null), sun_color)
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = sky_color
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = ambient_color
+	env.ambient_light_energy = ambient_energy
+	# 可选雾效，营造整体氛围
+	if not env_data.is_empty() and _to_bool_env(env_data.get("fog_enabled", false)):
+		env.fog_enabled = true
+		env.fog_light_color = _color_or(env_data.get("fog_color", null), sky_color)
+		env.fog_density = float(env_data.get("fog_density", 0.01))
+	else:
+		env.fog_enabled = false
+	if world_sun != null and is_instance_valid(world_sun):
+		world_sun.light_energy = sun_energy
+		world_sun.light_color = sun_color
+
+func _color_or(value, default_value: Color) -> Color:
+	if value == null:
+		return default_value
+	if value is Color:
+		return value
+	if typeof(value) == TYPE_ARRAY:
+		if value.size() >= 4:
+			return Color(float(value[0]), float(value[1]), float(value[2]), float(value[3]))
+		if value.size() >= 3:
+			return Color(float(value[0]), float(value[1]), float(value[2]))
+	if typeof(value) == TYPE_STRING and not String(value).is_empty():
+		return Color(String(value))
+	return default_value
+
+func _to_bool_env(value) -> bool:
+	if typeof(value) == TYPE_BOOL:
+		return bool(value)
+	if typeof(value) == TYPE_STRING:
+		var text := String(value).to_lower()
+		return text == "true" or text == "yes" or text == "1"
+	return false
 
 func _ensure_throwable_root() -> void:
 	if throwable_root != null and is_instance_valid(throwable_root):
@@ -1619,6 +1698,7 @@ func _load_active_map() -> bool:
 	_build_arena()
 	map_name = "内置备用地图"
 	active_map_path = "legacy_builtin"
+	_apply_map_environment({})
 	_update_map_ui()
 	if debug_mode:
 		_refresh_debug_collision_shapes()
@@ -1639,6 +1719,8 @@ func _load_map_from_path(map_path: String) -> bool:
 	active_map_path = map_path
 	runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
 	tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
+	var env_data = result.get("environment", {})
+	_apply_map_environment(env_data if typeof(env_data) == TYPE_DICTIONARY else {})
 	_update_map_ui()
 	if debug_mode:
 		_refresh_debug_collision_shapes()

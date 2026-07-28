@@ -20,6 +20,18 @@ ACTIONS = MOVE_ACTIONS + [CATCH_ACTION]
 CATCH_ACTION_INDEX = len(ACTIONS) - 1
 MAX_RELATIVE_CELLS = 14
 CATCH_DISTANCE_CELLS = 1.0
+# 走进虚空（脚下没有 L1 地面）的死亡惩罚，"reward = -无穷" 的工程近似。
+VOID_DEATH_REWARD = -1000.0
+# 判定 L1 可站立地面的高度上限：只有 y 接近 0 的薄板才算 L1 路面，
+# 高层平台（L2 y≈8 / L3 y≈16）压平后不应被当成 L1 可走地。
+L1_FLOOR_MAX_Y = 3.0
+# L1 障碍高度上限：底部高于此值的结构（上层地板/走廊/天花板）在 L1 人物头顶之上，
+# 地面追捕者从下方穿过，不算障碍。约 L1 人物身高 1.8m + 余量。
+L1_OBSTACLE_TOP_Y = 2.2
+# 追捕者助跑跳跃可跨越的缺口宽度（格）。tagger.gd 跳跃覆盖约 7.4m，cell_size≈2 → 约 3 格。
+GAP_JUMP_CELLS = 3
+# 可直接迈过的矮镶边/门槛/台阶顶面高度上限（m）。顶面低于此值不算障碍。
+L1_STEP_OVER_Y = 1.1
 
 
 def load_map(path: Path) -> dict:
@@ -67,21 +79,56 @@ def build_grid(map_data: dict, cell_size: float, agent_radius: float) -> dict:
     blocked = [[False for _ in range(height)] for _ in range(width)]
 
     obstacle_bounds = []
+    # L1 可站立地面（实心平台 + 追捕者能助跑跳过的断桥缺口 Gap）的覆盖范围。
+    floor_bounds = []
     for obj in map_data.get("objects", []):
         name = str(obj.get("name", "")).lower()
         typ = str(obj.get("type", "box"))
         size = obj.get("size", [0.0, 0.0, 0.0])
         y = float(obj.get("position", [0.0, 0.0, 0.0])[1])
+        collision = str(obj.get("collision", "")).lower()
+        bounds = object_bounds(obj)
+
+        is_thin = typ == "box" and len(size) >= 3 and float(size[1]) <= 0.6
+        is_l1 = y <= L1_FLOOR_MAX_Y  # 仅 L1 层：地面追捕者上不去 L2(y≈8)/L3(y≈16)。
+        # 实心 L1 落脚面：主地面、pad，或 y 接近 0 的薄板路面（排除无碰撞装饰）。
+        solid_floor = collision != "none" and is_l1 and (
+            "ground" in name or "pad" in name or "floor" in name or "path" in name
+            or ("bridge" in name and "gap" not in name)
+            or "plaza" in name or "court" in name or "hub" in name
+            or (is_thin and "rail" not in name and "wall" not in name and "trim" not in name)
+        )
+        # 断桥缺口（collision:none 的 Gap）：游戏里追捕者会助跑跳过（见 tagger.gd
+        # _gap_edge_ahead/_has_landing_across_gap），所以训练网格中视为可通过，而非致命虚空。
+        crossable_gap = is_l1 and "gap" in name and collision == "none"
+        if (solid_floor or crossable_gap) and bounds is not None:
+            floor_bounds.append(bounds)
+
         if "ground" in name or "pad" in name:
             continue
         if typ == "box" and len(size) >= 3 and float(size[1]) <= 0.25:
             continue
         if typ == "box" and y < 0.15 and float(size[1]) < 0.65:
             continue
-        bounds = object_bounds(obj)
+        obj_top = y + (float(size[1]) * 0.5 if typ == "box" and len(size) >= 3 else 0.0)
+        obj_bottom = y - (float(size[1]) * 0.5 if typ == "box" and len(size) >= 3 else 0.0)
+        # 矮镶边 / 门槛 / 台阶（trim、curb、ledge、step 等）顶面很低，玩家可直接迈过，
+        # 不应把整条 Hub 边缘封成墙。顶面低于可跨越高度即放行。
+        low_curb = typ == "box" and obj_top <= L1_STEP_OVER_Y
+        curb_named = any(k in name for k in ("trim", "curb", "ledge", "step", "border", "edge"))
+        if low_curb and (curb_named or obj_top <= 1.0):
+            continue
+        # 上层结构（L2/L3 的地板、走廊、天花板、楼梯高段等）底部远高于 L1 人物头顶，
+        # L1 追捕者从下方穿过，不构成障碍。仅用底部高度过滤，避免把整座 Hub 误判成墙。
+        if obj_bottom > L1_OBSTACLE_TOP_Y:
+            continue
         if bounds is not None:
             obstacle_bounds.append(bounds)
 
+    # 若地图没有显式主地面（依赖各平台拼接），把兜底大边界也算作地面，避免整图判虚空。
+    has_explicit_floor = bool(floor_bounds)
+
+    void = [[False for _ in range(height)] for _ in range(width)]
     for gx in range(width):
         for gz in range(height):
             x = min_x + gx * cell_size
@@ -90,6 +137,54 @@ def build_grid(map_data: dict, cell_size: float, agent_radius: float) -> dict:
                 if bx0 - agent_radius <= x <= bx1 + agent_radius and bz0 - agent_radius <= z <= bz1 + agent_radius:
                     blocked[gx][gz] = True
                     break
+            if has_explicit_floor and not blocked[gx][gz]:
+                supported = False
+                for fx0, fx1, fz0, fz1 in floor_bounds:
+                    if fx0 - agent_radius <= x <= fx1 + agent_radius and fz0 - agent_radius <= z <= fz1 + agent_radius:
+                        supported = True
+                        break
+                if not supported:
+                    void[gx][gz] = True
+
+    # 后处理：把「窄缺口」上的 void 恢复为可通过。
+    # 游戏里追捕者会助跑跳越断桥缺口（tagger.gd 覆盖约 7.4m ≈ 4 格），
+    # 因此一段 void 若在四个正交方向中任一方向的两端 GAP_JUMP_CELLS 格内都有实心地面，
+    # 判定为「可跳越缺口」而非致命虚空，避免地图被断桥切成互不连通的孤岛。
+    def _solid(cx: int, cz: int) -> bool:
+        return 0 <= cx < width and 0 <= cz < height and not blocked[cx][cz] and not void[cx][cz]
+
+    crossable = [[False for _ in range(height)] for _ in range(width)]
+    for gx in range(width):
+        for gz in range(height):
+            if not void[gx][gz]:
+                continue
+            for dx, dz in ((1, 0), (0, 1)):
+                # 向负方向找最近实心地面
+                neg_ok = False
+                for step in range(1, GAP_JUMP_CELLS + 1):
+                    cx, cz = gx - dx * step, gz - dz * step
+                    if not (0 <= cx < width and 0 <= cz < height) or blocked[cx][cz]:
+                        break
+                    if _solid(cx, cz):
+                        neg_ok = True
+                        break
+                if not neg_ok:
+                    continue
+                pos_ok = False
+                for step in range(1, GAP_JUMP_CELLS + 1):
+                    cx, cz = gx + dx * step, gz + dz * step
+                    if not (0 <= cx < width and 0 <= cz < height) or blocked[cx][cz]:
+                        break
+                    if _solid(cx, cz):
+                        pos_ok = True
+                        break
+                if pos_ok:
+                    crossable[gx][gz] = True
+                    break
+    for gx in range(width):
+        for gz in range(height):
+            if crossable[gx][gz]:
+                void[gx][gz] = False
 
     return {
         "min_x": min_x,
@@ -99,6 +194,7 @@ def build_grid(map_data: dict, cell_size: float, agent_radius: float) -> dict:
         "width": width,
         "height": height,
         "blocked": blocked,
+        "void": void,
         "cell_size": cell_size,
     }
 
@@ -113,9 +209,19 @@ def clamp_cell(grid: dict, cell: tuple[int, int]) -> tuple[int, int]:
     return max(0, min(grid["width"] - 1, cell[0])), max(0, min(grid["height"] - 1, cell[1]))
 
 
-def is_free(grid: dict, cell: tuple[int, int]) -> bool:
+def is_void(grid: dict, cell: tuple[int, int]) -> bool:
     x, z = cell
-    return 0 <= x < grid["width"] and 0 <= z < grid["height"] and not grid["blocked"][x][z]
+    if not (0 <= x < grid["width"] and 0 <= z < grid["height"]):
+        return True
+    return bool(grid.get("void", [[False]])[x][z])
+
+
+def is_free(grid: dict, cell: tuple[int, int]) -> bool:
+    """可安全站立：在界内、非障碍、且脚下有地面（非虚空）。"""
+    x, z = cell
+    if not (0 <= x < grid["width"] and 0 <= z < grid["height"]):
+        return False
+    return not grid["blocked"][x][z] and not is_void(grid, cell)
 
 
 def nearest_free(grid: dict, start: tuple[int, int]) -> tuple[int, int]:
@@ -212,6 +318,12 @@ def train(grid: dict, runner_spawn: tuple[int, int], tagger_spawn: tuple[int, in
 
             dx, dz = ACTIONS[action_index]
             nxt = (agent[0] + dx, agent[1] + dz)
+
+            # 踏空：目标格是虚空（脚下没有 L1 地面）→ 直接坠落身亡，巨额负奖励并终止回合。
+            if is_void(grid, nxt):
+                q[key][action_index] += alpha * (VOID_DEATH_REWARD - q[key][action_index])
+                break
+
             hit_block = not is_free(grid, nxt)
             if hit_block:
                 nxt = agent

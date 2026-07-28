@@ -22,6 +22,7 @@ var target_last_position := Vector3.ZERO
 var stuck_timer := 0.0
 var dodge_sign := 1.0
 var survival_timer := 0.0
+var _gap_jump := false
 const VOID_Y := -12.0
 const CENTER_PULL_TIME := 4.0
 const IDEAL_ESCAPE_DISTANCE := 12.0
@@ -39,8 +40,7 @@ func _ready() -> void:
 	_build_body()
 
 func _physics_process(delta: float) -> void:
-	if global_position.y < VOID_Y:
-		_respawn()
+	# 躲藏者触碰虚空即死：不在此复活，交由 game.gd 的 _on_runner_fell() 判定本局结束
 
 	if is_control_locked or not is_active:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
@@ -83,6 +83,11 @@ func _physics_process(delta: float) -> void:
 
 	if _should_jump():
 		velocity.y = maxf(velocity.y, jump_velocity)
+		# 跨越断桥间隙时给一个朝逃跑方向的水平助推，确保能稳稳越过缺口
+		if _gap_jump and desired_dir.length_squared() > 0.01:
+			var jdir := desired_dir.normalized()
+			velocity.x = jdir.x * walk_speed
+			velocity.z = jdir.z * walk_speed
 		coyote_timer = 0.0
 
 	_apply_gravity(delta)
@@ -191,8 +196,12 @@ func _score_escape_candidate(dir: Vector3, away: Vector3, target_velocity: Vecto
 	if _wall_too_close(dir):
 		score -= 3.0 + edge_pressure * 2.5
 	if not _has_ground_ahead(dir, 1.1):
-		score -= 9.0
-	if not _has_ground_ahead(dir, 2.2):
+		# 间隙对面若有可落脚平台，视为可跳跃间隙，轻度惩罚而非直接回避
+		if _has_landing_across_gap(dir):
+			score -= 1.2
+		else:
+			score -= 9.0
+	elif not _has_ground_ahead(dir, 2.2):
 		score -= 2.6
 	if current_distance < 4.0 and dir.dot(away) < 0.2:
 		score -= 4.0
@@ -202,8 +211,12 @@ func _probe_dir(dir: Vector3) -> Vector3:
 	if dir.length_squared() < 0.01:
 		return Vector3.ZERO
 	dir = dir.normalized()
-	if _front_blocked(dir) or _wall_too_close(dir) or not _has_ground_ahead(dir, 0.9):
+	if _front_blocked(dir) or _wall_too_close(dir):
 		return Vector3.ZERO
+	if not _has_ground_ahead(dir, 0.9):
+		# 若前方是可跳跃的断桥间隙（对面有落脚点），允许继续，交由起跳逻辑处理
+		if not _has_landing_across_gap(dir):
+			return Vector3.ZERO
 	return dir
 
 func _unstuck_dir(preferred_dir: Vector3) -> Vector3:
@@ -216,6 +229,7 @@ func _unstuck_dir(preferred_dir: Vector3) -> Vector3:
 	return base
 
 func _should_jump() -> bool:
+	_gap_jump = false
 	if target == null or not is_instance_valid(target):
 		return false
 	if not (is_on_floor() or coyote_timer > 0.0):
@@ -229,6 +243,11 @@ func _should_jump() -> bool:
 	var to_target := target.global_position - global_position
 	var flat_distance := Vector2(to_target.x, to_target.z).length()
 	if flat_distance < 4.0 and _front_blocked(forward):
+		return true
+
+	# 跨越断桥间隙：前方近处出现缺口，且间隙对面有可达平台 -> 起跳
+	if _gap_edge_ahead(forward) and _has_landing_across_gap(forward):
+		_gap_jump = true
 		return true
 
 	var low_from := global_position + Vector3.UP * 0.72
@@ -303,6 +322,39 @@ func _has_ground_ahead(dir: Vector3, distance: float) -> bool:
 		return false
 	var hit_pos: Vector3 = hit["position"]
 	return global_position.y - hit_pos.y < 2.1
+
+func _gap_edge_ahead(dir: Vector3) -> bool:
+	# 检测前方近处（断桥边缘）是否出现无落脚点的缺口
+	if dir.length_squared() < 0.01:
+		return false
+	var d := dir.normalized()
+	for dist in PackedFloat32Array([0.7, 1.1, 1.6]):
+		if not _has_ground_ahead(d, dist):
+			return true
+	return false
+
+func _has_landing_across_gap(dir: Vector3) -> bool:
+	# 前方存在间隙时，检查间隙对面是否有一段跳跃即可到达的落脚平台
+	# 探测距离覆盖到约 7.4m，才能识别较宽的真断桥（间隙约 5.6m + 助跑余量）
+	if dir.length_squared() < 0.01:
+		return false
+	var d := dir.normalized()
+	var space := get_world_3d().direct_space_state
+	for dist in PackedFloat32Array([2.2, 2.9, 3.6, 4.3, 5.0, 5.8, 6.6, 7.4]):
+		var probe := global_position + d * dist
+		var from := probe + Vector3.UP * 2.4
+		var to := probe + Vector3.DOWN * 4.5
+		var query := PhysicsRayQueryParameters3D.create(from, to)
+		query.collision_mask = 1
+		query.exclude = [get_rid()]
+		var hit := space.intersect_ray(query)
+		if hit.is_empty():
+			continue
+		var hit_y: float = hit["position"].y
+		# 落点不能太高（跳得上）也不能太低（不至于摔死）
+		if hit_y - global_position.y <= 2.3 and global_position.y - hit_y <= 3.6:
+			return true
+	return false
 
 func _line_to_target_blocked_from(from: Vector3) -> bool:
 	if target == null or not is_instance_valid(target):

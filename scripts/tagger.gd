@@ -26,6 +26,11 @@ var spawn_position := Vector3.ZERO
 var move_speed_multiplier := 1.0
 var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
+# 跨缺口跳跃锁定：起跳后在空中锁定水平方向与速度，防止滞空中被重新规划/减速导致跳半路坠落。
+var gap_jump_dir := Vector3.ZERO
+var gap_jump_timer := 0.0
+const GAP_JUMP_LOCK_TIME := 1.2
+const GAP_JUMP_SPEED := 9.2
 
 func _ready() -> void:
 	collision_layer = 4
@@ -44,6 +49,24 @@ func _physics_process(delta: float) -> void:
 	jump_cooldown = maxf(jump_cooldown - delta, 0.0)
 	if velocity.y > MAX_UPWARD_VELOCITY:
 		velocity.y = MAX_UPWARD_VELOCITY
+
+	# 跨缺口跳跃锁定：起跳后在空中沿固定方向全速前冲，直到落地或超时。
+	# 这样跳跃轨迹不会被后续重规划/减速打断，避免"跳一半掉进缺口自刎"。
+	gap_jump_timer = maxf(gap_jump_timer - delta, 0.0)
+	if gap_jump_timer > 0.0 and gap_jump_dir.length_squared() > 0.01:
+		if is_on_floor() and velocity.y <= 0.05:
+			gap_jump_timer = 0.0
+		else:
+			velocity.x = gap_jump_dir.x * GAP_JUMP_SPEED
+			velocity.z = gap_jump_dir.z * GAP_JUMP_SPEED
+			_apply_gravity(delta)
+			if velocity.y > MAX_UPWARD_VELOCITY:
+				velocity.y = MAX_UPWARD_VELOCITY
+			look_at(global_position + gap_jump_dir, Vector3.UP)
+			move_and_slide()
+			last_position = global_position
+			return
+
 	if not is_active or target == null:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
@@ -117,6 +140,33 @@ func _physics_process(delta: float) -> void:
 	if wall_follow_timer > 0.0 and wall_follow_dir.length_squared() > 0.01 and not _front_blocked(wall_follow_dir):
 		move_dir = (move_dir * 0.68 + wall_follow_dir.normalized() * 0.32).normalized()
 
+	# 跨越断桥间隙：前方近处出现缺口时的处理
+	if not target_below and not elevated_target and _gap_edge_ahead(move_dir):
+		if _has_landing_across_gap(move_dir) and is_on_floor() and jump_cooldown <= 0.0:
+			# 对面有落脚平台 -> 助跑起跳并锁定跳跃方向/速度，确保稳稳落到对岸
+			if _request_jump(jump_velocity):
+				gap_jump_dir = move_dir.normalized()
+				gap_jump_timer = GAP_JUMP_LOCK_TIME
+				velocity.x = gap_jump_dir.x * GAP_JUMP_SPEED
+				velocity.z = gap_jump_dir.z * GAP_JUMP_SPEED
+				look_at(global_position + gap_jump_dir, Vector3.UP)
+				move_and_slide()
+				last_position = global_position
+				return
+		else:
+			# 前方是缺口但对面无处落脚 -> 立即刹车并侧向绕行，绝不走进虚空坠落
+			var brake_side := Vector3(-move_dir.z, 0.0, move_dir.x) * avoid_sign
+			if brake_side.length_squared() < 0.01:
+				brake_side = Vector3(avoid_sign, 0.0, 0.0)
+			var safe_dir := brake_side.normalized()
+			if _has_ground_ahead(safe_dir, 1.2) and not _front_blocked(safe_dir):
+				move_dir = safe_dir
+			else:
+				move_dir = Vector3.ZERO
+				velocity.x = move_toward(velocity.x, 0.0, acceleration * 2.5 * delta)
+				velocity.z = move_toward(velocity.z, 0.0, acceleration * 2.5 * delta)
+			avoid_sign = -avoid_sign
+
 	_apply_gravity(delta)
 	if velocity.y > MAX_UPWARD_VELOCITY:
 		velocity.y = MAX_UPWARD_VELOCITY
@@ -134,6 +184,8 @@ func _respawn() -> void:
 	velocity = Vector3.ZERO
 	stuck_timer = 0.0
 	jump_cooldown = 0.0
+	gap_jump_dir = Vector3.ZERO
+	gap_jump_timer = 0.0
 	descent_dir = Vector3.ZERO
 	descent_repath_timer = 0.0
 	wall_follow_dir = Vector3.ZERO
@@ -365,6 +417,57 @@ func _ray_blocked(dir: Vector3, distance: float, height: float = 0.65) -> bool:
 	query.collision_mask = 1
 	query.exclude = [get_rid()]
 	return not space.intersect_ray(query).is_empty()
+
+func _has_ground_ahead(dir: Vector3, distance: float) -> bool:
+	if dir.length_squared() < 0.01:
+		return true
+	var probe := global_position + dir.normalized() * distance
+	var from := probe + Vector3.UP * 1.0
+	var to := probe + Vector3.DOWN * 3.3
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return false
+	var hit_pos: Vector3 = hit["position"]
+	return global_position.y - hit_pos.y < 2.1
+
+func _gap_edge_ahead(dir: Vector3) -> bool:
+	# 检测前方近处（断桥边缘）是否出现无落脚点的缺口
+	if dir.length_squared() < 0.01:
+		return false
+	var d := dir.normalized()
+	for dist in PackedFloat32Array([0.7, 1.1, 1.6]):
+		if not _has_ground_ahead(d, dist):
+			return true
+	return false
+
+func _has_landing_across_gap(dir: Vector3) -> bool:
+	# 间隙对面是否有一段跳跃即可到达的落脚平台（覆盖到约 7.4m，可识别 5.6m 真断桥）。
+	# 要求：先经过一段真正的缺口（无地），缺口之后再出现可落脚平台，才算"对面有落脚"，
+	# 避免把脚下自身平台误当成落脚点而在缺口边缘犹豫。
+	if dir.length_squared() < 0.01:
+		return false
+	var d := dir.normalized()
+	var space := get_world_3d().direct_space_state
+	var seen_gap := false
+	for dist in PackedFloat32Array([1.6, 2.2, 2.9, 3.6, 4.3, 5.0, 5.8, 6.6, 7.4]):
+		var probe := global_position + d * dist
+		var from := probe + Vector3.UP * 2.4
+		var to := probe + Vector3.DOWN * 4.5
+		var query := PhysicsRayQueryParameters3D.create(from, to)
+		query.collision_mask = 1
+		query.exclude = [get_rid()]
+		var hit := space.intersect_ray(query)
+		if hit.is_empty():
+			seen_gap = true
+			continue
+		var hit_y: float = hit["position"].y
+		var reachable := hit_y - global_position.y <= 2.3 and global_position.y - hit_y <= 3.6
+		if seen_gap and reachable:
+			return true
+	return false
 
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor() and velocity.y < 0.0:
