@@ -99,7 +99,7 @@ func _physics_process(delta: float) -> void:
 		coyote_timer = maxf(coyote_timer - delta, 0.0)
 
 	if Input.is_action_just_pressed("jump"):
-		if role == "runner" and _try_vault(wish_dir):
+		if _try_vault(wish_dir):
 			pass
 		elif is_on_floor() or coyote_timer > 0.0:
 			velocity.y = jump_velocity
@@ -286,9 +286,9 @@ func get_catch_direction() -> Vector3:
 	return -global_transform.basis.z.normalized()
 
 func get_throw_origin() -> Vector3:
-	if local_control and camera_pivot != null:
-		return camera_pivot.global_position + -camera_pivot.global_transform.basis.z.normalized() * 0.4
-	return global_position + Vector3.UP * 1.15
+	var right := global_transform.basis.x.normalized()
+	var forward := -global_transform.basis.z.normalized()
+	return global_position + right * 0.44 + Vector3.UP * 1.05 + forward * 0.16
 
 func get_throw_direction() -> Vector3:
 	if local_control and camera_pivot != null:
