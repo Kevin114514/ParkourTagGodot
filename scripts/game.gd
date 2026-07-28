@@ -280,7 +280,12 @@ func _process(delta: float) -> void:
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
 	if hud_label != null:
-		hud_label.text = ""
+		var local_actor := _local_controlled_actor()
+		if local_actor != null:
+			var actor_position := local_actor.global_position
+			hud_label.text = "时间  %.1f 秒\n坐标  X %.1f  Y %.1f  Z %.1f" % [time_alive, actor_position.x, actor_position.y, actor_position.z]
+		else:
+			hud_label.text = "时间  %.1f 秒" % time_alive
 	_update_catch_crosshair()
 	_update_direction_marker()
 	_update_threat_overlay(distance)
@@ -2220,9 +2225,9 @@ func _build_hud() -> void:
 
 	var panel := PanelContainer.new()
 	panel.position = Vector2(14.0, 14.0)
-	panel.custom_minimum_size = Vector2(610.0, 150.0)
+	panel.custom_minimum_size = Vector2(300.0, 82.0)
 	panel.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.72, 0.88), Color(0.12, 0.18, 0.36), 4, 18, Vector2(0.0, 5.0), 12))
-	panel.visible = false
+	panel.visible = true
 	hud_layer.add_child(panel)
 
 	var hud_margin := MarginContainer.new()
