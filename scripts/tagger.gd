@@ -14,6 +14,9 @@ const JUMP_COOLDOWN := 0.42
 var avoid_sign := 1.0
 var avoid_timer := 0.0
 var stuck_timer := 0.0
+var hard_stuck_timer := 0.0
+var escape_dir := Vector3.ZERO
+var escape_timer := 0.0
 var last_position := Vector3.ZERO
 var jump_cooldown := 0.0
 var descent_dir := Vector3.ZERO
@@ -29,6 +32,11 @@ const VOID_Y := -12.0
 const STEP_MAX_HEIGHT := 0.52
 const STEP_FORWARD_DISTANCE := 0.45
 var _step_inward_dir := Vector3.ZERO  # 上一次台阶检测的内侧方向（法线反向）
+# 跨缺口跳跃锁定：起跳后在空中锁定水平方向与速度，防止滞空中被重新规划/减速导致跳半路坠落。
+var gap_jump_dir := Vector3.ZERO
+var gap_jump_timer := 0.0
+const GAP_JUMP_LOCK_TIME := 1.2
+const GAP_JUMP_SPEED := 9.2
 
 func _ready() -> void:
 	collision_layer = 4
@@ -48,6 +56,24 @@ func _physics_process(delta: float) -> void:
 	jump_cooldown = maxf(jump_cooldown - delta, 0.0)
 	if velocity.y > MAX_UPWARD_VELOCITY:
 		velocity.y = MAX_UPWARD_VELOCITY
+
+	# 跨缺口跳跃锁定：起跳后在空中沿固定方向全速前冲，直到落地或超时。
+	# 这样跳跃轨迹不会被后续重规划/减速打断，避免"跳一半掉进缺口自刎"。
+	gap_jump_timer = maxf(gap_jump_timer - delta, 0.0)
+	if gap_jump_timer > 0.0 and gap_jump_dir.length_squared() > 0.01:
+		if is_on_floor() and velocity.y <= 0.05:
+			gap_jump_timer = 0.0
+		else:
+			velocity.x = gap_jump_dir.x * GAP_JUMP_SPEED
+			velocity.z = gap_jump_dir.z * GAP_JUMP_SPEED
+			_apply_gravity(delta)
+			if velocity.y > MAX_UPWARD_VELOCITY:
+				velocity.y = MAX_UPWARD_VELOCITY
+			look_at(global_position + gap_jump_dir, Vector3.UP)
+			move_and_slide()
+			last_position = global_position
+			return
+
 	if not is_active or target == null:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
 		velocity.z = move_toward(velocity.z, 0.0, acceleration * delta)
@@ -80,6 +106,32 @@ func _physics_process(delta: float) -> void:
 		stuck_timer += delta
 	else:
 		stuck_timer = maxf(stuck_timer - delta * 2.0, 0.0)
+
+	# 硬性脱困：长时间几乎无位移（被卡在墙角/夹缝）时，强制朝最空旷方向冲刺 + 跳跃，
+	# 保证 AI 绝不会永久卡在墙里。
+	if move_dir.length_squared() > 0.01 and frame_move < 0.02:
+		hard_stuck_timer += delta
+	else:
+		hard_stuck_timer = maxf(hard_stuck_timer - delta * 1.5, 0.0)
+
+	escape_timer = maxf(escape_timer - delta, 0.0)
+	if hard_stuck_timer > 1.0 and escape_timer <= 0.0:
+		escape_dir = _best_escape_dir(move_dir)
+		escape_timer = 0.75
+		hard_stuck_timer = 0.0
+		_request_jump(jump_velocity)
+
+	if escape_timer > 0.0 and escape_dir.length_squared() > 0.01:
+		var burst_speed: float = chase_speed * move_speed_multiplier * 1.15
+		_apply_gravity(delta)
+		if velocity.y > MAX_UPWARD_VELOCITY:
+			velocity.y = MAX_UPWARD_VELOCITY
+		velocity.x = move_toward(velocity.x, escape_dir.x * burst_speed, acceleration * 1.6 * delta)
+		velocity.z = move_toward(velocity.z, escape_dir.z * burst_speed, acceleration * 1.6 * delta)
+		look_at(global_position + escape_dir, Vector3.UP)
+		move_and_slide()
+		last_position = global_position
+		return
 
 	if move_dir.length_squared() > 0.01 and (repath_timer <= 0.0 or stuck_timer > 0.22):
 		var planned_dir := _plan_local_navigation_dir(move_dir, target_pos)
@@ -121,6 +173,33 @@ func _physics_process(delta: float) -> void:
 	if wall_follow_timer > 0.0 and wall_follow_dir.length_squared() > 0.01 and not _front_blocked(wall_follow_dir):
 		move_dir = (move_dir * 0.68 + wall_follow_dir.normalized() * 0.32).normalized()
 
+	# 跨越断桥间隙：前方近处出现缺口时的处理
+	if not target_below and not elevated_target and _gap_edge_ahead(move_dir):
+		if _has_landing_across_gap(move_dir) and is_on_floor() and jump_cooldown <= 0.0:
+			# 对面有落脚平台 -> 助跑起跳并锁定跳跃方向/速度，确保稳稳落到对岸
+			if _request_jump(jump_velocity):
+				gap_jump_dir = move_dir.normalized()
+				gap_jump_timer = GAP_JUMP_LOCK_TIME
+				velocity.x = gap_jump_dir.x * GAP_JUMP_SPEED
+				velocity.z = gap_jump_dir.z * GAP_JUMP_SPEED
+				look_at(global_position + gap_jump_dir, Vector3.UP)
+				move_and_slide()
+				last_position = global_position
+				return
+		else:
+			# 前方是缺口但对面无处落脚 -> 立即刹车并侧向绕行，绝不走进虚空坠落
+			var brake_side := Vector3(-move_dir.z, 0.0, move_dir.x) * avoid_sign
+			if brake_side.length_squared() < 0.01:
+				brake_side = Vector3(avoid_sign, 0.0, 0.0)
+			var safe_dir := brake_side.normalized()
+			if _has_ground_ahead(safe_dir, 1.2) and not _front_blocked(safe_dir):
+				move_dir = safe_dir
+			else:
+				move_dir = Vector3.ZERO
+				velocity.x = move_toward(velocity.x, 0.0, acceleration * 2.5 * delta)
+				velocity.z = move_toward(velocity.z, 0.0, acceleration * 2.5 * delta)
+			avoid_sign = -avoid_sign
+
 	_apply_gravity(delta)
 	if velocity.y > MAX_UPWARD_VELOCITY:
 		velocity.y = MAX_UPWARD_VELOCITY
@@ -137,7 +216,12 @@ func _respawn() -> void:
 	global_position = spawn_position
 	velocity = Vector3.ZERO
 	stuck_timer = 0.0
+	hard_stuck_timer = 0.0
+	escape_dir = Vector3.ZERO
+	escape_timer = 0.0
 	jump_cooldown = 0.0
+	gap_jump_dir = Vector3.ZERO
+	gap_jump_timer = 0.0
 	descent_dir = Vector3.ZERO
 	descent_repath_timer = 0.0
 	wall_follow_dir = Vector3.ZERO
@@ -219,6 +303,35 @@ func _plan_local_navigation_dir(raw_dir: Vector3, target_pos: Vector3) -> Vector
 			wall_follow_timer = 0.55
 
 	return best_dir.normalized()
+
+func _best_escape_dir(current: Vector3) -> Vector3:
+	var dirs: Array[Vector3] = [
+		Vector3(1.0, 0.0, 0.0),
+		Vector3(-1.0, 0.0, 0.0),
+		Vector3(0.0, 0.0, 1.0),
+		Vector3(0.0, 0.0, -1.0),
+		Vector3(1.0, 0.0, 1.0).normalized(),
+		Vector3(1.0, 0.0, -1.0).normalized(),
+		Vector3(-1.0, 0.0, 1.0).normalized(),
+		Vector3(-1.0, 0.0, -1.0).normalized(),
+	]
+	var best: Vector3 = (-current).normalized() if current.length_squared() > 0.01 else Vector3(1.0, 0.0, 0.0)
+	var best_score := -1.0
+	var toward := Vector3.ZERO
+	if target != null and is_instance_valid(target):
+		toward = target.global_position - global_position
+		toward.y = 0.0
+		if toward.length_squared() > 0.01:
+			toward = toward.normalized()
+		else:
+			toward = Vector3.ZERO
+	for d in dirs:
+		var clearance := _sample_forward_clearance(d)
+		var score: float = clearance + d.dot(toward) * 0.4
+		if score > best_score:
+			best_score = score
+			best = d
+	return best.normalized()
 
 func _sample_forward_clearance(dir: Vector3) -> float:
 	if dir.length_squared() < 0.01:
@@ -481,6 +594,57 @@ func _try_step_ray(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vecto
 	# 记录台阶内侧方向，供传送补偿使用
 	_step_inward_dir = inward
 	return step_top
+
+func _has_ground_ahead(dir: Vector3, distance: float) -> bool:
+	if dir.length_squared() < 0.01:
+		return true
+	var probe := global_position + dir.normalized() * distance
+	var from := probe + Vector3.UP * 1.0
+	var to := probe + Vector3.DOWN * 3.3
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.is_empty():
+		return false
+	var hit_pos: Vector3 = hit["position"]
+	return global_position.y - hit_pos.y < 2.1
+
+func _gap_edge_ahead(dir: Vector3) -> bool:
+	# 检测前方近处（断桥边缘）是否出现无落脚点的缺口
+	if dir.length_squared() < 0.01:
+		return false
+	var d := dir.normalized()
+	for dist in PackedFloat32Array([0.7, 1.1, 1.6]):
+		if not _has_ground_ahead(d, dist):
+			return true
+	return false
+
+func _has_landing_across_gap(dir: Vector3) -> bool:
+	# 间隙对面是否有一段跳跃即可到达的落脚平台（覆盖到约 7.4m，可识别 5.6m 真断桥）。
+	# 要求：先经过一段真正的缺口（无地），缺口之后再出现可落脚平台，才算"对面有落脚"，
+	# 避免把脚下自身平台误当成落脚点而在缺口边缘犹豫。
+	if dir.length_squared() < 0.01:
+		return false
+	var d := dir.normalized()
+	var space := get_world_3d().direct_space_state
+	var seen_gap := false
+	for dist in PackedFloat32Array([1.6, 2.2, 2.9, 3.6, 4.3, 5.0, 5.8, 6.6, 7.4]):
+		var probe := global_position + d * dist
+		var from := probe + Vector3.UP * 2.4
+		var to := probe + Vector3.DOWN * 4.5
+		var query := PhysicsRayQueryParameters3D.create(from, to)
+		query.collision_mask = 1
+		query.exclude = [get_rid()]
+		var hit := space.intersect_ray(query)
+		if hit.is_empty():
+			seen_gap = true
+			continue
+		var hit_y: float = hit["position"].y
+		var reachable := hit_y - global_position.y <= 2.3 and global_position.y - hit_y <= 3.6
+		if seen_gap and reachable:
+			return true
+	return false
 
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor() and velocity.y < 0.0:

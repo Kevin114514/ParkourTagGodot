@@ -91,9 +91,9 @@ func apply_speed_multiplier(multiplier: float, duration: float) -> void:
 	move_speed_effect_time = maxf(duration, 0.0)
 
 func get_throw_origin() -> Vector3:
-	if camera_pivot != null:
-		return camera_pivot.global_position + -camera_pivot.global_transform.basis.z.normalized() * 0.4
-	return global_position + Vector3.UP * 1.15
+	var right := global_transform.basis.x.normalized()
+	var forward := -global_transform.basis.z.normalized()
+	return global_position + right * 0.44 + Vector3.UP * 1.05 + forward * 0.16
 
 func get_throw_direction() -> Vector3:
 	if camera_pivot != null:

@@ -14,3 +14,13 @@ build/
 Thumbs.db
 .vscode/
 .idea/
+
+# CodeBuddy local data
+.codebuddy/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
