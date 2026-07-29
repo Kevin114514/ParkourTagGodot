@@ -41,6 +41,8 @@ const THROWABLE_SPAWN_ATTEMPTS := 32
 const THROWABLE_SPAWN_CLEARANCE_HEIGHT := 1.8
 const THROWABLE_SPAWN_CLEARANCE_RADIUS := 0.32
 const THROWABLE_MIN_SURFACE_NORMAL_Y := 0.7
+const THROWABLE_ACTIVE_LEVEL_TOLERANCE := 3.25
+const THROWABLE_MAX_SURFACE_LAYERS := 12
 const THROWABLE_THROW_ORIGIN_TOLERANCE := 2.4
 const THROWABLE_TRAJECTORY_STEPS := 34
 const THROWABLE_TRAJECTORY_STEP_TIME := 0.065
@@ -2808,6 +2810,7 @@ func _find_throwable_spawn_position():
 	# overshooting the map bounds (which previously yielded zero valid spawns).
 	var max_radius := clampf(span * 0.5, 10.0, 26.0)
 	var space_state := get_world_3d().direct_space_state
+	var active_heights := _throwable_active_heights()
 	var total_attempts: int = maxi(THROWABLE_SPAWN_ATTEMPTS, 64)
 	for attempt in range(total_attempts):
 		var angle := randf() * TAU
@@ -2824,33 +2827,89 @@ func _find_throwable_spawn_position():
 			2:
 				origin = tagger_spawn_position
 		var probe := origin + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
-		# 从地图上方寻找暴露的上表面，不再限制必须与出生点处于同一高度。
-		var from := probe + Vector3.UP * 64.0
-		var to := probe + Vector3.DOWN * 128.0
+		var surfaces := _throwable_surfaces_at_probe(probe, active_heights, space_state)
+		surfaces.shuffle()
+		for surface_position in surfaces:
+			var position := surface_position + Vector3.UP * 0.28
+			if position.distance_to(runner_spawn_position) < 4.0 or position.distance_to(tagger_spawn_position) < 4.0:
+				continue
+			var too_close := false
+			for data in ground_throwables.values():
+				var other: Vector3 = data.get("position", Vector3.ZERO)
+				if other.distance_to(position) < THROWABLE_MIN_SPAWN_GAP:
+					too_close = true
+					break
+			if not too_close:
+				return position
+	return null
+
+func _throwable_active_heights() -> Array[float]:
+	var heights: Array[float] = [runner_spawn_position.y, tagger_spawn_position.y]
+	for raw_actor in [player, tagger]:
+		var actor := raw_actor as CharacterBody3D
+		if actor == null or not is_instance_valid(actor) or not actor.is_on_floor():
+			continue
+		var actor_height := actor.global_position.y
+		var already_known := false
+		for height in heights:
+			if absf(height - actor_height) < 0.25:
+				already_known = true
+				break
+		if not already_known:
+			heights.append(actor_height)
+	return heights
+
+func _throwable_surfaces_at_probe(probe: Vector3, active_heights: Array[float], space_state: PhysicsDirectSpaceState3D) -> Array[Vector3]:
+	var surfaces: Array[Vector3] = []
+	# 先从各个角色活动高度内部向下探测，封顶室内地图不会被屋顶抢先命中。
+	for active_height in active_heights:
+		var local_from := Vector3(probe.x, active_height + THROWABLE_SPAWN_CLEARANCE_HEIGHT + 0.4, probe.z)
+		var local_to := Vector3(probe.x, active_height - THROWABLE_ACTIVE_LEVEL_TOLERANCE, probe.z)
+		var local_query := PhysicsRayQueryParameters3D.create(local_from, local_to)
+		local_query.collision_mask = 1
+		_append_throwable_surface(space_state.intersect_ray(local_query), active_heights, surfaces, space_state)
+
+	# 再从地图上方逐层排除已命中的碰撞体，收集平台、楼层等重叠上表面。
+	var excluded: Array[RID] = []
+	var highest_active := active_heights[0]
+	var lowest_active := active_heights[0]
+	for active_height in active_heights:
+		highest_active = maxf(highest_active, active_height)
+		lowest_active = minf(lowest_active, active_height)
+	var from := Vector3(probe.x, highest_active + 64.0, probe.z)
+	var to := Vector3(probe.x, lowest_active - 128.0, probe.z)
+	for _layer in range(THROWABLE_MAX_SURFACE_LAYERS):
 		var query := PhysicsRayQueryParameters3D.create(from, to)
 		query.collision_mask = 1
+		query.exclude = excluded
 		var hit := space_state.intersect_ray(query)
 		if hit.is_empty():
-			continue
-		var surface_normal: Vector3 = hit.get("normal", Vector3.ZERO)
-		if surface_normal.y < THROWABLE_MIN_SURFACE_NORMAL_Y:
-			continue
-		var surface_position: Vector3 = hit.get("position", probe)
-		if not _has_throwable_spawn_clearance(surface_position, space_state):
-			continue
-		var position := surface_position + Vector3.UP * 0.28
-		if position.distance_to(runner_spawn_position) < 4.0 or position.distance_to(tagger_spawn_position) < 4.0:
-			continue
-		var too_close := false
-		for data in ground_throwables.values():
-			var other: Vector3 = data.get("position", Vector3.ZERO)
-			if other.distance_to(position) < THROWABLE_MIN_SPAWN_GAP:
-				too_close = true
-				break
-		if too_close:
-			continue
-		return position
-	return null
+			break
+		_append_throwable_surface(hit, active_heights, surfaces, space_state)
+		var hit_rid: RID = hit.get("rid", RID())
+		if not hit_rid.is_valid():
+			break
+		excluded.append(hit_rid)
+	return surfaces
+
+func _append_throwable_surface(hit: Dictionary, active_heights: Array[float], surfaces: Array[Vector3], space_state: PhysicsDirectSpaceState3D) -> void:
+	if hit.is_empty():
+		return
+	var surface_normal: Vector3 = hit.get("normal", Vector3.ZERO)
+	if surface_normal.y < THROWABLE_MIN_SURFACE_NORMAL_Y:
+		return
+	var surface_position: Vector3 = hit.get("position", Vector3.ZERO)
+	var active_distance := INF
+	for active_height in active_heights:
+		active_distance = minf(active_distance, absf(surface_position.y - active_height))
+	if active_distance > THROWABLE_ACTIVE_LEVEL_TOLERANCE:
+		return
+	if not _has_throwable_spawn_clearance(surface_position, space_state):
+		return
+	for existing_position in surfaces:
+		if existing_position.distance_squared_to(surface_position) < 0.01:
+			return
+	surfaces.append(surface_position)
 
 func _has_throwable_spawn_clearance(surface_position: Vector3, space_state: PhysicsDirectSpaceState3D) -> bool:
 	var clearance_shape := CylinderShape3D.new()
