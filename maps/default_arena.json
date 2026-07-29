@@ -4,6 +4,18 @@
   "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-23.0, 0.12, 22.0],
   "tagger_spawn": [23.0, 0.12, -22.0],
+  "environment": {
+    "background": "color",
+    "sky_color": [0.48, 0.72, 0.95],
+    "ambient_color": [0.82, 0.86, 0.92],
+    "ambient_energy": 0.7,
+    "fog_enabled": false,
+    "tonemap": "filmic",
+    "exposure": 1.0,
+    "ssao": true,
+    "glow": false,
+    "sun": {"rotation_degrees": [-50.0, 35.0, 0.0], "energy": 2.6, "color": [1.0, 0.96, 0.9], "shadow": true}
+  },
   "objects": [
     {"type":"box","name":"Ground","position":[0.0,-0.15,0.0],"size":[64.0,0.3,64.0],"color":[0.16,0.18,0.2]},
     {"type":"box","name":"NorthWall","position":[0.0,1.6,-32.0],"size":[64.0,3.2,0.8],"color":[0.09,0.1,0.12]},

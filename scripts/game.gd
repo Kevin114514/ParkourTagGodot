@@ -8,6 +8,8 @@ const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
+const NETHER_SKY_SHADER = preload("res://scripts/nether_sky.gdshader")
+const LAVA_FLOW_SHADER = preload("res://scripts/lava_flow.gdshader")
 # 减速弹与药剂模型来自 Quaternius/Poly Pizza（CC0 1.0）；透视卡为项目内建立体模型。
 const THROWABLE_MODEL_PATH := "res://assets/throwables/scifi_slow_grenade.glb"
 const SPEED_BOOST_MODEL_PATH := "res://assets/throwables/speed_boost_potion.glb"
@@ -2380,8 +2382,18 @@ func _apply_map_environment(raw_environment) -> void:
 		_apply_default_sun()
 		return
 	var env := _build_default_environment()
+	var sky_type := String(data.get("sky_type", "")).to_lower()
 	var background := String(data.get("background", "color")).to_lower()
-	if background == "sky":
+	if sky_type == "nether_dynamic":
+		env.background_mode = Environment.BG_SKY
+		env.sky = _build_nether_sky(data)
+		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		# 让雾也染天空地平线，使远处岩浆与天空之间平滑渐变而非硬切
+		if "fog_sky_affect" in env:
+			env.set("fog_sky_affect", float(data.get("fog_sky_affect", 1.0)))
+		if "fog_aerial_perspective" in env:
+			env.set("fog_aerial_perspective", float(data.get("fog_aerial_perspective", 0.0)))
+	elif background == "sky":
 		env.background_mode = Environment.BG_SKY
 	else:
 		env.background_mode = Environment.BG_COLOR
@@ -2406,6 +2418,23 @@ func _apply_map_environment(raw_environment) -> void:
 			env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	world_environment.environment = env
 	_apply_map_sun(data.get("sun", {}))
+
+func _build_nether_sky(data: Dictionary) -> Sky:
+	var sky := Sky.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = NETHER_SKY_SHADER
+	mat.set_shader_parameter("top_color", _to_color(data.get("sky_top_color", Color(0.16, 0.03, 0.02)), Color(0.16, 0.03, 0.02)))
+	mat.set_shader_parameter("horizon_color", _to_color(data.get("sky_horizon_color", Color(0.95, 0.32, 0.08)), Color(0.95, 0.32, 0.08)))
+	if data.has("cloud_color"):
+		mat.set_shader_parameter("cloud_color", _to_color(data.get("cloud_color"), Color(0.55, 0.12, 0.03)))
+	mat.set_shader_parameter("cloud_scale", float(data.get("sky_cloud_scale", 3.0)))
+	mat.set_shader_parameter("cloud_speed", float(data.get("sky_cloud_speed", 0.04)))
+	mat.set_shader_parameter("horizon_glow", float(data.get("sky_horizon_glow", 1.6)))
+	mat.set_shader_parameter("horizon_softness", float(data.get("sky_horizon_softness", 3.0)))
+	sky.sky_material = mat
+	sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
+	sky.radiance_size = Sky.RADIANCE_SIZE_128
+	return sky
 
 func _apply_default_sun() -> void:
 	if sun_light == null or not is_instance_valid(sun_light):
@@ -2603,10 +2632,56 @@ func _load_map_from_path(map_path: String) -> bool:
 	minimap_world_radius = maxf(1.0, float(gameplay.get("world_radius", DEFAULT_MINIMAP_WORLD_RADIUS)))
 	_apply_map_environment(result.get("environment", {}))
 	_apply_map_bgm(result.get("bgm", {}))
+	_apply_lava_flow_shaders(result.get("materials", {}))
 	_update_map_ui()
 	if debug_mode:
 		_refresh_debug_collision_shapes()
 	return true
+
+# 将岩浆海网格替换为流动岩浆着色器；亮度沿用原材质的自发光设置保持不变
+func _apply_lava_flow_shaders(materials) -> void:
+	if map_root == null or not is_instance_valid(map_root):
+		return
+	var mats: Dictionary = materials if materials is Dictionary else {}
+	# 需要应用流动效果的岩浆海对象 -> 其材质 id
+	var targets := {
+		"VoidLavaSeaBright": "void_lava_bright",
+		"VoidLavaSeaDeep": "void_lava_deep",
+	}
+	for body_name in targets.keys():
+		var body := map_root.find_child(String(body_name), true, false)
+		if body == null:
+			continue
+		var mesh := _first_mesh_instance(body)
+		if mesh == null:
+			continue
+		var mat_id := String(targets[body_name])
+		var md: Dictionary = mats.get(mat_id, {}) if mats.has(mat_id) else {}
+		var base_col := _to_color(md.get("color", Color(0.95, 0.36, 0.08)), Color(0.95, 0.36, 0.08))
+		var emit_col := _to_color(md.get("emission", base_col), base_col)
+		var emit_energy := float(md.get("emission_energy", 4.2))
+		var shader_mat := ShaderMaterial.new()
+		shader_mat.shader = LAVA_FLOW_SHADER
+		shader_mat.set_shader_parameter("base_color", base_col)
+		shader_mat.set_shader_parameter("emission_color", emit_col)
+		shader_mat.set_shader_parameter("emission_energy", emit_energy)
+		# 深层岩浆流动更慢、纹理更大
+		if body_name == "VoidLavaSeaDeep":
+			shader_mat.set_shader_parameter("flow_speed", 0.035)
+			shader_mat.set_shader_parameter("pattern_scale", 0.08)
+		else:
+			shader_mat.set_shader_parameter("flow_speed", 0.06)
+			shader_mat.set_shader_parameter("pattern_scale", 0.12)
+		mesh.material_override = shader_mat
+
+func _first_mesh_instance(node: Node) -> MeshInstance3D:
+	if node is MeshInstance3D:
+		return node as MeshInstance3D
+	for child in node.get_children():
+		var found := _first_mesh_instance(child)
+		if found != null:
+			return found
+	return null
 
 func _clear_map() -> void:
 	minimap_world_radius = DEFAULT_MINIMAP_WORLD_RADIUS

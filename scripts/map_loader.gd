@@ -65,6 +65,7 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 	result["environment"] = data["environment"] if data.has("environment") and typeof(data["environment"]) == TYPE_DICTIONARY else {}
 	result["gameplay"] = data["gameplay"] if data.has("gameplay") and typeof(data["gameplay"]) == TYPE_DICTIONARY else {}
 	result["bgm"] = _parse_bgm(data, map_path)
+	result["materials"] = data["materials"] if data.has("materials") and typeof(data["materials"]) == TYPE_DICTIONARY else {}
 	result["format_version"] = int(data.get("format_version", 1))
 	return result
 
@@ -91,6 +92,7 @@ static func _build_context(data: Dictionary, map_path: String) -> Dictionary:
 		"map_path": map_path,
 		"materials": data["materials"] if data.has("materials") and typeof(data["materials"]) == TYPE_DICTIONARY else {},
 		"material_cache": {},
+		"texture_filter": String(data.get("texture_filter", "")),
 		"prefabs": data["prefabs"] if data.has("prefabs") and typeof(data["prefabs"]) == TYPE_DICTIONARY else {}
 	}
 
@@ -566,6 +568,11 @@ static func _material_from_data(data: Dictionary, context: Dictionary, default_c
 		mat.albedo_texture = albedo_texture
 		# 各向异性过滤：进一步抑制斜视角长墙面/地板的纹理闪烁摩尔纹
 		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+		# 可选：像素风贴图用 "nearest" 保持硬朗方块质感（材质级优先，其次地图级默认；
+		# 不配置该键的材质/地图行为完全不变）。仍带 mipmaps+各向异性以抑制远处闪烁。
+		var tex_filter := String(material_data.get("texture_filter", context.get("texture_filter", ""))).to_lower()
+		if tex_filter == "nearest":
+			mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST_WITH_MIPMAPS_ANISOTROPIC
 	var normal_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("normal_texture", ""))))
 	if normal_texture != null:
 		mat.normal_enabled = true

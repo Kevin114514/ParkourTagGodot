@@ -4,6 +4,20 @@
   "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-34.0, 2.0, 34.0],
   "tagger_spawn": [34.0, 2.0, -34.0],
+  "environment": {
+    "background": "color",
+    "sky_color": [0.52, 0.76, 0.96],
+    "ambient_color": [0.78, 0.85, 0.82],
+    "ambient_energy": 0.75,
+    "fog_enabled": true,
+    "fog_color": [0.7, 0.82, 0.9],
+    "fog_density": 0.004,
+    "tonemap": "filmic",
+    "exposure": 1.02,
+    "ssao": true,
+    "glow": false,
+    "sun": {"rotation_degrees": [-48.0, 40.0, 0.0], "energy": 2.8, "color": [1.0, 0.95, 0.85], "shadow": true}
+  },
   "objects": [
     {
       "type": "model",

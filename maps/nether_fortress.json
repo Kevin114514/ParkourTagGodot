@@ -26,11 +26,26 @@
     "ambient_energy": 1.05,
     "fog_enabled": true,
     "fog_color": [
-      0.62,
-      0.34,
-      0.2
+      0.85,
+      0.42,
+      0.16
     ],
     "fog_density": 0.0028,
+    "fog_sky_affect": 1.0,
+    "fog_aerial_perspective": 0.0,
+    "glow": true,
+    "sky_type": "nether_dynamic",
+    "sky_horizon_softness": 2.2,
+    "sky_top_color": [
+      0.16,
+      0.03,
+      0.02
+    ],
+    "sky_horizon_color": [
+      0.95,
+      0.32,
+      0.08
+    ],
     "sun": {
       "color": [
         1.0,
@@ -41,7 +56,624 @@
       "shadow": true
     }
   },
+  "materials": {
+    "void_lava_bright": {
+      "color": [
+        0.95,
+        0.36,
+        0.08
+      ],
+      "emission": [
+        1.0,
+        0.46,
+        0.12
+      ],
+      "emission_energy": 4.2,
+      "roughness": 0.35,
+      "metallic": 0.0
+    },
+    "void_lava_deep": {
+      "color": [
+        0.52,
+        0.13,
+        0.03
+      ],
+      "emission": [
+        0.75,
+        0.2,
+        0.05
+      ],
+      "emission_energy": 2.0,
+      "roughness": 0.5,
+      "metallic": 0.0
+    },
+    "void_basalt": {
+      "color": [
+        0.09,
+        0.08,
+        0.1
+      ],
+      "emission": [
+        0.55,
+        0.16,
+        0.04
+      ],
+      "emission_energy": 0.7,
+      "roughness": 0.92,
+      "metallic": 0.0
+    },
+    "void_ember": {
+      "color": [
+        1.0,
+        0.62,
+        0.22
+      ],
+      "emission": [
+        1.0,
+        0.55,
+        0.16
+      ],
+      "emission_energy": 6.0,
+      "roughness": 0.3,
+      "metallic": 0.0
+    },
+    "void_pillar": {
+      "color": [
+        0.35,
+        0.12,
+        0.05
+      ],
+      "emission": [
+        1.0,
+        0.42,
+        0.12
+      ],
+      "emission_energy": 4.5,
+      "roughness": 0.45,
+      "metallic": 0.0
+    },
+    "netherrack_ceiling": {
+      "color": [
+        0.85,
+        0.85,
+        0.85
+      ],
+      "albedo_texture": "textures/nether/netherrack.png",
+      "uv_scale": [
+        400.0,
+        400.0,
+        1.0
+      ],
+      "emission": [
+        0.6,
+        0.14,
+        0.05
+      ],
+      "emission_energy": 0.22,
+      "roughness": 0.95,
+      "metallic": 0.0
+    },
+    "netherrack_bump": {
+      "color": [
+        0.8,
+        0.8,
+        0.8
+      ],
+      "albedo_texture": "textures/nether/netherrack.png",
+      "uv_scale": [
+        40.0,
+        40.0,
+        1.0
+      ],
+      "emission": [
+        0.55,
+        0.13,
+        0.05
+      ],
+      "emission_energy": 0.2,
+      "roughness": 0.96,
+      "metallic": 0.0
+    },
+    "nether_brick_floor": {
+      "color": [
+        0.3,
+        0.19,
+        0.12
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "uv_scale": [
+        4.0,
+        4.0,
+        1.0
+      ]
+    },
+    "nether_brick_trim": {
+      "color": [
+        0.44,
+        0.28,
+        0.18
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.85,
+      "metallic": 0.0,
+      "uv_scale": [
+        4.0,
+        1.0,
+        1.0
+      ]
+    },
+    "nether_brick_bridge": {
+      "color": [
+        0.26,
+        0.16,
+        0.1
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "uv_scale": [
+        4.0,
+        2.0,
+        1.0
+      ]
+    },
+    "nether_brick_rail": {
+      "color": [
+        0.17,
+        0.1,
+        0.06
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.82,
+      "metallic": 0.0,
+      "uv_scale": [
+        6.0,
+        1.0,
+        1.0
+      ]
+    },
+    "nether_brick_plaza": {
+      "color": [
+        0.32,
+        0.2,
+        0.13
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "uv_scale": [
+        5.0,
+        5.0,
+        1.0
+      ]
+    },
+    "nether_brick_wall": {
+      "color": [
+        0.24,
+        0.15,
+        0.095
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "uv_scale": [
+        3.0,
+        3.0,
+        1.0
+      ]
+    },
+    "nether_brick_pillar": {
+      "color": [
+        0.21,
+        0.13,
+        0.08
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.88,
+      "metallic": 0.0,
+      "uv_scale": [
+        2.0,
+        3.0,
+        1.0
+      ]
+    },
+    "nether_brick_tower": {
+      "color": [
+        0.36,
+        0.23,
+        0.15
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.87,
+      "metallic": 0.0,
+      "uv_scale": [
+        3.0,
+        3.0,
+        1.0
+      ]
+    },
+    "nether_brick_platform": {
+      "color": [
+        0.33,
+        0.21,
+        0.13
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.9,
+      "metallic": 0.0,
+      "uv_scale": [
+        4.0,
+        4.0,
+        1.0
+      ]
+    },
+    "nether_brick_step": {
+      "color": [
+        0.42,
+        0.27,
+        0.18
+      ],
+      "albedo_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Color.jpg",
+      "normal_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_NormalGL.jpg",
+      "roughness_texture": "textures/urban_training_site/Bricks076C/Bricks076C_1K-JPG_Roughness.jpg",
+      "roughness": 0.86,
+      "metallic": 0.0,
+      "uv_scale": [
+        2.0,
+        1.0,
+        1.0
+      ]
+    }
+  },
   "objects": [
+    {
+      "type": "box",
+      "name": "VoidLavaSeaBright",
+      "position": [
+        0.0,
+        -16.0,
+        0.0
+      ],
+      "size": [
+        4000.0,
+        0.6,
+        4000.0
+      ],
+      "collision": false,
+      "material_id": "void_lava_bright"
+    },
+    {
+      "type": "box",
+      "name": "VoidLavaSeaDeep",
+      "position": [
+        0.0,
+        -30.0,
+        0.0
+      ],
+      "size": [
+        4400.0,
+        0.6,
+        4400.0
+      ],
+      "collision": false,
+      "material_id": "void_lava_deep"
+    },
+    {
+      "type": "box",
+      "name": "NetherCeiling",
+      "position": [
+        0.0,
+        86.0,
+        0.0
+      ],
+      "size": [
+        4400.0,
+        3.0,
+        4400.0
+      ],
+      "collision": false,
+      "material_id": "netherrack_ceiling"
+    },
+    {
+      "type": "box",
+      "name": "CeilingBump01",
+      "position": [
+        -30.0,
+        81.5,
+        -20.0
+      ],
+      "size": [
+        420.0,
+        7.0,
+        380.0
+      ],
+      "collision": false,
+      "material_id": "netherrack_bump"
+    },
+    {
+      "type": "box",
+      "name": "CeilingBump02",
+      "position": [
+        60.0,
+        80.0,
+        50.0
+      ],
+      "size": [
+        360.0,
+        9.0,
+        420.0
+      ],
+      "collision": false,
+      "material_id": "netherrack_bump"
+    },
+    {
+      "type": "box",
+      "name": "CeilingBump03",
+      "position": [
+        10.0,
+        82.5,
+        90.0
+      ],
+      "size": [
+        520.0,
+        6.0,
+        300.0
+      ],
+      "collision": false,
+      "material_id": "netherrack_bump"
+    },
+    {
+      "type": "box",
+      "name": "CeilingBump04",
+      "position": [
+        -90.0,
+        79.5,
+        40.0
+      ],
+      "size": [
+        300.0,
+        10.0,
+        340.0
+      ],
+      "collision": false,
+      "material_id": "netherrack_bump"
+    },
+    {
+      "type": "box",
+      "name": "CeilingBump05",
+      "position": [
+        40.0,
+        81.0,
+        -80.0
+      ],
+      "size": [
+        380.0,
+        8.0,
+        360.0
+      ],
+      "collision": false,
+      "material_id": "netherrack_bump"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky01",
+      "position": [
+        112.0,
+        8.0,
+        0.0
+      ],
+      "radius": 4.0,
+      "height": 96.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky02",
+      "position": [
+        80.0,
+        12.0,
+        80.0
+      ],
+      "radius": 3.6,
+      "height": 104.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky03",
+      "position": [
+        0.0,
+        6.0,
+        114.0
+      ],
+      "radius": 4.2,
+      "height": 92.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky04",
+      "position": [
+        -80.0,
+        14.0,
+        80.0
+      ],
+      "radius": 3.4,
+      "height": 108.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky05",
+      "position": [
+        -114.0,
+        9.0,
+        0.0
+      ],
+      "radius": 4.0,
+      "height": 98.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky06",
+      "position": [
+        -80.0,
+        11.0,
+        -80.0
+      ],
+      "radius": 3.8,
+      "height": 100.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky07",
+      "position": [
+        0.0,
+        13.0,
+        -114.0
+      ],
+      "radius": 4.2,
+      "height": 106.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "cylinder",
+      "name": "VoidPillarSky08",
+      "position": [
+        80.0,
+        10.0,
+        -80.0
+      ],
+      "radius": 3.6,
+      "height": 94.0,
+      "collision": false,
+      "material_id": "void_pillar"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber01",
+      "position": [
+        -12.0,
+        -13.5,
+        -8.0
+      ],
+      "radius": 0.7,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber02",
+      "position": [
+        16.0,
+        -14.5,
+        6.0
+      ],
+      "radius": 0.55,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber03",
+      "position": [
+        -40.0,
+        -15.5,
+        22.0
+      ],
+      "radius": 0.8,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber04",
+      "position": [
+        44.0,
+        -13.8,
+        -30.0
+      ],
+      "radius": 0.6,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber05",
+      "position": [
+        8.0,
+        -14.0,
+        38.0
+      ],
+      "radius": 0.65,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber06",
+      "position": [
+        -56.0,
+        -13.6,
+        -14.0
+      ],
+      "radius": 0.5,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber07",
+      "position": [
+        30.0,
+        -15.0,
+        50.0
+      ],
+      "radius": 0.75,
+      "collision": false,
+      "material_id": "void_ember"
+    },
+    {
+      "type": "sphere",
+      "name": "VoidEmber08",
+      "position": [
+        -24.0,
+        -14.2,
+        -44.0
+      ],
+      "radius": 0.6,
+      "collision": false,
+      "material_id": "void_ember"
+    },
     {
       "type": "box",
       "name": "CenterHubFloorL1",
@@ -55,18 +687,14 @@
         0.6,
         22.4
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
       "name": "CenterHubTrimNorth",
       "position": [
         0.0,
-        0.764,
+        0.744,
         -10.64
       ],
       "size": [
@@ -74,18 +702,14 @@
         0.35,
         1.12
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
       "name": "CenterHubTrimSouth",
       "position": [
         0.0,
-        0.764,
+        0.744,
         10.64
       ],
       "size": [
@@ -93,18 +717,14 @@
         0.35,
         1.12
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
       "name": "CenterHubTrimWest",
       "position": [
         -10.64,
-        0.764,
+        0.724,
         0.0
       ],
       "size": [
@@ -112,11 +732,7 @@
         0.35,
         22.4
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
@@ -131,11 +747,7 @@
         0.35,
         22.4
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
@@ -150,11 +762,7 @@
         0.6,
         8.4
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
@@ -177,7 +785,7 @@
       "name": "WestBridgeL1B",
       "position": [
         -42.0,
-        0.0,
+        -0.02,
         0.0
       ],
       "size": [
@@ -185,11 +793,7 @@
         0.6,
         8.4
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
@@ -204,11 +808,7 @@
         1.53,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -223,11 +823,7 @@
         1.53,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -242,11 +838,7 @@
         0.6,
         8.4
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
@@ -269,7 +861,7 @@
       "name": "EastBridgeL1B",
       "position": [
         42.0,
-        0.0,
+        -0.02,
         0.0
       ],
       "size": [
@@ -277,11 +869,7 @@
         0.6,
         8.4
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
@@ -296,11 +884,7 @@
         1.53,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -315,11 +899,7 @@
         1.53,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -334,11 +914,7 @@
         0.6,
         22.4
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
@@ -353,11 +929,7 @@
         1.53,
         22.4
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -372,11 +944,7 @@
         1.53,
         22.4
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -391,11 +959,7 @@
         0.6,
         22.4
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
@@ -410,11 +974,7 @@
         1.53,
         22.4
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -429,11 +989,7 @@
         1.53,
         22.4
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -448,11 +1004,7 @@
         0.6,
         28.0
       ],
-      "color": [
-        0.23,
-        0.125,
-        0.07
-      ]
+      "material_id": "nether_brick_plaza"
     },
     {
       "type": "box",
@@ -467,11 +1019,7 @@
         0.35,
         1.12
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
@@ -486,11 +1034,7 @@
         0.35,
         1.12
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
@@ -505,11 +1049,7 @@
         0.6,
         14.0
       ],
-      "color": [
-        0.23,
-        0.125,
-        0.07
-      ]
+      "material_id": "nether_brick_plaza"
     },
     {
       "type": "box",
@@ -544,11 +1084,7 @@
         0.6,
         28.0
       ],
-      "color": [
-        0.23,
-        0.125,
-        0.07
-      ]
+      "material_id": "nether_brick_plaza"
     },
     {
       "type": "box",
@@ -563,11 +1099,7 @@
         0.35,
         1.12
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
@@ -582,11 +1114,7 @@
         0.35,
         1.12
       ],
-      "color": [
-        0.31,
-        0.18,
-        0.095
-      ]
+      "material_id": "nether_brick_trim"
     },
     {
       "type": "box",
@@ -601,11 +1129,7 @@
         0.6,
         14.0
       ],
-      "color": [
-        0.23,
-        0.125,
-        0.07
-      ]
+      "material_id": "nether_brick_plaza"
     },
     {
       "type": "box",
@@ -640,11 +1164,7 @@
         0.6,
         16.8
       ],
-      "color": [
-        0.23,
-        0.125,
-        0.07
-      ]
+      "material_id": "nether_brick_plaza"
     },
     {
       "type": "box",
@@ -659,11 +1179,7 @@
         5.44,
         16.8
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -678,18 +1194,14 @@
         5.44,
         16.8
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
       "name": "NorthCourtWallNWest",
       "position": [
         -11.9,
-        2.909,
+        2.889,
         -52.64
       ],
       "size": [
@@ -697,18 +1209,14 @@
         5.44,
         1.12
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
       "name": "NorthCourtWallNEast",
       "position": [
         11.9,
-        2.909,
+        2.889,
         -52.64
       ],
       "size": [
@@ -716,11 +1224,7 @@
         5.44,
         1.12
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -735,11 +1239,7 @@
         0.6,
         16.8
       ],
-      "color": [
-        0.23,
-        0.125,
-        0.07
-      ]
+      "material_id": "nether_brick_plaza"
     },
     {
       "type": "box",
@@ -754,11 +1254,7 @@
         5.44,
         16.8
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -773,18 +1269,14 @@
         5.44,
         16.8
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
       "name": "SouthCourtWallSWest",
       "position": [
         -11.9,
-        2.909,
+        2.889,
         52.64
       ],
       "size": [
@@ -792,18 +1284,14 @@
         5.44,
         1.12
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
       "name": "SouthCourtWallSEast",
       "position": [
         11.9,
-        2.909,
+        2.889,
         52.64
       ],
       "size": [
@@ -811,11 +1299,7 @@
         5.44,
         1.12
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "cylinder",
@@ -827,11 +1311,7 @@
       ],
       "radius": 2.24,
       "height": 20.4,
-      "color": [
-        0.17,
-        0.085,
-        0.04
-      ]
+      "material_id": "nether_brick_pillar"
     },
     {
       "type": "cylinder",
@@ -843,11 +1323,7 @@
       ],
       "radius": 2.24,
       "height": 20.4,
-      "color": [
-        0.17,
-        0.085,
-        0.04
-      ]
+      "material_id": "nether_brick_pillar"
     },
     {
       "type": "cylinder",
@@ -859,11 +1335,7 @@
       ],
       "radius": 2.24,
       "height": 20.4,
-      "color": [
-        0.17,
-        0.085,
-        0.04
-      ]
+      "material_id": "nether_brick_pillar"
     },
     {
       "type": "cylinder",
@@ -875,11 +1347,7 @@
       ],
       "radius": 2.24,
       "height": 20.4,
-      "color": [
-        0.17,
-        0.085,
-        0.04
-      ]
+      "material_id": "nether_brick_pillar"
     },
     {
       "type": "box",
@@ -894,11 +1362,7 @@
         0.5,
         4.48
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -913,11 +1377,7 @@
         0.5,
         4.48
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -932,11 +1392,7 @@
         0.5,
         4.48
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -951,11 +1407,7 @@
         0.5,
         4.48
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -970,11 +1422,7 @@
         0.5,
         14.5
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -989,11 +1437,7 @@
         0.5,
         6.4
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1008,11 +1452,7 @@
         0.5,
         7.1
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1027,11 +1467,7 @@
         0.5,
         7.1
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1078,11 +1514,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1097,11 +1529,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1116,11 +1544,7 @@
         2.04,
         14.0
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1135,11 +1559,7 @@
         2.04,
         14.0
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1154,11 +1574,7 @@
         0.5,
         9.8
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -1173,11 +1589,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1192,11 +1604,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1211,11 +1619,7 @@
         3.4,
         1.4
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -1230,18 +1634,14 @@
         3.4,
         1.4
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
       "name": "L2CorridorEast",
       "position": [
         33.6,
-        8.0,
+        7.98,
         0.0
       ],
       "size": [
@@ -1249,11 +1649,7 @@
         0.5,
         9.8
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -1268,11 +1664,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1287,11 +1679,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1306,11 +1694,7 @@
         3.4,
         1.4
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -1325,11 +1709,7 @@
         3.4,
         1.4
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -1344,11 +1724,7 @@
         0.5,
         33.6
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -1363,11 +1739,7 @@
         2.04,
         33.6
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1382,11 +1754,7 @@
         2.04,
         33.6
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1401,11 +1769,7 @@
         0.5,
         33.6
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -1420,11 +1784,7 @@
         2.04,
         33.6
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1439,18 +1799,14 @@
         2.04,
         33.6
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
       "name": "L2WestPlatform_N",
       "position": [
         -56.0,
-        8.0,
+        7.98,
         -7.35
       ],
       "size": [
@@ -1458,18 +1814,14 @@
         0.5,
         7.7
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
       "name": "L2WestPlatform_S",
       "position": [
         -56.0,
-        8.0,
+        7.98,
         6.85
       ],
       "size": [
@@ -1477,11 +1829,7 @@
         0.5,
         8.7
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1496,11 +1844,7 @@
         0.5,
         6.0
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1515,18 +1859,15 @@
         0.5,
         6.0
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform",
+      "visible": false
     },
     {
       "type": "box",
       "name": "L2WestPlatformRailN",
       "position": [
         -56.0,
-        9.545,
+        9.525,
         -10.64
       ],
       "size": [
@@ -1534,18 +1875,14 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
       "name": "L2WestPlatformRailS",
       "position": [
         -56.0,
-        9.545,
+        9.525,
         10.64
       ],
       "size": [
@@ -1553,11 +1890,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1572,11 +1905,7 @@
         2.04,
         22.4
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1591,18 +1920,14 @@
         0.5,
         22.4
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
       "name": "L2EastPlatformRailN",
       "position": [
         56.0,
-        9.545,
+        9.525,
         -10.64
       ],
       "size": [
@@ -1610,18 +1935,14 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
       "name": "L2EastPlatformRailS",
       "position": [
         56.0,
-        9.545,
+        9.525,
         10.64
       ],
       "size": [
@@ -1629,11 +1950,7 @@
         2.04,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1648,11 +1965,7 @@
         2.04,
         22.4
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1667,18 +1980,14 @@
         0.5,
         8.7
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
       "name": "L3BlazeTowerFloor_S",
       "position": [
         0.0,
-        16.0,
+        15.98,
         7.35
       ],
       "size": [
@@ -1686,11 +1995,7 @@
         0.5,
         7.7
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -1705,11 +2010,7 @@
         0.5,
         6.0
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -1724,11 +2025,7 @@
         0.5,
         6.0
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -1743,11 +2040,7 @@
         2.38,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1762,11 +2055,7 @@
         2.38,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1781,11 +2070,7 @@
         2.38,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1800,11 +2085,7 @@
         2.38,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1819,11 +2100,7 @@
         2.38,
         7.7
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1838,11 +2115,7 @@
         2.38,
         7.7
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1857,11 +2130,7 @@
         2.38,
         7.7
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -1876,11 +2145,7 @@
         2.38,
         7.7
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "sphere",
@@ -1911,11 +2176,7 @@
         0.5,
         16.8
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1946,11 +2207,7 @@
         0.5,
         8.4
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -1965,18 +2222,14 @@
         0.5,
         16.8
       ],
-      "color": [
-        0.22,
-        0.12,
-        0.065
-      ]
+      "material_id": "nether_brick_bridge"
     },
     {
       "type": "box",
       "name": "L3StalkRoomWallW",
       "position": [
         -12.04,
-        18.182,
+        18.162,
         -50.4
       ],
       "size": [
@@ -1984,18 +2237,14 @@
         4.76,
         16.8
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
       "name": "L3StalkRoomWallE",
       "position": [
         12.04,
-        18.182,
+        18.162,
         -50.4
       ],
       "size": [
@@ -2003,11 +2252,7 @@
         4.76,
         16.8
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -2022,11 +2267,7 @@
         4.76,
         1.12
       ],
-      "color": [
-        0.2,
-        0.105,
-        0.055
-      ]
+      "material_id": "nether_brick_wall"
     },
     {
       "type": "box",
@@ -2079,11 +2320,7 @@
         0.5,
         16.8
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -2098,18 +2335,14 @@
         0.5,
         3.64
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
       "name": "L3SkyBridgeSouthPadB",
       "position": [
         0.0,
-        16.0,
+        15.98,
         37.8
       ],
       "size": [
@@ -2117,11 +2350,7 @@
         0.5,
         3.64
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2136,18 +2365,14 @@
         0.5,
         14.0
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
       "name": "L3SouthTowerRailW",
       "position": [
         -6.44,
-        17.636,
+        17.596,
         46.2
       ],
       "size": [
@@ -2155,11 +2380,7 @@
         2.38,
         14.0
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -2174,18 +2395,14 @@
         2.38,
         14.0
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
       "name": "L3SouthTowerRailS",
       "position": [
         0.0,
-        17.636,
+        17.616,
         52.64
       ],
       "size": [
@@ -2193,11 +2410,7 @@
         2.38,
         0.42
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "cylinder",
@@ -2420,11 +2633,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2439,11 +2648,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2458,11 +2663,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2477,11 +2678,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2496,11 +2693,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2515,11 +2708,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2534,11 +2723,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2553,11 +2738,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2572,11 +2753,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2591,11 +2768,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2610,11 +2783,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2629,11 +2798,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2648,11 +2813,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2667,11 +2828,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2686,11 +2843,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2705,11 +2858,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2724,11 +2873,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2743,11 +2888,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2762,11 +2903,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2781,11 +2918,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2800,11 +2933,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2819,11 +2948,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2838,11 +2963,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2857,11 +2978,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2876,11 +2993,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2895,11 +3008,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2914,11 +3023,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2933,11 +3038,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2952,11 +3053,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -2971,11 +3068,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -2990,11 +3083,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3009,11 +3098,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3028,11 +3113,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3047,11 +3128,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3066,11 +3143,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3085,11 +3158,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3104,11 +3173,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3123,11 +3188,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3142,11 +3203,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3161,11 +3218,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3180,12 +3233,8 @@
         1.4,
         17.0
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ],
-      "collision": "none"
+      "collision": "none",
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -3200,12 +3249,8 @@
         1.4,
         17.0
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ],
-      "collision": "none"
+      "collision": "none",
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -3220,11 +3265,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3239,11 +3280,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3258,11 +3295,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3277,11 +3310,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3296,11 +3325,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3315,11 +3340,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3334,11 +3355,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3353,11 +3370,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3372,11 +3385,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3391,11 +3400,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3410,11 +3415,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3429,11 +3430,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3448,11 +3445,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3467,11 +3460,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3486,11 +3475,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3505,11 +3490,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3524,11 +3505,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3543,11 +3520,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3562,11 +3535,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3581,11 +3550,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3600,18 +3565,15 @@
         0.5,
         4.0
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor",
+      "visible": false
     },
     {
       "type": "box",
       "name": "NorthCourtStairTopLink",
       "position": [
         6.0,
-        8.0,
+        7.98,
         -35.85
       ],
       "size": [
@@ -3619,11 +3581,7 @@
         0.5,
         5.0
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -3638,11 +3596,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3657,11 +3611,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3676,11 +3626,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3695,11 +3641,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3714,11 +3656,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3733,11 +3671,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3752,11 +3686,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3771,11 +3701,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3790,11 +3716,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3809,11 +3731,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3828,11 +3746,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3847,11 +3761,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3866,11 +3776,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3885,11 +3791,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3904,11 +3806,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3923,11 +3821,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3942,11 +3836,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3961,11 +3851,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -3980,11 +3866,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -3999,18 +3881,15 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower",
+      "visible": false
     },
     {
       "type": "box",
       "name": "NorthTowerStairTop",
       "position": [
         0.0,
-        16.0,
+        15.96,
         3.15
       ],
       "size": [
@@ -4018,11 +3897,7 @@
         0.5,
         4.0
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -4037,11 +3912,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4056,11 +3927,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4075,11 +3942,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4094,11 +3957,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4113,11 +3972,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4132,11 +3987,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4151,11 +4002,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4170,11 +4017,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4189,11 +4032,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4208,11 +4047,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4227,11 +4062,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4246,11 +4077,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4265,11 +4092,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4284,11 +4107,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4303,11 +4122,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4322,11 +4137,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4341,11 +4152,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4360,11 +4167,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4379,11 +4182,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4398,18 +4197,15 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower",
+      "visible": false
     },
     {
       "type": "box",
       "name": "WestTowerStairTop",
       "position": [
         -56.0,
-        16.0,
+        15.96,
         -8.15
       ],
       "size": [
@@ -4417,18 +4213,14 @@
         0.5,
         4.0
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
       "name": "WestTowerStairBridge",
       "position": [
         -34.0,
-        16.0,
+        15.98,
         -8.15
       ],
       "size": [
@@ -4436,11 +4228,7 @@
         0.5,
         4.0
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -4455,11 +4243,7 @@
         1.2,
         0.3
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -4474,11 +4258,7 @@
         1.2,
         0.3
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -4493,11 +4273,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4512,11 +4288,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4531,11 +4303,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4550,11 +4318,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4569,11 +4333,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4588,11 +4348,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4607,11 +4363,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4626,11 +4378,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4645,11 +4393,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4664,11 +4408,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4683,11 +4423,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4702,11 +4438,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4721,11 +4453,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4740,11 +4468,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4759,11 +4483,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4778,11 +4498,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4797,11 +4513,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4816,11 +4528,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4835,11 +4543,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4854,18 +4558,15 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower",
+      "visible": false
     },
     {
       "type": "box",
       "name": "EastTowerStairTop",
       "position": [
         56.0,
-        16.0,
+        15.98,
         8.15
       ],
       "size": [
@@ -4873,11 +4574,7 @@
         0.5,
         4.0
       ],
-      "color": [
-        0.24,
-        0.13,
-        0.07
-      ]
+      "material_id": "nether_brick_floor"
     },
     {
       "type": "box",
@@ -4892,11 +4589,7 @@
         0.5,
         4.0
       ],
-      "color": [
-        0.25,
-        0.14,
-        0.08
-      ]
+      "material_id": "nether_brick_platform"
     },
     {
       "type": "box",
@@ -4911,11 +4604,7 @@
         1.2,
         0.3
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -4930,11 +4619,7 @@
         1.2,
         0.3
       ],
-      "color": [
-        0.14,
-        0.07,
-        0.03
-      ]
+      "material_id": "nether_brick_rail"
     },
     {
       "type": "box",
@@ -4949,11 +4634,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -4968,11 +4649,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -4987,11 +4664,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5006,11 +4679,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5025,11 +4694,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5044,11 +4709,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5063,11 +4724,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5082,11 +4739,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5101,11 +4754,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5120,11 +4769,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5139,11 +4784,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5158,11 +4799,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5177,11 +4814,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5196,11 +4829,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5215,11 +4844,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5234,11 +4859,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5253,11 +4874,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5272,11 +4889,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     },
     {
       "type": "box",
@@ -5291,11 +4904,7 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.29,
-        0.17,
-        0.09
-      ]
+      "material_id": "nether_brick_step"
     },
     {
       "type": "box",
@@ -5310,18 +4919,15 @@
         0.4,
         0.85
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower",
+      "visible": false
     },
     {
       "type": "box",
       "name": "L3StairLanding",
       "position": [
         10.0,
-        16.0,
+        15.98,
         -4.15
       ],
       "size": [
@@ -5329,11 +4935,7 @@
         0.5,
         4.5
       ],
-      "color": [
-        0.26,
-        0.145,
-        0.075
-      ]
+      "material_id": "nether_brick_tower"
     }
   ]
 }

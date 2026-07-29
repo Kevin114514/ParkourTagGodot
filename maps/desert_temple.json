@@ -4,6 +4,20 @@
   "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-17.0, 4.32, 14.0],
   "tagger_spawn": [17.0, 4.32, -14.0],
+  "environment": {
+    "background": "color",
+    "sky_color": [0.86, 0.82, 0.68],
+    "ambient_color": [0.95, 0.86, 0.66],
+    "ambient_energy": 0.9,
+    "fog_enabled": true,
+    "fog_color": [0.9, 0.82, 0.62],
+    "fog_density": 0.006,
+    "tonemap": "aces",
+    "exposure": 1.05,
+    "ssao": true,
+    "glow": false,
+    "sun": {"rotation_degrees": [-62.0, 20.0, 0.0], "energy": 3.2, "color": [1.0, 0.94, 0.78], "shadow": true}
+  },
   "objects": [
     {"type":"box","name":"DesertGround","position":[0.0,-0.2,0.0],"size":[76.0,0.4,76.0],"color":[0.78,0.62,0.34]},
     {"type":"box","name":"NorthBoundary","position":[0.0,1.5,-38.0],"size":[76.0,3.0,0.8],"color":[0.49,0.34,0.17]},
