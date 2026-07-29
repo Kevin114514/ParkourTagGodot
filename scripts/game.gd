@@ -42,8 +42,11 @@ const THROWABLE_PROJECTILE_LIFETIME := 3.4
 const THROWABLE_SLOW_MULTIPLIER := 0.58
 const THROWABLE_SLOW_DURATION := 2.6
 const SPEED_BOOST_MULTIPLIER := 1.45
-const SPEED_BOOST_DURATION := 3.0
+const SPEED_BOOST_DURATION := 2.0
 const SPEED_BOOST_SPAWN_CHANCE := 0.35
+const HUD_REFERENCE_HEIGHT := 720.0
+const HUD_FULLSCREEN_SCALE_BONUS := 1.10
+const HUD_FULLSCREEN_MAX_SCALE := 1.80
 const THROWABLE_MIN_SPAWN_GAP := 4.5
 const THROWABLE_SPAWN_ATTEMPTS := 32
 const THROWABLE_SPAWN_CLEARANCE_HEIGHT := 1.8
@@ -126,6 +129,8 @@ const OFFICIAL_MAPS = [
 var player
 var tagger
 var hud_layer: CanvasLayer
+var hud_status_panel: PanelContainer
+var hud_status_margin: MarginContainer
 var hud_label: Label
 var center_label: Label
 var throwable_notice_label: Label
@@ -236,6 +241,7 @@ func _ready() -> void:
 	_setup_world()
 	_load_active_map()
 	_build_hud()
+	get_viewport().size_changed.connect(_apply_hud_layout_scale)
 	_build_title_ui()
 	_show_title("")
 
@@ -862,6 +868,7 @@ func _on_display_mode_selected(index: int) -> void:
 	var use_fullscreen := index == 0
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if use_fullscreen else DisplayServer.WINDOW_MODE_WINDOWED)
 	_update_display_mode_ui()
+	call_deferred("_apply_hud_layout_scale")
 	if title_status != null:
 		title_status.text = "已切换为：%s。" % ["全屏" if use_fullscreen else "窗口"]
 
@@ -2350,19 +2357,19 @@ func _build_hud() -> void:
 	hud_layer.name = "HUD"
 	add_child(hud_layer)
 
-	var panel := PanelContainer.new()
-	panel.position = Vector2(14.0, 14.0)
-	panel.custom_minimum_size = Vector2(300.0, 82.0)
-	panel.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.72, 0.88), Color(0.12, 0.18, 0.36), 4, 18, Vector2(0.0, 5.0), 12))
-	panel.visible = true
-	hud_layer.add_child(panel)
+	hud_status_panel = PanelContainer.new()
+	hud_status_panel.position = Vector2(14.0, 14.0)
+	hud_status_panel.custom_minimum_size = Vector2(300.0, 82.0)
+	hud_status_panel.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.72, 0.88), Color(0.12, 0.18, 0.36), 4, 18, Vector2(0.0, 5.0), 12))
+	hud_status_panel.visible = true
+	hud_layer.add_child(hud_status_panel)
 
-	var hud_margin := MarginContainer.new()
-	hud_margin.add_theme_constant_override("margin_left", 14)
-	hud_margin.add_theme_constant_override("margin_right", 14)
-	hud_margin.add_theme_constant_override("margin_top", 10)
-	hud_margin.add_theme_constant_override("margin_bottom", 10)
-	panel.add_child(hud_margin)
+	hud_status_margin = MarginContainer.new()
+	hud_status_margin.add_theme_constant_override("margin_left", 14)
+	hud_status_margin.add_theme_constant_override("margin_right", 14)
+	hud_status_margin.add_theme_constant_override("margin_top", 10)
+	hud_status_margin.add_theme_constant_override("margin_bottom", 10)
+	hud_status_panel.add_child(hud_status_margin)
 
 	hud_label = Label.new()
 	hud_label.add_theme_font_size_override("font_size", 18)
@@ -2370,7 +2377,7 @@ func _build_hud() -> void:
 	hud_label.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.72))
 	hud_label.add_theme_constant_override("outline_size", 2)
 	hud_label.text = ""
-	hud_margin.add_child(hud_label)
+	hud_status_margin.add_child(hud_label)
 
 	center_label = Label.new()
 	center_label.anchor_right = 1.0
@@ -2448,7 +2455,65 @@ func _build_hud() -> void:
 	hud_layer.add_child(threat_overlay)
 
 	_build_minimap_ui()
+	_apply_hud_layout_scale()
 	hud_layer.visible = false
+
+func _hud_layout_scale() -> float:
+	# “伸展以适应显示”会保留 1280×720 的逻辑视口，不能只读取 visible_rect。
+	# 同时使用真实窗口尺寸，使嵌入式伸展、普通全屏和独占全屏都能得到正确比例。
+	var viewport_height := get_viewport().get_visible_rect().size.y
+	var window_height := DisplayServer.window_get_size().y
+	var effective_height := maxf(viewport_height, window_height)
+	if effective_height <= 0.0:
+		return 1.0
+	return clampf((effective_height / HUD_REFERENCE_HEIGHT) * HUD_FULLSCREEN_SCALE_BONUS, 1.0, HUD_FULLSCREEN_MAX_SCALE)
+
+func _apply_hud_layout_scale() -> void:
+	var scale := _hud_layout_scale()
+	if hud_status_panel != null:
+		hud_status_panel.position = Vector2(14.0, 14.0) * scale
+		hud_status_panel.custom_minimum_size = Vector2(300.0, 82.0) * scale
+		hud_status_panel.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.95, 0.72, 0.88), Color(0.12, 0.18, 0.36), roundi(4.0 * scale), roundi(18.0 * scale), Vector2(0.0, 5.0 * scale), roundi(12.0 * scale)))
+	if hud_status_margin != null:
+		hud_status_margin.add_theme_constant_override("margin_left", roundi(14.0 * scale))
+		hud_status_margin.add_theme_constant_override("margin_right", roundi(14.0 * scale))
+		hud_status_margin.add_theme_constant_override("margin_top", roundi(10.0 * scale))
+		hud_status_margin.add_theme_constant_override("margin_bottom", roundi(10.0 * scale))
+	if hud_label != null:
+		hud_label.add_theme_font_size_override("font_size", roundi(18.0 * scale))
+		hud_label.add_theme_constant_override("outline_size", roundi(2.0 * scale))
+	if runner_inventory_bar != null:
+		runner_inventory_bar.offset_left = 18.0 * scale
+		runner_inventory_bar.offset_top = -128.0 * scale
+		runner_inventory_bar.offset_right = 406.0 * scale
+		runner_inventory_bar.offset_bottom = -18.0 * scale
+		runner_inventory_bar.add_theme_constant_override("separation", roundi(12.0 * scale))
+	if slow_grenade_slot != null:
+		slow_grenade_slot.custom_minimum_size = Vector2(184.0, 110.0) * scale
+	if speed_boost_slot != null:
+		speed_boost_slot.custom_minimum_size = Vector2(184.0, 110.0) * scale
+	if slow_grenade_slot_label != null:
+		slow_grenade_slot_label.add_theme_font_size_override("font_size", roundi(17.0 * scale))
+	if speed_boost_slot_label != null:
+		speed_boost_slot_label.add_theme_font_size_override("font_size", roundi(17.0 * scale))
+
+	if minimap_panel == null:
+		return
+	minimap_panel.offset_left = -190.0 * scale
+	minimap_panel.offset_top = 18.0 * scale
+	minimap_panel.offset_right = -18.0 * scale
+	minimap_panel.offset_bottom = 190.0 * scale
+	minimap_panel.add_theme_stylebox_override("panel", _cartoon_style(Color(0.02, 0.05, 0.08, 0.58), Color(0.28, 0.78, 1.0, 0.82), roundi(3.0 * scale), roundi(18.0 * scale), Vector2.ZERO, roundi(8.0 * scale)))
+	if minimap_content != null:
+		minimap_content.custom_minimum_size = Vector2(156.0, 156.0) * scale
+	var player_dot_size := Vector2(9.0, 9.0) * scale
+	if minimap_player_dot != null:
+		minimap_player_dot.size = player_dot_size
+	if minimap_opponent_dot != null:
+		minimap_opponent_dot.size = player_dot_size
+	for dot in minimap_reward_dots:
+		if dot != null and is_instance_valid(dot):
+			dot.size = Vector2(7.0, 7.0) * scale
 
 func _build_runner_inventory_ui() -> void:
 	runner_inventory_bar = HBoxContainer.new()
@@ -2582,7 +2647,7 @@ func _update_minimap_rewards() -> void:
 	while minimap_reward_dots.size() < ground_throwables.size():
 		var dot := ColorRect.new()
 		dot.color = Color(1.0, 0.86, 0.18, 0.95)
-		dot.size = Vector2(7.0, 7.0)
+		dot.size = Vector2(7.0, 7.0) * _hud_layout_scale()
 		minimap_reward_dots.append(dot)
 		minimap_content.add_child(dot)
 	var item_index := 0
