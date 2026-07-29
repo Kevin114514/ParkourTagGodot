@@ -92,7 +92,7 @@ func _physics_process(delta: float) -> void:
 
 	if move_dir.length_squared() > 0.01:
 		look_at(global_position + move_dir, Vector3.UP)
-	move_and_slide()
+	_move_with_step_climbing(delta)
 	last_position = global_position
 
 func _should_use_vertical_fallback(vertical_gap: float) -> bool:

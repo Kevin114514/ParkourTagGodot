@@ -29,7 +29,7 @@ var spawn_position := Vector3.ZERO
 var move_speed_multiplier := 1.0
 var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
-const STEP_MAX_HEIGHT := 0.52
+const STEP_MAX_HEIGHT := 0.55
 const STEP_FORWARD_DISTANCE := 0.45
 var _step_inward_dir := Vector3.ZERO  # 上一次台阶检测的内侧方向（法线反向）
 # 跨缺口跳跃锁定：起跳后在空中锁定水平方向与速度，防止滞空中被重新规划/减速导致跳半路坠落。
@@ -501,9 +501,10 @@ func _move_with_step_climbing(delta: float) -> void:
 	var sub_steps := 3
 	var sub_delta := delta / float(sub_steps)
 	for i in sub_steps:
-		var step_result := _detect_step_ahead(space, global_position, move_dir_sc)
+		var foot_origin := _get_step_foot_position()
+		var step_result := _detect_step_ahead(space, foot_origin, move_dir_sc)
 		if step_result != Vector3.ZERO:
-			global_position.y = step_result.y + 0.01
+			global_position.y += step_result.y - foot_origin.y + 0.01
 			global_position.x += move_dir_sc.x * current_speed * sub_delta
 			global_position.z += move_dir_sc.z * current_speed * sub_delta
 			# 沿楼梯正交方向（内侧）补偿，防止漂移到楼梯侧面掉下去
@@ -517,6 +518,23 @@ func _move_with_step_climbing(delta: float) -> void:
 
 	# 所有子步都在爬台阶：保留水平速度供下一帧衔接，仅清零 Y
 	velocity.y = 0.0
+
+func _get_step_foot_position() -> Vector3:
+	var collision := get_node_or_null("Collision") as CollisionShape3D
+	if collision == null or collision.shape == null:
+		return global_position
+	var half_height := 0.0
+	if collision.shape is CapsuleShape3D:
+		half_height = (collision.shape as CapsuleShape3D).height * 0.5
+	elif collision.shape is BoxShape3D:
+		half_height = (collision.shape as BoxShape3D).size.y * 0.5
+	elif collision.shape is CylinderShape3D:
+		half_height = (collision.shape as CylinderShape3D).height * 0.5
+	else:
+		return global_position
+	var foot_position := collision.global_position
+	foot_position.y -= half_height * collision.global_transform.basis.y.length()
+	return foot_position
 
 func _detect_step_ahead(space: PhysicsDirectSpaceState3D, origin: Vector3, move_dir: Vector3) -> Vector3:
 	# 横向平行射线 + 扇形角度射线，覆盖角色整个身宽，
