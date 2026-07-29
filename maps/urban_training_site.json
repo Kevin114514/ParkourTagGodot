@@ -1,7 +1,7 @@
 {
   "format_version": 2,
   "name": "城市训练工地",
-  "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
+  "bgm": {"path":"res://assets/audio/bgm_urban.mp3","volume_db":0.0,"loop":true},
   "runner_spawn": [-17.0, 0.35, 18.0],
   "tagger_spawn": [17.0, 0.35, -18.0],
   "environment": {

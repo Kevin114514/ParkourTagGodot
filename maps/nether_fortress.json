@@ -1,7 +1,7 @@
 {
   "format_version": 2,
   "name": "下界要塞",
-  "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
+  "bgm": {"path":"res://assets/audio/bgm_nether_fortress.mp3","volume_db":0.0,"loop":true},
   "runner_spawn": [
     -72.8,
     0.72,
