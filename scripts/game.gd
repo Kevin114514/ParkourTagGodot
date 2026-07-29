@@ -27,6 +27,7 @@ const VOID_Y = -12.0
 const DEFAULT_SKY_COLOR := Color(0.48, 0.78, 1.0)
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const DEFAULT_MAP_BGM_PATH := "res://assets/audio/chase_loop.ogg"
+const MENU_BGM_PATH := "res://assets/audio/bgm_menu.mp3"
 const USER_MAP_PATH = "user://maps/current_map.json"
 const NETWORK_SYNC_MAP_PATH = "user://network_sync/maps/host_map.json"
 const NETWORK_SYNC_SKIN_PREFIX = "network_host_"
@@ -263,10 +264,12 @@ var active_map_bgm_enabled := true
 var active_map_bgm_loop := true
 var active_map_bgm_path := DEFAULT_MAP_BGM_PATH
 @onready var chase_music: AudioStreamPlayer = $ChaseMusic
+@onready var menu_music: AudioStreamPlayer = $MenuMusic
 
 func _ready() -> void:
 	randomize()
 	_setup_chase_music()
+	_setup_menu_music()
 	_ensure_default_fullscreen()
 	_ensure_input_actions()
 	_connect_multiplayer_signals()
@@ -286,6 +289,33 @@ func _setup_chase_music() -> void:
 func _on_chase_music_finished() -> void:
 	if active_map_bgm_loop:
 		_start_chase_music()
+
+func _setup_menu_music() -> void:
+	if menu_music == null:
+		return
+	if not menu_music.finished.is_connected(_on_menu_music_finished):
+		menu_music.finished.connect(_on_menu_music_finished)
+	menu_music.stop()
+
+func _on_menu_music_finished() -> void:
+	if game_mode == "title":
+		_start_menu_music()
+
+func _start_menu_music() -> void:
+	if menu_music == null:
+		return
+	if menu_music.stream == null:
+		if ResourceLoader.exists(MENU_BGM_PATH, "AudioStream"):
+			menu_music.stream = ResourceLoader.load(MENU_BGM_PATH, "AudioStream") as AudioStream
+		else:
+			push_warning("初始界面 BGM 资源未找到：%s" % MENU_BGM_PATH)
+			return
+	if not menu_music.playing:
+		menu_music.play()
+
+func _stop_menu_music() -> void:
+	if menu_music != null:
+		menu_music.stop()
 
 func _apply_map_bgm(config: Dictionary) -> void:
 	_stop_chase_music()
@@ -320,6 +350,7 @@ func _load_map_bgm_stream(path: String) -> AudioStream:
 	return stream
 
 func _start_chase_music() -> void:
+	_stop_menu_music()
 	if not active_map_bgm_enabled:
 		return
 	if network_round_loading or map_loading_layer == null or map_loading_layer.visible:
@@ -1222,6 +1253,7 @@ func _show_title(message: String) -> void:
 	_clear_characters()
 	_clear_all_throwables()
 	game_mode = "title"
+	_start_menu_music()
 	network_started = false
 	remote_peer_id = 0
 	host_is_runner = true
