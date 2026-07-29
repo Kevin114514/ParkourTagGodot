@@ -8,8 +8,11 @@ const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
-# Quaternius「Scifi Grenade」，通过 Poly Pizza 获取，CC0 1.0。
+# Quaternius 模型，通过 Poly Pizza 获取，均为 CC0 1.0。
 const THROWABLE_MODEL_PATH := "res://assets/throwables/scifi_slow_grenade.glb"
+const SPEED_BOOST_MODEL_PATH := "res://assets/throwables/speed_boost_potion.glb"
+const ITEM_TYPE_SLOW_GRENADE := "slow_grenade"
+const ITEM_TYPE_SPEED_BOOST := "speed_boost"
 const PORT = 24591
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
 const GAME_VERSION := "1.5.1"
@@ -28,8 +31,8 @@ const CATCH_COOLDOWN := 1.5
 const CATCH_HALF_ANGLE_COS := 0.0
 const AI_CATCH_COOLDOWN := CATCH_COOLDOWN
 const CATCH_ORIGIN_TOLERANCE := 2.2
-const THROWABLE_RESPAWN_TARGET := 5
-const THROWABLE_RESPAWN_INTERVAL := 5.0
+const THROWABLE_RESPAWN_TARGET := 8
+const THROWABLE_RESPAWN_INTERVAL := 2.5
 const THROWABLE_PICKUP_RANGE := 2.1
 const THROWABLE_THROW_SPEED := 20.0
 const THROWABLE_THROW_UPWARD_BONUS := 1.6
@@ -38,6 +41,9 @@ const THROWABLE_PROJECTILE_RADIUS := 0.95
 const THROWABLE_PROJECTILE_LIFETIME := 3.4
 const THROWABLE_SLOW_MULTIPLIER := 0.58
 const THROWABLE_SLOW_DURATION := 2.6
+const SPEED_BOOST_MULTIPLIER := 1.45
+const SPEED_BOOST_DURATION := 5.0
+const SPEED_BOOST_SPAWN_CHANCE := 0.35
 const THROWABLE_MIN_SPAWN_GAP := 4.5
 const THROWABLE_SPAWN_ATTEMPTS := 32
 const THROWABLE_SPAWN_CLEARANCE_HEIGHT := 1.8
@@ -123,6 +129,11 @@ var hud_layer: CanvasLayer
 var hud_label: Label
 var center_label: Label
 var throwable_notice_label: Label
+var runner_inventory_bar: HBoxContainer
+var slow_grenade_slot: PanelContainer
+var speed_boost_slot: PanelContainer
+var slow_grenade_slot_label: Label
+var speed_boost_slot_label: Label
 var catch_cd_label: Label
 var direction_marker_label: Label
 var threat_overlay: ColorRect
@@ -199,7 +210,8 @@ var throwable_landing_marker: MeshInstance3D
 var held_throwable_visual: Node3D
 var ground_throwables: Dictionary = {}
 var flying_throwables: Dictionary = {}
-var runner_has_throwable := false
+var runner_has_slow_grenade := false
+var runner_has_speed_boost := false
 var throwable_respawn_timer := THROWABLE_RESPAWN_INTERVAL
 var next_ground_throwable_id := 1
 var next_flying_throwable_id := 1
@@ -305,6 +317,7 @@ func _process(delta: float) -> void:
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
 	_update_round_hud()
+	_update_runner_inventory_hud()
 	_update_catch_crosshair()
 	_update_direction_marker()
 	_update_threat_overlay(distance)
@@ -315,6 +328,8 @@ func _process(delta: float) -> void:
 			_request_local_throwable_pickup()
 		if Input.is_action_just_pressed("throw_item"):
 			_request_local_throwable_throw()
+		if Input.is_action_just_pressed("use_speed_boost"):
+			_request_local_speed_boost_use()
 
 	if _local_is_tagger() and Input.is_action_just_pressed("catch_attack") and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		_request_local_catch_attempt()
@@ -2384,6 +2399,8 @@ func _build_hud() -> void:
 	throwable_notice_label.visible = false
 	hud_layer.add_child(throwable_notice_label)
 
+	_build_runner_inventory_ui()
+
 	# 追逐者抓捕冷却显示（右下角）
 	catch_cd_label = Label.new()
 	catch_cd_label.anchor_left = 1.0
@@ -2432,6 +2449,65 @@ func _build_hud() -> void:
 
 	_build_minimap_ui()
 	hud_layer.visible = false
+
+func _build_runner_inventory_ui() -> void:
+	runner_inventory_bar = HBoxContainer.new()
+	runner_inventory_bar.anchor_left = 0.0
+	runner_inventory_bar.anchor_top = 1.0
+	runner_inventory_bar.anchor_right = 0.0
+	runner_inventory_bar.anchor_bottom = 1.0
+	runner_inventory_bar.offset_left = 18.0
+	runner_inventory_bar.offset_top = -128.0
+	runner_inventory_bar.offset_right = 406.0
+	runner_inventory_bar.offset_bottom = -18.0
+	runner_inventory_bar.add_theme_constant_override("separation", 12)
+	runner_inventory_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_layer.add_child(runner_inventory_bar)
+
+	slow_grenade_slot = PanelContainer.new()
+	slow_grenade_slot.custom_minimum_size = Vector2(184.0, 110.0)
+	runner_inventory_bar.add_child(slow_grenade_slot)
+	slow_grenade_slot_label = Label.new()
+	slow_grenade_slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	slow_grenade_slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	slow_grenade_slot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	slow_grenade_slot_label.add_theme_font_size_override("font_size", 17)
+	slow_grenade_slot_label.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.1, 0.9))
+	slow_grenade_slot_label.add_theme_constant_override("outline_size", 3)
+	slow_grenade_slot.add_child(slow_grenade_slot_label)
+
+	speed_boost_slot = PanelContainer.new()
+	speed_boost_slot.custom_minimum_size = Vector2(184.0, 110.0)
+	runner_inventory_bar.add_child(speed_boost_slot)
+	speed_boost_slot_label = Label.new()
+	speed_boost_slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	speed_boost_slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	speed_boost_slot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	speed_boost_slot_label.add_theme_font_size_override("font_size", 17)
+	speed_boost_slot_label.add_theme_color_override("font_outline_color", Color(0.03, 0.05, 0.1, 0.9))
+	speed_boost_slot_label.add_theme_constant_override("outline_size", 3)
+	speed_boost_slot.add_child(speed_boost_slot_label)
+
+	_update_runner_inventory_hud()
+
+func _update_runner_inventory_hud() -> void:
+	if runner_inventory_bar == null:
+		return
+	var show_inventory := hud_layer != null and hud_layer.visible and _throwable_system_active() and not caught and _local_is_runner()
+	runner_inventory_bar.visible = show_inventory
+	if not show_inventory:
+		return
+	_update_inventory_slot(slow_grenade_slot, slow_grenade_slot_label, "减速弹", "左键投掷", runner_has_slow_grenade, Color(0.18, 0.72, 1.0))
+	_update_inventory_slot(speed_boost_slot, speed_boost_slot_label, "加速剂", "E 使用", runner_has_speed_boost, Color(0.24, 1.0, 0.42))
+
+func _update_inventory_slot(slot: PanelContainer, label: Label, item_name: String, action_hint: String, is_held: bool, accent: Color) -> void:
+	if slot == null or label == null:
+		return
+	var fill := Color(accent, 0.26) if is_held else Color(0.03, 0.06, 0.12, 0.76)
+	var border := accent if is_held else Color(0.38, 0.45, 0.56, 0.84)
+	slot.add_theme_stylebox_override("panel", _cartoon_style(fill, border, 3, 14, Vector2(0.0, 3.0), 8))
+	label.add_theme_color_override("font_color", Color(0.92, 1.0, 0.96) if is_held else Color(0.72, 0.78, 0.86))
+	label.text = "%s\n%s\n%s" % [item_name, "已携带" if is_held else "空槽", action_hint if is_held else "F 拾取"]
 
 func _build_minimap_ui() -> void:
 	minimap_panel = PanelContainer.new()
@@ -2658,6 +2734,7 @@ func _ensure_input_actions() -> void:
 	_bind_key("quit_room", KEY_Q)
 	_bind_key("toggle_debug", KEY_F3)
 	_bind_key("pickup_item", KEY_F)
+	_bind_key("use_speed_boost", KEY_E)
 	_bind_mouse_button("throw_item", MOUSE_BUTTON_LEFT)
 	_bind_mouse_button("catch_attack", MOUSE_BUTTON_LEFT)
 
@@ -2706,7 +2783,8 @@ func _throwable_system_active() -> bool:
 	return game_mode == "single" or game_mode == "single_chase" or game_mode == "host" or game_mode == "client"
 
 func _prepare_throwable_round_state() -> void:
-	runner_has_throwable = false
+	runner_has_slow_grenade = false
+	runner_has_speed_boost = false
 	throwable_respawn_timer = 0.15
 	next_ground_throwable_id = 1
 	next_flying_throwable_id = 1
@@ -2718,7 +2796,8 @@ func _prepare_throwable_round_state() -> void:
 		_maybe_fill_throwable_spawns(true)
 
 func _clear_all_throwables() -> void:
-	runner_has_throwable = false
+	runner_has_slow_grenade = false
+	runner_has_speed_boost = false
 	throwable_respawn_timer = THROWABLE_RESPAWN_INTERVAL
 	for data in ground_throwables.values():
 		var node := data.get("node", null) as Node3D
@@ -2734,6 +2813,15 @@ func _clear_all_throwables() -> void:
 	_hide_throwable_notice()
 	_hide_held_throwable_visual()
 	_clear_tagger_slow_particles()
+	_update_runner_inventory_hud()
+
+func _runner_inventory_full() -> bool:
+	return runner_has_slow_grenade and runner_has_speed_boost
+
+func _runner_can_pickup_item_type(item_type: String) -> bool:
+	if item_type == ITEM_TYPE_SPEED_BOOST:
+		return not runner_has_speed_boost
+	return not runner_has_slow_grenade
 
 func _update_throwables(delta: float) -> void:
 	if not _throwable_system_active() or caught:
@@ -2749,13 +2837,12 @@ func _update_ai_runner_throwable_strategy(delta: float) -> void:
 		return
 	ai_runner_throw_cooldown = maxf(ai_runner_throw_cooldown - delta, 0.0)
 	if player.has_method("set_throwable_context"):
-		player.set_throwable_context(_ground_throwable_positions(), runner_has_throwable, tagger_hit_count, TAGGER_HITS_TO_WIN)
-	if not runner_has_throwable:
+		player.set_throwable_context(_ground_pickup_positions_for_runner(), _runner_inventory_full(), tagger_hit_count, TAGGER_HITS_TO_WIN)
+	if not _runner_inventory_full():
 		var pickup_id := _find_pickup_candidate_for_actor(player, THROWABLE_AI_PICKUP_RANGE)
 		if pickup_id >= 0:
 			_pickup_throwable_on_authority(pickup_id)
-		return
-	if ai_runner_throw_cooldown > 0.0:
+	if not runner_has_slow_grenade or ai_runner_throw_cooldown > 0.0:
 		return
 	var origin: Vector3 = _runner_throw_origin(player)
 	var to_tagger: Vector3 = tagger.global_position + Vector3.UP * 0.8 - origin
@@ -2774,10 +2861,11 @@ func _update_ai_runner_throwable_strategy(delta: float) -> void:
 	ai_runner_throw_cooldown = THROWABLE_AI_THROW_COOLDOWN
 	_throw_throwable_on_authority(origin, direction)
 
-func _ground_throwable_positions() -> Array[Vector3]:
+func _ground_pickup_positions_for_runner() -> Array[Vector3]:
 	var positions: Array[Vector3] = []
 	for data in ground_throwables.values():
-		positions.append(data.get("position", Vector3.ZERO))
+		if _runner_can_pickup_item_type(String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))):
+			positions.append(data.get("position", Vector3.ZERO))
 	return positions
 
 func _has_clear_throw_line(from: Vector3, to: Vector3) -> bool:
@@ -2803,10 +2891,26 @@ func _maybe_fill_throwable_spawns(force_fill: bool) -> void:
 		var spawn_position: Variant = _find_throwable_spawn_position()
 		if spawn_position == null:
 			break
-		var spawned_id := _spawn_ground_throwable(spawn_position as Vector3)
+		var spawned_id := _spawn_ground_throwable(spawn_position as Vector3, -1, _choose_ground_item_type())
 		if spawned_id < 0:
 			break
 	throwable_respawn_timer = THROWABLE_RESPAWN_INTERVAL
+
+func _choose_ground_item_type() -> String:
+	var grenade_count := 0
+	var boost_count := 0
+	for data in ground_throwables.values():
+		if String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE)) == ITEM_TYPE_SPEED_BOOST:
+			boost_count += 1
+		else:
+			grenade_count += 1
+	var remaining_slots := THROWABLE_RESPAWN_TARGET - ground_throwables.size()
+	# 每轮补满时至少生成一枚减速弹和一瓶加速剂，余下位置再按概率分配。
+	if grenade_count == 0 and remaining_slots <= 1:
+		return ITEM_TYPE_SLOW_GRENADE
+	if boost_count == 0 and remaining_slots <= 1:
+		return ITEM_TYPE_SPEED_BOOST
+	return ITEM_TYPE_SPEED_BOOST if randf() < SPEED_BOOST_SPAWN_CHANCE else ITEM_TYPE_SLOW_GRENADE
 
 func _find_throwable_spawn_position():
 	if get_world_3d() == null:
@@ -2931,7 +3035,7 @@ func _has_throwable_spawn_clearance(surface_position: Vector3, space_state: Phys
 	clearance_query.collision_mask = 1
 	return space_state.intersect_shape(clearance_query, 1).is_empty()
 
-func _spawn_ground_throwable(position: Vector3, item_id: int = -1) -> int:
+func _spawn_ground_throwable(position: Vector3, item_id: int = -1, item_type: String = ITEM_TYPE_SLOW_GRENADE) -> int:
 	_ensure_throwable_root()
 	if throwable_root == null or not is_instance_valid(throwable_root):
 		return -1
@@ -2940,13 +3044,14 @@ func _spawn_ground_throwable(position: Vector3, item_id: int = -1) -> int:
 		next_ground_throwable_id += 1
 	else:
 		next_ground_throwable_id = max(next_ground_throwable_id, item_id + 1)
-	var node := _create_throwable_visual(false)
-	node.name = "GroundThrowable_%d" % resolved_id
+	var resolved_type := item_type if item_type == ITEM_TYPE_SPEED_BOOST else ITEM_TYPE_SLOW_GRENADE
+	var node := _create_ground_item_visual(resolved_type)
+	node.name = "GroundItem_%s_%d" % [resolved_type, resolved_id]
 	node.position = position
 	throwable_root.add_child(node)
-	ground_throwables[resolved_id] = {"id": resolved_id, "node": node, "position": position}
+	ground_throwables[resolved_id] = {"id": resolved_id, "node": node, "position": position, "item_type": resolved_type}
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
-		rpc_id(remote_peer_id, "_rpc_sync_ground_throwable_spawn", resolved_id, position)
+		rpc_id(remote_peer_id, "_rpc_sync_ground_throwable_spawn", resolved_id, position, resolved_type)
 	return resolved_id
 
 func _remove_ground_throwable(item_id: int, sync_remote: bool = true) -> void:
@@ -2963,12 +3068,10 @@ func _remove_ground_throwable(item_id: int, sync_remote: bool = true) -> void:
 func _request_local_throwable_pickup() -> void:
 	if not _local_is_runner():
 		return
-	if runner_has_throwable:
-		_show_throwable_notice("已经持有道具，单击左键投掷", Color(0.36, 0.94, 1.0), false)
-		return
 	var nearest_id := _find_pickup_candidate_id()
 	if nearest_id < 0:
-		_show_throwable_notice("附近没有可拾取道具", Color(1.0, 0.86, 0.22), false)
+		var message := "减速弹和加速剂槽位均已满" if _runner_inventory_full() else "附近没有可拾取的缺失道具"
+		_show_throwable_notice(message, Color(1.0, 0.86, 0.22), false)
 		return
 	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
 		rpc_id(1, "_rpc_request_pickup_throwable", nearest_id)
@@ -2986,6 +3089,9 @@ func _find_pickup_candidate_for_actor(actor: Node3D, pickup_range: float) -> int
 	var best_distance := pickup_range
 	for item_id in ground_throwables.keys():
 		var data: Dictionary = ground_throwables[item_id]
+		var item_type := String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))
+		if not _runner_can_pickup_item_type(item_type):
+			continue
 		var position: Vector3 = data.get("position", Vector3.ZERO)
 		var distance := actor_position.distance_to(position)
 		if distance < best_distance:
@@ -2994,7 +3100,7 @@ func _find_pickup_candidate_for_actor(actor: Node3D, pickup_range: float) -> int
 	return best_id
 
 func _pickup_throwable_on_authority(item_id: int) -> void:
-	if runner_has_throwable or not ground_throwables.has(item_id):
+	if not ground_throwables.has(item_id):
 		return
 	var runner_actor = player
 	if runner_actor == null or not is_instance_valid(runner_actor):
@@ -3003,19 +3109,62 @@ func _pickup_throwable_on_authority(item_id: int) -> void:
 	var position: Vector3 = data.get("position", Vector3.ZERO)
 	if runner_actor.global_position.distance_to(position) > THROWABLE_PICKUP_RANGE + 0.25:
 		return
-	runner_has_throwable = true
-	_update_held_throwable_visual()
+	var item_type := String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))
+	if not _runner_can_pickup_item_type(item_type):
+		return
 	_remove_ground_throwable(item_id, true)
-	if _local_is_runner():
-		_show_throwable_notice("已拾取道具！单击左键投掷", Color(0.34, 1.0, 0.58), true)
+	if item_type == ITEM_TYPE_SPEED_BOOST:
+		runner_has_speed_boost = true
+		if _local_is_runner():
+			_show_throwable_notice("已拾取加速剂！按 E 使用", Color(0.36, 1.0, 0.42), true)
+	else:
+		runner_has_slow_grenade = true
+		_update_held_throwable_visual()
+		if _local_is_runner():
+			_show_throwable_notice("已拾取减速弹！单击左键投掷", Color(0.34, 1.0, 0.58), true)
+	_sync_runner_inventory_state()
+
+func _sync_runner_inventory_state() -> void:
+	_update_held_throwable_visual()
+	_update_runner_inventory_hud()
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
-		rpc_id(remote_peer_id, "_rpc_set_runner_throwable_state", true)
+		rpc_id(remote_peer_id, "_rpc_set_runner_inventory_state", runner_has_slow_grenade, runner_has_speed_boost)
+
+func _sync_runner_inventory_to_peer(peer_id: int) -> void:
+	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and peer_id > 0:
+		rpc_id(peer_id, "_rpc_set_runner_inventory_state", runner_has_slow_grenade, runner_has_speed_boost)
+
+func _request_local_speed_boost_use() -> void:
+	if not _local_is_runner():
+		return
+	if not runner_has_speed_boost:
+		_show_throwable_notice("没有加速剂，靠近后按 F 拾取", Color(1.0, 0.78, 0.22), false)
+		return
+	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
+		rpc_id(1, "_rpc_request_use_speed_boost")
+		return
+	_use_speed_boost_on_authority()
+
+func _use_speed_boost_on_authority() -> void:
+	if not runner_has_speed_boost:
+		return
+	runner_has_speed_boost = false
+	_apply_runner_speed_boost(SPEED_BOOST_MULTIPLIER, SPEED_BOOST_DURATION)
+	_sync_runner_inventory_state()
+
+func _apply_runner_speed_boost(multiplier: float, duration: float) -> void:
+	if player != null and is_instance_valid(player) and player.has_method("apply_speed_multiplier"):
+		player.apply_speed_multiplier(multiplier, duration)
+	if _local_is_runner():
+		_show_throwable_notice("使用加速剂：速度提升 %.0f%%，持续 %.1f 秒" % [(multiplier - 1.0) * 100.0, duration], Color(0.36, 1.0, 0.42), true)
+	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
+		rpc_id(remote_peer_id, "_rpc_apply_runner_speed_boost", multiplier, duration)
 
 func _request_local_throwable_throw() -> void:
 	if not _local_is_runner():
 		return
-	if not runner_has_throwable:
-		_show_throwable_notice("没有道具，先靠近道具按 F 拾取", Color(1.0, 0.78, 0.22), false)
+	if not runner_has_slow_grenade:
+		_show_throwable_notice("没有减速弹，先靠近道具按 F 拾取", Color(1.0, 0.78, 0.22), false)
 		return
 	var actor = _get_local_actor()
 	if actor == null or not is_instance_valid(actor):
@@ -3023,16 +3172,17 @@ func _request_local_throwable_throw() -> void:
 	var origin: Vector3 = _runner_throw_origin(actor)
 	var direction: Vector3 = actor.get_throw_direction() if actor.has_method("get_throw_direction") else -actor.global_transform.basis.z.normalized()
 	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
-		runner_has_throwable = false
+		runner_has_slow_grenade = false
 		_hide_held_throwable_visual()
 		_hide_throwable_trajectory()
-		_show_throwable_notice("已投掷", Color(0.35, 0.92, 1.0), true)
+		_update_runner_inventory_hud()
+		_show_throwable_notice("已投掷减速弹", Color(0.35, 0.92, 1.0), true)
 		rpc_id(1, "_rpc_request_throw_throwable", origin, direction)
 		return
 	_throw_throwable_on_authority(origin, direction)
 
 func _throw_throwable_on_authority(origin: Vector3, direction: Vector3) -> void:
-	if not runner_has_throwable:
+	if not runner_has_slow_grenade:
 		return
 	var runner_actor = player
 	if runner_actor == null or not is_instance_valid(runner_actor):
@@ -3043,13 +3193,12 @@ func _throw_throwable_on_authority(origin: Vector3, direction: Vector3) -> void:
 	var throw_direction := direction.normalized()
 	if throw_direction.length_squared() < 0.01:
 		throw_direction = runner_actor.get_throw_direction() if runner_actor.has_method("get_throw_direction") else -runner_actor.global_transform.basis.z.normalized()
-	runner_has_throwable = false
+	runner_has_slow_grenade = false
 	_hide_held_throwable_visual()
 	_hide_throwable_trajectory()
 	if _local_is_runner():
-		_show_throwable_notice("已投掷", Color(0.35, 0.92, 1.0), true)
-	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
-		rpc_id(remote_peer_id, "_rpc_set_runner_throwable_state", false)
+		_show_throwable_notice("已投掷减速弹", Color(0.35, 0.92, 1.0), true)
+	_sync_runner_inventory_state()
 	var velocity := _throw_velocity_from_direction(throw_direction)
 	_spawn_flying_throwable(origin, velocity)
 
@@ -3273,6 +3422,88 @@ func _play_throwable_hit_effect(position: Vector3) -> void:
 	if is_instance_valid(root):
 		root.queue_free()
 
+func _create_ground_item_visual(item_type: String) -> Node3D:
+	if item_type == ITEM_TYPE_SPEED_BOOST:
+		return _create_speed_boost_visual()
+	return _create_throwable_visual(false)
+
+func _create_speed_boost_visual() -> Node3D:
+	var root := Node3D.new()
+	var model_resource := load(SPEED_BOOST_MODEL_PATH)
+	if model_resource is PackedScene:
+		var model := (model_resource as PackedScene).instantiate() as Node3D
+		if model != null:
+			model.name = "SpeedBoostPotionModel"
+			model.scale = Vector3.ONE * 0.34
+			root.add_child(model)
+			_style_speed_boost_model(model)
+	else:
+		push_error("无法加载加速剂模型：%s" % SPEED_BOOST_MODEL_PATH)
+
+	var energy_ring := MeshInstance3D.new()
+	energy_ring.name = "BoostEnergyRing"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.16
+	torus.outer_radius = 0.21
+	torus.rings = 18
+	torus.ring_segments = 8
+	energy_ring.mesh = torus
+	energy_ring.position.y = -0.18
+	var energy_material := StandardMaterial3D.new()
+	energy_material.albedo_color = Color(0.18, 0.88, 0.22)
+	energy_material.metallic = 0.25
+	energy_material.roughness = 0.2
+	energy_material.emission_enabled = true
+	energy_material.emission = Color(0.08, 1.0, 0.18)
+	energy_material.emission_energy_multiplier = 2.2
+	energy_ring.material_override = energy_material
+	energy_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(energy_ring)
+
+	var pickup_marker := MeshInstance3D.new()
+	pickup_marker.name = "BoostPickupMarker"
+	var marker_mesh := CylinderMesh.new()
+	marker_mesh.top_radius = 0.3
+	marker_mesh.bottom_radius = 0.3
+	marker_mesh.height = 0.018
+	pickup_marker.mesh = marker_mesh
+	pickup_marker.position.y = -0.2
+	var marker_material := StandardMaterial3D.new()
+	marker_material.albedo_color = Color(0.08, 0.72, 0.15, 0.42)
+	marker_material.emission_enabled = true
+	marker_material.emission = Color(0.04, 0.8, 0.12)
+	marker_material.emission_energy_multiplier = 0.9
+	marker_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pickup_marker.material_override = marker_material
+	pickup_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(pickup_marker)
+	return root
+
+func _style_speed_boost_model(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if mesh_instance.mesh != null:
+			for surface_index in range(mesh_instance.mesh.get_surface_count()):
+				var source_material := mesh_instance.mesh.surface_get_material(surface_index)
+				if not (source_material is StandardMaterial3D):
+					continue
+				var boost_material := (source_material as StandardMaterial3D).duplicate() as StandardMaterial3D
+				if source_material.resource_name == "Glass":
+					boost_material.albedo_color = Color(0.08, 0.82, 0.16, 0.78)
+					boost_material.metallic = 0.18
+					boost_material.roughness = 0.16
+					boost_material.emission_enabled = true
+					boost_material.emission = Color(0.04, 0.9, 0.12)
+					boost_material.emission_energy_multiplier = 1.6
+				else:
+					boost_material.albedo_color = Color(0.08, 0.12, 0.1)
+					boost_material.metallic = 0.62
+					boost_material.roughness = 0.3
+				mesh_instance.set_surface_override_material(surface_index, boost_material)
+	for child in node.get_children():
+		_style_speed_boost_model(child)
+
 func _create_throwable_visual(is_projectile: bool) -> Node3D:
 	var root := Node3D.new()
 	var model_resource := load(THROWABLE_MODEL_PATH)
@@ -3392,7 +3623,7 @@ func _hide_held_throwable_visual() -> void:
 		held_throwable_visual.visible = false
 
 func _update_held_throwable_visual() -> void:
-	if not _throwable_system_active() or not runner_has_throwable or caught or player == null or not is_instance_valid(player):
+	if not _throwable_system_active() or not runner_has_slow_grenade or caught or player == null or not is_instance_valid(player):
 		_hide_held_throwable_visual()
 		return
 	_ensure_held_throwable_visual()
@@ -3480,7 +3711,7 @@ func _hide_throwable_trajectory() -> void:
 		throwable_landing_marker.visible = false
 
 func _update_throwable_trajectory() -> void:
-	if not _local_is_runner() or not runner_has_throwable or caught or Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
+	if not _local_is_runner() or not runner_has_slow_grenade or caught or Input.get_mouse_mode() != Input.MOUSE_MODE_CAPTURED:
 		_hide_throwable_trajectory()
 		return
 	var actor = _get_local_actor()
@@ -3513,30 +3744,25 @@ func _throwable_status_text() -> String:
 	if not _throwable_system_active():
 		return ""
 	if _local_is_runner():
-		return "道具：%s（场上 %d 个）" % ["已持有，单击左键投掷" if runner_has_throwable else "未持有，靠近后按 F 拾取", ground_throwables.size()]
+		return "道具：减速弹 %s｜加速剂 %s（场上 %d 个）" % ["已携带，左键投掷" if runner_has_slow_grenade else "空槽，F 拾取", "已携带，E 使用" if runner_has_speed_boost else "空槽，F 拾取", ground_throwables.size()]
 	return "场上道具：%d 个" % ground_throwables.size()
 
 @rpc("call_remote", "reliable")
-func _rpc_sync_ground_throwable_spawn(item_id: int, position: Vector3) -> void:
-	_spawn_ground_throwable(position, item_id)
+func _rpc_sync_ground_throwable_spawn(item_id: int, position: Vector3, item_type: String) -> void:
+	_spawn_ground_throwable(position, item_id, item_type)
 
 @rpc("call_remote", "reliable")
 func _rpc_remove_ground_throwable(item_id: int) -> void:
 	_remove_ground_throwable(item_id, false)
 
 @rpc("call_remote", "reliable")
-func _rpc_set_runner_throwable_state(has_throwable: bool) -> void:
-	runner_has_throwable = has_throwable
-	if has_throwable:
-		_update_held_throwable_visual()
-	else:
-		_hide_held_throwable_visual()
-	if _local_is_runner():
-		if has_throwable:
-			_show_throwable_notice("已拾取道具！单击左键投掷", Color(0.34, 1.0, 0.58), true)
-		else:
-			_hide_throwable_trajectory()
-			_show_throwable_notice("已投掷", Color(0.35, 0.92, 1.0), true)
+func _rpc_set_runner_inventory_state(has_slow_grenade: bool, has_speed_boost: bool) -> void:
+	runner_has_slow_grenade = has_slow_grenade
+	runner_has_speed_boost = has_speed_boost
+	_update_held_throwable_visual()
+	_update_runner_inventory_hud()
+	if not has_slow_grenade:
+		_hide_throwable_trajectory()
 
 @rpc("any_peer", "reliable")
 func _rpc_request_pickup_throwable(item_id: int) -> void:
@@ -3550,6 +3776,12 @@ func _rpc_request_throw_throwable(origin: Vector3, direction: Vector3) -> void:
 		return
 	_throw_throwable_on_authority(origin, direction)
 
+@rpc("any_peer", "reliable")
+func _rpc_request_use_speed_boost() -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _runner_peer_id():
+		return
+	_use_speed_boost_on_authority()
+
 @rpc("call_remote", "reliable")
 func _rpc_spawn_flying_throwable(projectile_id: int, origin: Vector3, velocity: Vector3) -> void:
 	_spawn_flying_throwable(origin, velocity, projectile_id)
@@ -3557,6 +3789,13 @@ func _rpc_spawn_flying_throwable(projectile_id: int, origin: Vector3, velocity: 
 @rpc("call_remote", "reliable")
 func _rpc_remove_flying_throwable(projectile_id: int, impact_position: Vector3) -> void:
 	_remove_flying_throwable(projectile_id, false, impact_position)
+
+@rpc("call_remote", "reliable")
+func _rpc_apply_runner_speed_boost(multiplier: float, duration: float) -> void:
+	if player != null and is_instance_valid(player) and player.has_method("apply_speed_multiplier"):
+		player.apply_speed_multiplier(multiplier, duration)
+	if _local_is_runner():
+		_show_throwable_notice("使用加速剂：速度提升 %.0f%%，持续 %.1f 秒" % [(multiplier - 1.0) * 100.0, duration], Color(0.36, 1.0, 0.42), true)
 
 @rpc("call_remote", "reliable")
 func _rpc_apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3, current_hit_count: int) -> void:

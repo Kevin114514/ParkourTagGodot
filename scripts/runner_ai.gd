@@ -27,6 +27,8 @@ var throwable_targets: Array[Vector3] = []
 var has_throwable := false
 var hit_progress := 0
 var hits_to_win := 10
+var move_speed_multiplier := 1.0
+var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
 const CENTER_PULL_TIME := 4.0
 const IDEAL_ESCAPE_DISTANCE := 12.0
@@ -48,6 +50,10 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	# 躲藏者触碰虚空即死：不在此复活，交由 game.gd 的 _on_runner_fell() 判定本局结束
+	if move_speed_effect_time > 0.0:
+		move_speed_effect_time = maxf(move_speed_effect_time - delta, 0.0)
+		if move_speed_effect_time <= 0.0:
+			move_speed_multiplier = 1.0
 
 	if is_control_locked or not is_active:
 		velocity.x = move_toward(velocity.x, 0.0, acceleration * delta)
@@ -115,6 +121,10 @@ func set_throwable_context(new_targets: Array[Vector3], new_has_throwable: bool,
 	has_throwable = new_has_throwable
 	hit_progress = new_hit_progress
 	hits_to_win = max(1, new_hits_to_win)
+
+func apply_speed_multiplier(multiplier: float, duration: float) -> void:
+	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
+	move_speed_effect_time = maxf(duration, 0.0)
 
 func _nearest_throwable_position():
 	if throwable_targets.is_empty():
@@ -463,6 +473,8 @@ func _respawn() -> void:
 	desired_dir = Vector3.ZERO
 	stuck_timer = 0.0
 	survival_timer = 0.0
+	move_speed_multiplier = 1.0
+	move_speed_effect_time = 0.0
 	last_position = global_position
 
 func _move_with_step_climbing(delta: float) -> void:
