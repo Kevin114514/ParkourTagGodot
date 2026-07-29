@@ -23,12 +23,39 @@ CEIL_T = 0.3
 HALF = N * CELL / 2.0 # 半场 = N*CELL/2
 HOLE_HALF = 2.0       # 出生口半宽
 
-WALL_COLOR = [0.14, 0.09, 0.1]
-GROUND_COLOR = [0.09, 0.06, 0.07]
-CEIL_COLOR = [0.1, 0.06, 0.06]
+# 各表面的染色 tint（乘在贴图上）。贴图本身已是暗色恐怖风，tint 略压暗以保持氛围，
+# 又不过黑，让墙纸/地毯/霉斑等纹理细节仍清晰可辨。
+WALL_COLOR = [0.82, 0.78, 0.78]
+GROUND_COLOR = [0.78, 0.7, 0.7]
+CEIL_COLOR = [0.7, 0.68, 0.68]
+PILLAR_COLOR = [0.76, 0.72, 0.72]
+CORE_COLOR = [0.72, 0.68, 0.68]
 LAMP_COLOR = [0.9, 0.6, 0.35]
 LAMP_EMISSION = [1.0, 0.62, 0.26]
 LIGHT_COLOR = [1.0, 0.66, 0.32]
+
+# ---- 贴图材质表：只放贴图与粗糙度，不放 color/uv_scale，让每个物体自带 tint 与平铺次数 ----
+# 路径相对地图文件（maps/）解析；map_loader 支持 materials 表 + material_id 引用。
+MATERIALS = {
+    "wall":     {"albedo_texture": "textures/wall_wallpaper.png",  "roughness": 0.95, "metallic": 0.0},
+    "floor":    {"albedo_texture": "textures/floor_carpet.png",    "roughness": 0.98, "metallic": 0.0},
+    "ceiling":  {"albedo_texture": "textures/ceiling_plaster.png", "roughness": 0.95, "metallic": 0.0},
+    "pillar":   {"albedo_texture": "textures/pillar_concrete.png", "roughness": 0.9,  "metallic": 0.0},
+    "painting": {"albedo_texture": "textures/painting_horror.png", "roughness": 0.85, "metallic": 0.0},
+}
+
+
+def tex_uv(size, tile=2.0):
+    """竖直物体（墙/柱/隔断）：按水平最大边×高度估算平铺次数，使每 tile 米重复一次。"""
+    sx, sy, sz = size
+    horiz = max(sx, sz)
+    return [max(1.0, round(horiz / tile)), max(1.0, round(sy / tile)), 1.0]
+
+
+def floor_uv(size, tile=3.0):
+    """水平大面（地板/天花板）：按 X×Z 估算平铺次数。"""
+    sx, _sy, sz = size
+    return [max(1.0, round(sx / tile)), max(1.0, round(sz / tile)), 1.0]
 
 
 def cx(i):
@@ -163,45 +190,131 @@ def makes_narrow_gap(px, pz, sx, sz):
 
 
 # ---- 地板 ----
+_ground_size = [N * CELL + 2.0, 0.3, N * CELL + 2.0]
 objects.append({
     "type": "box", "name": "Ground",
-    "position": [0.0, -0.15, 0.0], "size": [N * CELL + 2.0, 0.3, N * CELL + 2.0],
-    "color": GROUND_COLOR,
+    "position": [0.0, -0.15, 0.0], "size": _ground_size,
+    "color": GROUND_COLOR, "material_id": "floor", "uv_scale": floor_uv(_ground_size),
 })
 
 # ---- 四面外边界墙 ----
+# 南北墙占满整条宽（含 4 个外角方块）；东西墙两端各缩 WALL_T/2 顶住南北墙内侧，
+# 避免 4 个外角处两墙重叠出同向共面（虽在朝外背面、玩家看不到，仍一并消除）。
 bound_defs = [
     ("BoundN", [0.0, WALL_H / 2.0, -HALF], [N * CELL + WALL_T, WALL_H, WALL_T]),
     ("BoundS", [0.0, WALL_H / 2.0, HALF], [N * CELL + WALL_T, WALL_H, WALL_T]),
-    ("BoundW", [-HALF, WALL_H / 2.0, 0.0], [WALL_T, WALL_H, N * CELL + WALL_T]),
-    ("BoundE", [HALF, WALL_H / 2.0, 0.0], [WALL_T, WALL_H, N * CELL + WALL_T]),
+    ("BoundW", [-HALF, WALL_H / 2.0, 0.0], [WALL_T, WALL_H, N * CELL - WALL_T]),
+    ("BoundE", [HALF, WALL_H / 2.0, 0.0], [WALL_T, WALL_H, N * CELL - WALL_T]),
 ]
 for name, pos, size in bound_defs:
-    objects.append({"type": "box", "name": name, "position": pos, "size": size, "color": WALL_COLOR})
+    objects.append({"type": "box", "name": name, "position": pos, "size": size,
+                    "color": WALL_COLOR, "material_id": "wall", "uv_scale": tex_uv(size)})
     reg_blocker(pos[0], pos[2], size[0], size[2])
 
-# ---- 内部墙：相邻单元未打通处放墙段 ----
+# ---- 内部墙 + 转角角柱 ----
+# 关键修复（墙角持续闪烁抖动的主因）：
+# 上一版把共线墙段合并成长墙，消除了【同向共线重叠】；但墙角仍在闪，原因是每根墙
+# 都比单元多伸出 WALL_T/2（旧 SEG=CELL+WALL_T）去“填补墙角”。于是在 L 型转角处，
+# 【横墙的端面】正好落在【竖墙的外侧面】同一平面上、且法线同向 → 同向共面、深度相等
+# → GPU 每帧随机选谁在前 → 墙角闪烁（合并与 Y 向 EMBED 都管不到这种“端面压侧面”）。
+#
+# 正确解法（几何上彻底杜绝所有共面）：
+#  1) 墙段只延伸到【单元边界线=顶点中心】（SEG=CELL，不再多伸 WALL_T/2）。这样墙端要么
+#     被【垂直穿过该顶点的直墙】完全埋住（端面在直墙内部，不可见），要么被外边界墙埋住，
+#     要么顶住角柱——都不再有裸露的同向共面。
+#  2) 十字/直穿口：两条直墙互相垂直，一条只提供 X 面、一条只提供 Z 面，无同向共面 → 不闪。
+#  3) 只在【真正的 L 型转角】（既有横墙又有竖墙、且两者都在此终止而非直穿）放一根
+#     WALL_T×WALL_T 角柱填实墙角，并把在此终止的墙端各缩短 WALL_T/2 去顶住柱侧面
+#     （背靠背贴合、法线相反 → 不 Z-fighting、无缝）。
+SEG = CELL   # 墙段基础跨度：正好覆盖单元，端点落在单元边界线（顶点中心）
+
+
+def is_wall_v(i, j):
+    """列线 i（x=cx(i)+CELL/2）上、单元行 j 处是否有竖墙。"""
+    return 0 <= i < N - 1 and 0 <= j < N and edge_key((i, j), (i + 1, j)) not in passages
+
+
+def is_wall_h(i, j):
+    """行线 j（z=cx(j)+CELL/2）上、单元列 i 处是否有横墙。"""
+    return 0 <= i < N and 0 <= j < N - 1 and edge_key((i, j), (i, j + 1)) not in passages
+
+
+# 内部顶点 (vi,vj)（vi,vj∈0..N-2）四方向墙臂：S/N 为竖墙上下臂，W/E 为横墙左右臂
+def vertex_arms(vi, vj):
+    s = is_wall_v(vi, vj)          # 竖墙-下（行 vj）
+    n = is_wall_v(vi, vj + 1)      # 竖墙-上（行 vj+1）
+    w = is_wall_h(vi, vj)          # 横墙-左（列 vi）
+    e = is_wall_h(vi + 1, vj)      # 横墙-右（列 vi+1）
+    return s, n, w, e
+
+
+# 需要角柱的顶点：既有竖臂又有横臂，且【两向都不直穿】（否则直穿的那条墙已填满该顶点方块）
+post_vertices = set()
+for vi in range(N - 1):
+    for vj in range(N - 1):
+        s, n, w, e = vertex_arms(vi, vj)
+        vert_through = s and n
+        horiz_through = w and e
+        if (not vert_through) and (not horiz_through) and (s or n) and (w or e):
+            post_vertices.add((vi, vj))
+
+
+def emit_wall(px, pz, sx, sz, idx, name="Wall"):
+    size = [sx, WALL_H, sz]
+    objects.append({
+        "type": "box", "name": "%s_%d" % (name, idx),
+        "position": [px, WALL_H / 2.0, pz],
+        "size": size, "color": WALL_COLOR,
+        "material_id": "wall", "uv_scale": tex_uv(size),
+    })
+    reg_blocker(px, pz, sx, sz)
+
+
 wall_idx = 0
-for i in range(N):
-    for j in range(N):
-        # 与右侧 (i+1,j) 之间的垂直墙
-        if i + 1 < N and edge_key((i, j), (i + 1, j)) not in passages:
-            objects.append({
-                "type": "box", "name": "Wall_%d" % wall_idx,
-                "position": [cx(i) + CELL / 2.0, WALL_H / 2.0, cx(j)],
-                "size": [WALL_T, WALL_H, CELL + WALL_T], "color": WALL_COLOR,
-            })
-            reg_blocker(cx(i) + CELL / 2.0, cx(j), WALL_T, CELL + WALL_T)
-            wall_idx += 1
-        # 与下方 (i,j+1) 之间的水平墙
-        if j + 1 < N and edge_key((i, j), (i, j + 1)) not in passages:
-            objects.append({
-                "type": "box", "name": "Wall_%d" % wall_idx,
-                "position": [cx(i), WALL_H / 2.0, cx(j) + CELL / 2.0],
-                "size": [CELL + WALL_T, WALL_H, WALL_T], "color": WALL_COLOR,
-            })
-            reg_blocker(cx(i), cx(j) + CELL / 2.0, CELL + WALL_T, WALL_T)
-            wall_idx += 1
+# 竖墙（沿 Z 延伸）：按列线 vi 分组，合并行方向连续墙段为一根长墙
+for vi in range(N - 1):
+    j = 0
+    while j < N:
+        if not is_wall_v(vi, j):
+            j += 1
+            continue
+        j0 = j
+        while j < N and is_wall_v(vi, j):
+            j += 1
+        j1 = j - 1
+        z_lo = cx(j0) - CELL / 2.0            # 北端（行 j0 上边界线）
+        z_hi = cx(j1) + CELL / 2.0            # 南端（行 j1 下边界线）
+        if (vi, j0 - 1) in post_vertices:     # 北端顶住角柱 → 缩短
+            z_lo += WALL_T / 2.0
+        if (vi, j1) in post_vertices:         # 南端顶住角柱 → 缩短
+            z_hi -= WALL_T / 2.0
+        emit_wall(cx(vi) + CELL / 2.0, (z_lo + z_hi) / 2.0, WALL_T, z_hi - z_lo, wall_idx)
+        wall_idx += 1
+# 横墙（沿 X 延伸）：按行线 vj 分组，合并列方向连续墙段为一根长墙
+for vj in range(N - 1):
+    i = 0
+    while i < N:
+        if not is_wall_h(i, vj):
+            i += 1
+            continue
+        i0 = i
+        while i < N and is_wall_h(i, vj):
+            i += 1
+        i1 = i - 1
+        x_lo = cx(i0) - CELL / 2.0            # 西端（列 i0 左边界线）
+        x_hi = cx(i1) + CELL / 2.0            # 东端（列 i1 右边界线）
+        if (i0 - 1, vj) in post_vertices:     # 西端顶住角柱 → 缩短
+            x_lo += WALL_T / 2.0
+        if (i1, vj) in post_vertices:         # 东端顶住角柱 → 缩短
+            x_hi -= WALL_T / 2.0
+        emit_wall((x_lo + x_hi) / 2.0, cx(vj) + CELL / 2.0, x_hi - x_lo, WALL_T, wall_idx)
+        wall_idx += 1
+# 转角角柱：填实 L 型墙角（四周墙端各缩短 WALL_T/2 顶住其侧面，背靠背不闪）
+n_posts = 0
+for (vi, vj) in sorted(post_vertices):
+    emit_wall(cx(vi) + CELL / 2.0, cx(vj) + CELL / 2.0, WALL_T, WALL_T, wall_idx, name="WallPost")
+    wall_idx += 1
+    n_posts += 1
 
 # ---- 天花板：整块封顶（出生已不再从天而降，无需开洞） ----
 runner_spawn = [cx(0), 0.12, cx(0)]           # 左上角单元
@@ -210,11 +323,13 @@ tagger_spawn = [cx(N - 1), 0.12, cx(N - 1)]   # 右下角单元
 cx_min, cx_max = -(N * CELL / 2.0 + 1.0), (N * CELL / 2.0 + 1.0)
 cz_min, cz_max = cx_min, cx_max
 
+_ceil_size = [cx_max - cx_min, CEIL_T, cz_max - cz_min]
 objects.append({
     "type": "box", "name": "Ceiling",
     "position": [(cx_min + cx_max) / 2.0, CEIL_Y, (cz_min + cz_max) / 2.0],
-    "size": [cx_max - cx_min, CEIL_T, cz_max - cz_min],
+    "size": _ceil_size,
     "color": CEIL_COLOR, "collision_layer": 1, "collision_mask": 1,
+    "material_id": "ceiling", "uv_scale": floor_uv(_ceil_size),
 })
 ceil_idx = 1
 
@@ -305,7 +420,6 @@ for i in range(N):
             continue
         di, dj = random.choice(wdirs)
         px, pz = cx(i), cx(j)
-        col = random.choice(HORROR_COLORS)
         face_x = px + di * (CELL / 2.0 - WALL_T / 2.0)
         face_z = pz + dj * (CELL / 2.0 - WALL_T / 2.0)
         pw, ph, th = random.uniform(0.9, 1.3), random.uniform(0.7, 1.05), 0.06
@@ -321,11 +435,12 @@ for i in range(N):
             "position": [face_x - di * 0.05, yc, face_z - dj * 0.05],
             "size": frame_size, "color": [0.03, 0.02, 0.02], "collision": False,
         })
-        # 画布完全不发光（无 emission）
+        # 画布：贴恐怖壁画贴图，完全不发光。白 tint 保留原图色调，UV 不平铺（整张画铺满）。
         objects.append({
             "type": "box", "name": "Painting_%d" % paint_idx,
             "position": [face_x - di * 0.08, yc, face_z - dj * 0.08],
-            "size": canvas_size, "color": col, "collision": False,
+            "size": canvas_size, "color": [0.9, 0.9, 0.9], "collision": False,
+            "material_id": "painting",
         })
         paint_idx += 1
 
@@ -343,7 +458,8 @@ for bi in range(N - 1):
         objects.append({
             "type": "box", "name": "CoreColumn_%d" % core_idx,
             "position": [vx, WALL_H / 2.0, vz],
-            "size": [cw, WALL_H, cw], "color": [0.1, 0.07, 0.08],
+            "size": [cw, WALL_H, cw], "color": CORE_COLOR,
+            "material_id": "pillar", "uv_scale": tex_uv([cw, WALL_H, cw]),
         })
         reg_blocker(vx, vz, cw, cw)
         core_idx += 1
@@ -375,7 +491,8 @@ for i in range(N):
                 objects.append({
                     "type": "box", "name": "Baffle_%d" % obstacle_idx,
                     "position": [bpx, WALL_H / 2.0, bpz],
-                    "size": [bsx, WALL_H, bsz], "color": [0.11, 0.07, 0.08],
+                    "size": [bsx, WALL_H, bsz], "color": WALL_COLOR,
+                    "material_id": "wall", "uv_scale": tex_uv([bsx, WALL_H, bsz]),
                 })
                 reg_blocker(bpx, bpz, bsx, bsz)
                 obstacle_idx += 1
@@ -395,13 +512,14 @@ for i in range(N):
                 continue
             if random.random() < 0.7:
                 h = WALL_H                     # 到顶立柱：遮断视线
-                col = [0.1, 0.07, 0.08]
+                col = PILLAR_COLOR
             else:
                 h = random.uniform(1.0, 1.5)   # 矮箱：可翻越，增加杂乱
-                col = [0.08, 0.06, 0.05]
+                col = [0.6, 0.56, 0.54]        # 稍暗一档，与到顶柱区分
             objects.append({
                 "type": "box", "name": "Pillar_%d" % obstacle_idx,
                 "position": [bx, h / 2.0, bz], "size": [w, h, w], "color": col,
+                "material_id": "pillar", "uv_scale": tex_uv([w, h, w]),
             })
             reg_blocker(bx, bz, w, w)
             obstacle_idx += 1
@@ -459,6 +577,18 @@ for (i, j) in tv_cells:
     })
     tv_idx += 1
 
+# ---- 消除 Z-fighting（贴图闪烁抖动）----
+# 墙底面(y=0)与地板顶面(y=0)、墙顶面(y=WALL_H)与天花板底面(y=WALL_H)精确共面，
+# 深度相等时 GPU 每帧随机决定谁在前 → 交界处贴图闪烁。
+# 解法：让所有竖直墙类（wall/pillar：含边界墙、内墙、隔断、立柱、中央柱、矮箱）
+# 沿 Y 上下各膨胀 EMBED，中心不变，使底面沉入地板、顶面插进天花板，彻底错开共面。
+# 嵌入部分被地板/天花板遮住，肉眼不可见；对碰撞与 UV 平铺影响可忽略。
+EMBED = 0.03
+for _o in objects:
+    if _o.get("type", "box") == "box" and _o.get("material_id") in ("wall", "pillar"):
+        _sx, _sy, _sz = _o["size"]
+        _o["size"] = [_sx, _sy + 2.0 * EMBED, _sz]
+
 data = {
     "format_version": 2,
     "name": "猴子酒店回廊迷宫",
@@ -478,6 +608,7 @@ data = {
         "glow": True,
         "sun": {"rotation_degrees": [-70.0, 25.0, 0.0], "energy": 0.06, "color": [0.4, 0.28, 0.3], "shadow": False},
     },
+    "materials": MATERIALS,
     "objects": objects,
     "lights": lights,
 }
@@ -492,7 +623,7 @@ print("迷宫 %dx%d，尺寸约 %.0fx%.0f" % (N, N, N * CELL, N * CELL))
 print("objects=%d  lights=%d" % (len(objects), len(lights)))
 n_dead = sum(1 for c in cells if degree(c) == 1)
 n_open = sum(1 for bi in range(N - 1) for bj in range(N - 1) if block_fully_open(bi, bj, passages))
-print("  墙段=%d  天花板块=%d  灯座=%d  壁画=%d  中央立柱=%d  遮挡=%d  电视=%d" % (wall_idx, ceil_idx, lamp_idx, paint_idx, core_idx, obstacle_idx, tv_idx))
+print("  墙件=%d（含转角柱=%d）  天花板块=%d  灯座=%d  壁画=%d  中央立柱=%d  遮挡=%d  电视=%d" % (wall_idx, n_posts, ceil_idx, lamp_idx, paint_idx, core_idx, obstacle_idx, tv_idx))
 print("  死路数=%d（应为0）  开阔小室=%d（均已用中央立柱围成回廊）" % (n_dead, n_open))
 print("  常亮=%d  strobe=%d  flicker=%d  pulse=%d" %
       (len(lights) - n_strobe - n_flicker - n_pulse, n_strobe, n_flicker, n_pulse))
