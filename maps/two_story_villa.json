@@ -1,5 +1,5 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "name": "双层别墅追逐战",
   "runner_spawn": [-21.0, 0.12, 21.0],
   "tagger_spawn": [21.0, 0.12, -21.0],

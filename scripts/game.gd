@@ -256,9 +256,11 @@ var quit_confirm_timer := 0.0
 var restart_confirm_timer := 0.0
 var opponent_seen_timer := 0.0
 var last_seen_opponent_position := Vector3.ZERO
+@onready var chase_music: AudioStreamPlayer = $ChaseMusic
 
 func _ready() -> void:
 	randomize()
+	_setup_chase_music()
 	_ensure_default_fullscreen()
 	_ensure_input_actions()
 	_connect_multiplayer_signals()
@@ -269,6 +271,30 @@ func _ready() -> void:
 	_build_map_loading_ui()
 	_show_title("")
 	_load_active_map()
+
+func _setup_chase_music() -> void:
+	if chase_music.stream is AudioStreamOggVorbis:
+		(chase_music.stream as AudioStreamOggVorbis).loop = true
+	if not chase_music.finished.is_connected(_on_chase_music_finished):
+		chase_music.finished.connect(_on_chase_music_finished)
+	chase_music.stop()
+
+func _on_chase_music_finished() -> void:
+	_start_chase_music()
+
+func _start_chase_music() -> void:
+	if network_round_loading or map_loading_layer == null or map_loading_layer.visible:
+		return
+	if game_mode != "single" and game_mode != "single_chase" and game_mode != "host" and game_mode != "client":
+		return
+	if chase_music.stream == null:
+		push_error("追逐音乐资源未加载：res://assets/audio/chase_loop.ogg")
+		return
+	if not chase_music.playing:
+		chase_music.play()
+
+func _stop_chase_music() -> void:
+	chase_music.stop()
 
 func _process(delta: float) -> void:
 	quit_confirm_timer = maxf(quit_confirm_timer - delta, 0.0)
@@ -1151,6 +1177,7 @@ func _on_image_skin_file_selected(path: String) -> void:
 		title_status.text = "已选择自定义图片皮肤：%s。" % ["追逐者" if pending_image_skin_role == "tagger" else "躲藏者"]
 
 func _show_title(message: String) -> void:
+	_stop_chase_music()
 	_reset_network_round_loading()
 	_close_network()
 	_clear_characters()
@@ -1207,6 +1234,8 @@ func _start_single_game() -> void:
 	center_label.text = ""
 	_spawn_single_characters()
 	_prepare_throwable_round_state()
+	_hide_map_loading_screen()
+	_start_chase_music()
 	_apply_camera_mode_to_local_actor()
 	call_deferred("_apply_camera_mode_to_local_actor")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
@@ -1239,6 +1268,8 @@ func _begin_single_chase_round() -> void:
 	center_label.text = ""
 	_spawn_single_chase_characters()
 	_prepare_throwable_round_state()
+	_hide_map_loading_screen()
+	_start_chase_music()
 	_apply_camera_mode_to_local_actor()
 	call_deferred("_apply_camera_mode_to_local_actor")
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED if not ai_vs_ai_spectate else Input.MOUSE_MODE_VISIBLE)
@@ -1325,6 +1356,7 @@ func _handle_network_disconnect(message: String) -> void:
 	_show_title(message)
 
 func _enter_lobby(message: String) -> void:
+	_stop_chase_music()
 	round_transition_token += 1
 	_reset_network_round_loading()
 	game_mode = "lobby"
@@ -1666,6 +1698,7 @@ func _activate_loaded_network_round(load_token: int) -> void:
 	_set_network_round_actors_enabled(true)
 	if map_loading_layer != null:
 		map_loading_layer.visible = false
+	_start_chase_music()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 	var peer_id := remote_peer_id if multiplayer.is_server() else 1
 	_configure_network_peer_timeout(peer_id)
@@ -2178,6 +2211,7 @@ func _play_catch_effect(origin: Vector3, direction: Vector3) -> void:
 
 func _on_runner_survived(reason: String = "") -> void:
 	caught = true
+	_stop_chase_music()
 	_update_catch_crosshair()
 	_clear_tagger_slow_particles()
 	player.is_control_locked = true
@@ -2199,6 +2233,7 @@ func _on_runner_survived(reason: String = "") -> void:
 @rpc("call_remote", "reliable")
 func _rpc_runner_survived(final_time: float, final_hit_count: int) -> void:
 	caught = true
+	_stop_chase_music()
 	_update_catch_crosshair()
 	_clear_tagger_slow_particles()
 	time_alive = final_time
@@ -2221,6 +2256,7 @@ func _on_runner_time_limit_survived() -> void:
 
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
+	_stop_chase_music()
 	_clear_tagger_slow_particles()
 	player.is_control_locked = true
 	tagger.is_active = false
@@ -2240,6 +2276,7 @@ func _finish_runner_failed(reason: String) -> void:
 @rpc("call_remote", "reliable")
 func _rpc_runner_failed(final_time: float, reason: String) -> void:
 	caught = true
+	_stop_chase_music()
 	_update_catch_crosshair()
 	time_alive = final_time
 	if player != null and is_instance_valid(player):
@@ -2431,6 +2468,7 @@ func _ensure_throwable_trajectory() -> void:
 	add_child(throwable_landing_marker)
 
 func _show_map_loading_screen() -> void:
+	_stop_chase_music()
 	if map_loading_layer == null:
 		return
 	var display_name := map_name
@@ -2446,6 +2484,7 @@ func _show_map_loading_screen() -> void:
 	RenderingServer.force_draw()
 
 func _show_network_waiting_screen(message: String) -> void:
+	_stop_chase_music()
 	if not network_round_loading or map_loading_layer == null:
 		return
 	if map_loading_title != null:
