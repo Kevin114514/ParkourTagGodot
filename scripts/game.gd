@@ -72,7 +72,7 @@ const ACTION_CONFIRM_DURATION := 2.0
 const OPPONENT_MINIMAP_MEMORY := 5.0
 const OPPONENT_SIGHT_RANGE := 28.0
 const RUNNER_THREAT_RED_DISTANCE := 8.0
-const MINIMAP_WORLD_RADIUS := 42.0
+const DEFAULT_MINIMAP_WORLD_RADIUS := 42.0
 const OFFICIAL_MAPS = [
 	{
 		"name": "默认跑酷竞技场",
@@ -197,6 +197,7 @@ var world_environment: WorldEnvironment
 var sun_light: DirectionalLight3D
 var map_name := "默认地图"
 var active_map_path := ""
+var minimap_world_radius := DEFAULT_MINIMAP_WORLD_RADIUS
 var selected_map_index := 0
 var map_preview_index := 0
 var selected_map_path := DEFAULT_MAP_PATH
@@ -2308,6 +2309,8 @@ func _load_map_from_path(map_path: String) -> bool:
 	active_map_path = map_path
 	runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
 	tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
+	var gameplay: Dictionary = result.get("gameplay", {})
+	minimap_world_radius = maxf(1.0, float(gameplay.get("world_radius", DEFAULT_MINIMAP_WORLD_RADIUS)))
 	_apply_map_environment(result.get("environment", {}))
 	_update_map_ui()
 	if debug_mode:
@@ -2315,6 +2318,7 @@ func _load_map_from_path(map_path: String) -> bool:
 	return true
 
 func _clear_map() -> void:
+	minimap_world_radius = DEFAULT_MINIMAP_WORLD_RADIUS
 	if map_root != null and is_instance_valid(map_root):
 		if map_root.get_parent() != null:
 			map_root.get_parent().remove_child(map_root)
@@ -2759,7 +2763,7 @@ func _update_minimap_opponent(delta: float) -> void:
 
 func _world_to_minimap(world_position: Vector3) -> Vector2:
 	var center := runner_spawn_position.lerp(tagger_spawn_position, 0.5)
-	var rel := Vector2(world_position.x - center.x, world_position.z - center.z) / MINIMAP_WORLD_RADIUS
+	var rel := Vector2(world_position.x - center.x, world_position.z - center.z) / minimap_world_radius
 	var size := minimap_content.size
 	if size.x <= 1.0 or size.y <= 1.0:
 		size = Vector2(156.0, 156.0)
