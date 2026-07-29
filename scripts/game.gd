@@ -28,6 +28,11 @@ const USER_MAP_PATH = "user://maps/current_map.json"
 const NETWORK_SYNC_MAP_PATH = "user://network_sync/maps/host_map.json"
 const NETWORK_SYNC_SKIN_PREFIX = "network_host_"
 const MULTIPLAYER_RESULT_DELAY := 3.0
+const NETWORK_ACTIVE_TIMEOUT_MIN_MS := 1500
+const NETWORK_ACTIVE_TIMEOUT_MAX_MS := 10000
+const NETWORK_LOADING_TIMEOUT_MIN_MS := 10000
+const NETWORK_LOADING_TIMEOUT_MAX_MS := 120000
+const NETWORK_ROUND_READY_TIMEOUT_SECONDS := 125.0
 const CATCH_RANGE := 2.5
 const CATCH_COOLDOWN := 1.5
 const CATCH_HALF_ANGLE_COS := 0.0
@@ -156,6 +161,7 @@ var minimap_player_dot: ColorRect
 var minimap_reward_dots: Array[ColorRect] = []
 var title_layer: CanvasLayer
 var map_loading_layer: CanvasLayer
+var map_loading_title: Label
 var map_loading_label: Label
 var title_status: Label
 var ip_input: LineEdit
@@ -194,6 +200,10 @@ var game_mode := "title"
 var ai_vs_ai_spectate := false
 var spectator_camera: Camera3D = null
 var network_started := false
+var network_round_loading := false
+var network_round_load_token := 0
+var local_round_load_ready := false
+var remote_round_load_ready := false
 var remote_peer_id := 0
 var host_is_runner := true
 var win_time_seconds := 60.0
@@ -291,7 +301,7 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("toggle_debug"):
 		_toggle_debug_mode()
 
-	if game_mode == "title" or game_mode == "waiting" or game_mode == "lobby":
+	if game_mode == "title" or game_mode == "waiting" or game_mode == "lobby" or network_round_loading:
 		return
 
 	if Input.is_action_just_pressed("ui_cancel"):
@@ -502,14 +512,14 @@ func _build_map_loading_ui() -> void:
 	box.add_theme_constant_override("separation", 12)
 	margin.add_child(box)
 
-	var title := Label.new()
-	title.text = "加载中"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 42)
-	title.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
-	title.add_theme_color_override("font_outline_color", Color(0.01, 0.03, 0.08, 0.95))
-	title.add_theme_constant_override("outline_size", 5)
-	box.add_child(title)
+	map_loading_title = Label.new()
+	map_loading_title.text = "加载中"
+	map_loading_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	map_loading_title.add_theme_font_size_override("font_size", 42)
+	map_loading_title.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+	map_loading_title.add_theme_color_override("font_outline_color", Color(0.01, 0.03, 0.08, 0.95))
+	map_loading_title.add_theme_constant_override("outline_size", 5)
+	box.add_child(map_loading_title)
 
 	map_loading_label = Label.new()
 	map_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1029,6 +1039,7 @@ func _select_official_map(index: int, should_sync: bool) -> bool:
 	if title_status != null:
 		title_status.text = "已选择官方地图：%s" % map_name if loaded else "地图加载失败，已保留当前选择。"
 	if loaded and should_sync and game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
+		_configure_network_peer_timeout(remote_peer_id, true)
 		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "地图已切换为：%s，等待房主开始游戏。" % map_name)
 	return loaded
 
@@ -1140,6 +1151,7 @@ func _on_image_skin_file_selected(path: String) -> void:
 		title_status.text = "已选择自定义图片皮肤：%s。" % ["追逐者" if pending_image_skin_role == "tagger" else "躲藏者"]
 
 func _show_title(message: String) -> void:
+	_reset_network_round_loading()
 	_close_network()
 	_clear_characters()
 	_clear_all_throwables()
@@ -1272,34 +1284,52 @@ func _start_client_game() -> void:
 func _quit_game() -> void:
 	get_tree().quit()
 
+func _configure_network_peer_timeout(peer_id: int, loading: bool = false) -> void:
+	var enet_peer := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if enet_peer == null or peer_id <= 0:
+		return
+	var timeout_min := NETWORK_LOADING_TIMEOUT_MIN_MS if loading else NETWORK_ACTIVE_TIMEOUT_MIN_MS
+	var timeout_max := NETWORK_LOADING_TIMEOUT_MAX_MS if loading else NETWORK_ACTIVE_TIMEOUT_MAX_MS
+	enet_peer.set_peer_timeout(peer_id, 64, timeout_min, timeout_max)
+
 func _on_peer_connected(peer_id: int) -> void:
 	if not multiplayer.is_server() or network_started:
 		return
 	remote_peer_id = peer_id
+	_configure_network_peer_timeout(peer_id)
 	network_started = true
 	_enter_lobby("玩家已加入。双方可在房间内切换角色，房主点击开始游戏。")
 	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
 
 func _on_peer_disconnected(peer_id: int) -> void:
-	if is_leaving_room:
+	if multiplayer.is_server() and remote_peer_id != 0 and peer_id != remote_peer_id:
 		return
-	if game_mode == "host" or game_mode == "client" or game_mode == "waiting" or game_mode == "lobby":
-		_show_title("对方已断开，已返回标题界面。")
+	_handle_network_disconnect("对方连接已中断，已返回标题界面。")
 
 func _on_connected_to_server() -> void:
+	_configure_network_peer_timeout(1)
 	game_mode = "lobby"
 	_enter_lobby("已连接房主，等待房主同步房间信息...")
 
 func _on_connection_failed() -> void:
-	_show_title("连接失败，请检查 IP、防火墙或房主是否已创建房间。")
+	_handle_network_disconnect("连接失败，请检查 IP、防火墙或房主是否已创建房间。")
 
 func _on_server_disconnected() -> void:
-	_show_title("与房主断开连接，已返回标题界面。")
+	_handle_network_disconnect("与房主的连接已中断，已返回标题界面。")
+
+func _handle_network_disconnect(message: String) -> void:
+	if is_leaving_room or (not _is_in_network_room() and not network_round_loading):
+		return
+	# 先屏蔽 close() 触发的后续断线信号，避免提示被重复覆盖。
+	is_leaving_room = true
+	_show_title(message)
 
 func _enter_lobby(message: String) -> void:
 	round_transition_token += 1
+	_reset_network_round_loading()
 	game_mode = "lobby"
 	_clear_characters()
+	_clear_all_throwables()
 	if title_layer != null:
 		title_layer.visible = true
 	if hud_layer != null:
@@ -1363,6 +1393,8 @@ func _return_active_round_to_lobby(message: String) -> void:
 func _rpc_request_return_to_lobby() -> void:
 	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
 		return
+	if game_mode != "host" and not network_round_loading:
+		return
 	_return_active_round_to_lobby("玩家已返回房间等待页面。")
 
 func _local_lobby_role_text() -> String:
@@ -1391,6 +1423,8 @@ func _start_lobby_game() -> void:
 func _rpc_request_role_switch() -> void:
 	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
 		return
+	if game_mode != "lobby" or network_round_loading:
+		return
 	host_is_runner = not host_is_runner
 	_update_lobby_ui()
 	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
@@ -1402,20 +1436,53 @@ func _rpc_sync_lobby(new_host_is_runner: bool, _new_win_time_seconds: float, new
 	runner_skin_id = new_runner_skin_id
 	tagger_skin_id = new_tagger_skin_id
 	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
-	_select_official_map(new_map_index, false)
+	if new_map_index != selected_map_index:
+		_select_official_map(new_map_index, false)
 	if win_time_spinbox != null:
 		win_time_spinbox.set_value_no_signal(win_time_seconds)
 	network_started = true
 	_enter_lobby(message)
+	_configure_network_peer_timeout(1)
+	rpc_id(1, "_rpc_network_lobby_ready", network_round_load_token)
+
+@rpc("any_peer", "reliable")
+func _rpc_network_lobby_ready(_load_token: int) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
+		return
+	_configure_network_peer_timeout(remote_peer_id)
 
 func _start_synced_network_round() -> void:
-	if not multiplayer.is_server() or remote_peer_id == 0:
+	if not multiplayer.is_server() or remote_peer_id == 0 or network_round_loading:
 		return
 	_refresh_win_time_from_ui()
+	network_round_load_token += 1
+	var load_token := network_round_load_token
+	network_round_loading = true
+	local_round_load_ready = false
+	remote_round_load_ready = false
+	_configure_network_peer_timeout(remote_peer_id, true)
 	var payload := _build_network_start_payload()
-	_start_network_round(remote_peer_id)
-	rpc("_rpc_begin_network_round", payload)
-	call_deferred("_sync_ground_items_to_peer", remote_peer_id)
+	payload["load_token"] = load_token
+	_show_network_waiting_screen("正在通知另一名玩家准备加载场景...")
+	rpc_id(remote_peer_id, "_rpc_prepare_network_round", payload)
+	_monitor_network_round_loading(load_token)
+	# 先让开始加载的 RPC 发出，再执行会阻塞主线程的同步地图构建。
+	await get_tree().process_frame
+	if not network_round_loading or load_token != network_round_load_token or remote_peer_id == 0:
+		return
+	if not _start_network_round(remote_peer_id):
+		_abort_network_round_to_lobby(load_token, "房主地图加载失败，已返回房间等待页面。")
+		return
+	local_round_load_ready = true
+	_set_network_round_actors_enabled(false)
+	call_deferred("_show_network_waiting_screen", "本机场景已加载完成\n正在等待其他玩家加载场景...")
+	_try_activate_loaded_network_round(load_token)
+
+func _monitor_network_round_loading(load_token: int) -> void:
+	await get_tree().create_timer(NETWORK_ROUND_READY_TIMEOUT_SECONDS).timeout
+	if not multiplayer.is_server() or not network_round_loading or load_token != network_round_load_token:
+		return
+	_abort_network_round_to_lobby(load_token, "等待另一名玩家加载超时，已返回房间等待页面。")
 
 func _build_network_start_payload() -> Dictionary:
 	return {
@@ -1524,9 +1591,86 @@ func _append_sync_file(base_dir: String, relative_path: String, files: Array, se
 	seen[file_path] = true
 
 @rpc("call_remote", "reliable")
-func _rpc_begin_network_round(payload: Dictionary) -> void:
+func _rpc_prepare_network_round(payload: Dictionary) -> void:
+	var load_token := int(payload.get("load_token", network_round_load_token + 1))
+	network_round_load_token = load_token
+	network_round_loading = true
+	local_round_load_ready = false
+	remote_round_load_ready = false
+	_configure_network_peer_timeout(1, true)
+	_show_network_waiting_screen("已收到开局信息\n正在准备加载场景...")
+	# 先绘制等待页，再写入同步资源并构建大地图。
+	await get_tree().process_frame
+	if not network_round_loading or load_token != network_round_load_token:
+		return
 	_apply_network_start_payload(payload)
-	_start_network_round(remote_peer_id)
+	if not _start_network_round(remote_peer_id):
+		_show_network_waiting_screen("本机地图加载失败\n正在通知房主返回房间...")
+		rpc_id(1, "_rpc_network_round_load_failed", load_token, "另一名玩家地图加载失败，已返回房间等待页面。")
+		return
+	local_round_load_ready = true
+	_set_network_round_actors_enabled(false)
+	call_deferred("_show_network_waiting_screen", "本机场景已加载完成\n正在等待房主完成场景加载...")
+	rpc_id(1, "_rpc_network_round_loaded", load_token)
+
+@rpc("any_peer", "reliable")
+func _rpc_network_round_loaded(load_token: int) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
+		return
+	if not network_round_loading or load_token != network_round_load_token:
+		return
+	remote_round_load_ready = true
+	_try_activate_loaded_network_round(load_token)
+
+@rpc("any_peer", "reliable")
+func _rpc_network_round_load_failed(load_token: int, message: String) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != remote_peer_id:
+		return
+	_abort_network_round_to_lobby(load_token, message)
+
+func _abort_network_round_to_lobby(load_token: int, message: String) -> void:
+	if not multiplayer.is_server() or not network_round_loading or load_token != network_round_load_token:
+		return
+	if remote_peer_id != 0:
+		rpc_id(remote_peer_id, "_rpc_abort_network_round", load_token, message)
+	_enter_lobby(message)
+
+@rpc("call_remote", "reliable")
+func _rpc_abort_network_round(load_token: int, message: String) -> void:
+	if not network_round_loading or load_token != network_round_load_token:
+		return
+	_enter_lobby(message)
+	_configure_network_peer_timeout(1)
+	rpc_id(1, "_rpc_network_lobby_ready", load_token)
+
+func _try_activate_loaded_network_round(load_token: int) -> void:
+	if not multiplayer.is_server() or not network_round_loading:
+		return
+	if load_token != network_round_load_token or not local_round_load_ready or not remote_round_load_ready:
+		return
+	rpc_id(remote_peer_id, "_rpc_activate_loaded_network_round", load_token)
+	_activate_loaded_network_round(load_token)
+
+@rpc("call_remote", "reliable")
+func _rpc_activate_loaded_network_round(load_token: int) -> void:
+	_activate_loaded_network_round(load_token)
+
+func _activate_loaded_network_round(load_token: int) -> void:
+	if not network_round_loading or load_token != network_round_load_token:
+		return
+	network_round_loading = false
+	local_round_load_ready = false
+	remote_round_load_ready = false
+	time_alive = 0.0
+	catch_cooldown_remaining = 0.0
+	_set_network_round_actors_enabled(true)
+	if map_loading_layer != null:
+		map_loading_layer.visible = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	var peer_id := remote_peer_id if multiplayer.is_server() else 1
+	_configure_network_peer_timeout(peer_id)
+	if multiplayer.is_server() and remote_peer_id != 0:
+		call_deferred("_sync_ground_items_to_peer", remote_peer_id)
 
 func _apply_network_start_payload(payload: Dictionary) -> void:
 	remote_peer_id = int(payload.get("client_id", remote_peer_id))
@@ -1657,13 +1801,13 @@ func _safe_sync_name(source: String) -> String:
 func _is_safe_relative_path(relative_path: String) -> bool:
 	return not relative_path.is_empty() and not relative_path.begins_with("/") and not relative_path.contains(":") and not relative_path.contains("..")
 
-func _start_network_round(client_id: int) -> void:
+func _start_network_round(client_id: int) -> bool:
 	round_transition_token += 1
 	_clear_characters()
-	if not _load_active_map():
+	if not _load_active_map(true):
 		if title_status != null:
 			title_status.text = "地图加载失败，无法开始联机游戏。"
-		return
+		return false
 	game_mode = "host" if multiplayer.is_server() else "client"
 	caught = false
 	ai_catch_cooldown = 0.0
@@ -1681,6 +1825,14 @@ func _start_network_round(client_id: int) -> void:
 	if debug_mode:
 		_refresh_debug_collision_shapes()
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	return true
+
+func _set_network_round_actors_enabled(enabled: bool) -> void:
+	var process_mode := Node.PROCESS_MODE_INHERIT if enabled else Node.PROCESS_MODE_DISABLED
+	if player != null and is_instance_valid(player):
+		player.process_mode = process_mode
+	if tagger != null and is_instance_valid(tagger):
+		tagger.process_mode = process_mode
 
 func _spawn_single_characters() -> void:
 	player = CharacterBody3D.new()
@@ -1804,6 +1956,14 @@ func _clear_characters() -> void:
 	spectator_camera = null
 	player = null
 	tagger = null
+
+func _reset_network_round_loading() -> void:
+	network_round_loading = false
+	local_round_load_ready = false
+	remote_round_load_ready = false
+	_set_network_round_actors_enabled(true)
+	if map_loading_layer != null:
+		map_loading_layer.visible = false
 
 func _close_network() -> void:
 	if multiplayer.multiplayer_peer != null:
@@ -2278,26 +2438,39 @@ func _show_map_loading_screen() -> void:
 		if String(map_data.get("path", "")) == selected_map_path:
 			display_name = String(map_data.get("name", map_name))
 			break
+	if map_loading_title != null:
+		map_loading_title.text = "加载中"
 	map_loading_label.text = "正在加载：%s\n正在生成场景、贴图与光照..." % display_name
 	map_loading_layer.visible = true
 	# 地图加载是同步任务；强制先提交一帧，避免大地图加载时窗口看起来卡死。
 	RenderingServer.force_draw()
 
+func _show_network_waiting_screen(message: String) -> void:
+	if not network_round_loading or map_loading_layer == null:
+		return
+	if map_loading_title != null:
+		map_loading_title.text = "等待其他玩家"
+	if map_loading_label != null:
+		map_loading_label.text = message
+	map_loading_layer.visible = true
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	RenderingServer.force_draw()
+
 func _hide_map_loading_screen() -> void:
-	if map_loading_layer != null:
+	if map_loading_layer != null and not network_round_loading:
 		map_loading_layer.visible = false
 
-func _load_active_map() -> bool:
+func _load_active_map(strict: bool = false) -> bool:
 	_show_map_loading_screen()
 	var loaded := _load_map_from_path(selected_map_path)
-	if not loaded:
+	if not loaded and not strict:
 		for map_path in _map_search_paths():
 			if map_path == selected_map_path:
 				continue
 			if _load_map_from_path(map_path):
 				loaded = true
 				break
-	if not loaded:
+	if not loaded and not strict:
 		_clear_map()
 		map_root = Node3D.new()
 		map_root.name = "LegacyBuiltinMap"
@@ -3319,6 +3492,16 @@ func _spawn_ground_throwable(position: Vector3, item_id: int = -1, item_type: St
 		next_ground_throwable_id += 1
 	else:
 		next_ground_throwable_id = max(next_ground_throwable_id, item_id + 1)
+	if ground_throwables.has(resolved_id):
+		var existing: Dictionary = ground_throwables[resolved_id]
+		var existing_node := existing.get("node", null) as Node3D
+		if existing_node != null and is_instance_valid(existing_node):
+			existing_node.position = position
+			existing_node.visible = _local_can_see_item_type(item_type)
+			existing["position"] = position
+			existing["item_type"] = item_type
+			ground_throwables[resolved_id] = existing
+			return resolved_id
 	var resolved_type := item_type
 	if not _is_runner_item_type(resolved_type) and not _is_tagger_item_type(resolved_type):
 		resolved_type = ITEM_TYPE_SLOW_GRENADE
