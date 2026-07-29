@@ -70,6 +70,7 @@ static func _build_context(data: Dictionary, map_path: String) -> Dictionary:
 	return {
 		"map_path": map_path,
 		"materials": data["materials"] if data.has("materials") and typeof(data["materials"]) == TYPE_DICTIONARY else {},
+		"material_cache": {},
 		"prefabs": data["prefabs"] if data.has("prefabs") and typeof(data["prefabs"]) == TYPE_DICTIONARY else {}
 	}
 
@@ -515,13 +516,22 @@ static func _find_node_material_override(node_name: String, overrides: Dictionar
 static func _material_from_data(data: Dictionary, context: Dictionary, default_color: Color) -> StandardMaterial3D:
 	var material_data := {}
 	var materials: Dictionary = context.get("materials", {})
+	var material_cache: Dictionary = context.get("material_cache", {})
 	var material_id := String(data.get("material_id", ""))
+	var direct_keys := ["color", "texture", "albedo_texture", "normal_texture", "orm_texture", "roughness_texture", "metallic_texture", "emission", "emission_texture", "roughness", "metallic", "uv_scale", "uv_offset"]
+	var can_use_cache := not material_id.is_empty() and not data.has("material")
+	for key in direct_keys:
+		if data.has(key):
+			can_use_cache = false
+			break
+	if can_use_cache and material_cache.has(material_id):
+		return material_cache[material_id] as StandardMaterial3D
 	if not material_id.is_empty() and materials.has(material_id) and typeof(materials[material_id]) == TYPE_DICTIONARY:
 		material_data = (materials[material_id] as Dictionary).duplicate(true)
 	if data.has("material") and typeof(data["material"]) == TYPE_DICTIONARY:
 		for key in (data["material"] as Dictionary).keys():
 			material_data[key] = data["material"][key]
-	for key in ["color", "texture", "albedo_texture", "normal_texture", "orm_texture", "roughness_texture", "metallic_texture", "emission", "emission_texture", "roughness", "metallic", "uv_scale", "uv_offset"]:
+	for key in direct_keys:
 		if data.has(key) and not material_data.has(key):
 			material_data[key] = data[key]
 
@@ -534,6 +544,8 @@ static func _material_from_data(data: Dictionary, context: Dictionary, default_c
 	var albedo_texture := _load_texture(_resolve_asset_path(map_path, albedo_path))
 	if albedo_texture != null:
 		mat.albedo_texture = albedo_texture
+		# 各向异性过滤：进一步抑制斜视角长墙面/地板的纹理闪烁摩尔纹
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	var normal_texture := _load_texture(_resolve_asset_path(map_path, String(material_data.get("normal_texture", ""))))
 	if normal_texture != null:
 		mat.normal_enabled = true
@@ -559,20 +571,25 @@ static func _material_from_data(data: Dictionary, context: Dictionary, default_c
 		mat.uv1_scale = _to_vector3(material_data.get("uv_scale", [1.0, 1.0, 1.0]), Vector3.ONE)
 	if material_data.has("uv_offset"):
 		mat.uv1_offset = _to_vector3(material_data.get("uv_offset", [0.0, 0.0, 0.0]), Vector3.ZERO)
+	if can_use_cache:
+		material_cache[material_id] = mat
 	return mat
 
 static func _load_texture(path: String) -> Texture2D:
 	if path.is_empty():
 		return null
 	if path.begins_with("res://") or path.begins_with("user://"):
-		var resource := load(path)
-		if resource is Texture2D:
-			return resource as Texture2D
+		if ResourceLoader.exists(path):
+			var resource := load(path)
+			if resource is Texture2D:
+				return resource as Texture2D
 		path = ProjectSettings.globalize_path(path)
 	var image := Image.new()
 	var error := image.load(path)
 	if error != OK:
 		return null
+	# 关键：生成 mipmap，否则中远处/斜视角下的高频纹理（墙纸、地毯花纹）会剧烈闪烁抖动。
+	image.generate_mipmaps()
 	return ImageTexture.create_from_image(image)
 
 static func _collision_mode(data: Dictionary, default_mode: String) -> String:
