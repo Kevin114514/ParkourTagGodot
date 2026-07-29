@@ -93,6 +93,11 @@ const OFFICIAL_MAPS = [
 		"description": "大尺度三层露顶下界要塞：中央四向悬空桥、环形回廊与多座楼梯塔，断桥跳台、柱顶捷径与烈焰塔、下界疣房；无岩浆改为虚空坠落风险，点缀大型绯红菌。"
 	},
 	{
+		"name": "冬日小镇",
+		"path": "res://maps/winter_town.json",
+		"description": "MCC Winter Town 风格的紧凑雪地箱庭：中央圣诞树、礼物跳台、冰面捷径、四向木屋与连通屋顶组成多层追逐路线。"
+	},
+	{
 		"name": "城市训练工地",
 		"path": "res://maps/urban_training_site.json",
 		"description": "v2 写实标杆地图：工业街区、仓库灯光、二层平台、低障碍翻越点和清晰追逐路线。"
