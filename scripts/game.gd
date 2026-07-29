@@ -8,9 +8,11 @@ const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
+# Quaternius「Scifi Grenade」，通过 Poly Pizza 获取，CC0 1.0。
+const THROWABLE_MODEL_PATH := "res://assets/throwables/scifi_slow_grenade.glb"
 const PORT = 24591
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
-const GAME_VERSION := "1.5"
+const GAME_VERSION := "1.5.1"
 const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const USE_RL_POLICY_RUNNER := true
@@ -3268,35 +3270,81 @@ func _play_throwable_hit_effect(position: Vector3) -> void:
 
 func _create_throwable_visual(is_projectile: bool) -> Node3D:
 	var root := Node3D.new()
-	var mesh := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.22
-	sphere.height = 0.44
-	sphere.radial_segments = 12
-	sphere.rings = 6
-	mesh.mesh = sphere
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.35, 0.96, 1.0) if is_projectile else Color(0.96, 0.9, 0.35)
-	material.roughness = 0.3 if is_projectile else 0.55
-	material.emission_enabled = true
-	material.emission = Color(0.18, 0.85, 1.0) if is_projectile else Color(1.0, 0.72, 0.18)
-	material.emission_energy_multiplier = 0.7
-	mesh.material_override = material
-	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mesh)
-	var ring := MeshInstance3D.new()
-	var cylinder := CylinderMesh.new()
-	cylinder.top_radius = 0.27
-	cylinder.bottom_radius = 0.27
-	cylinder.height = 0.05
-	ring.mesh = cylinder
-	ring.position.y = -0.18
-	var ring_material := StandardMaterial3D.new()
-	ring_material.albedo_color = Color(0.08, 0.12, 0.18, 0.45)
-	ring_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	ring.material_override = ring_material
-	root.add_child(ring)
+	var model_resource := load(THROWABLE_MODEL_PATH)
+	if model_resource is PackedScene:
+		var model := (model_resource as PackedScene).instantiate() as Node3D
+		if model != null:
+			model.name = "SlowGrenadeModel"
+			model.scale = Vector3.ONE * 1.35
+			# 手持和飞行状态沿投掷方向横置，地面拾取状态保持直立。
+			if is_projectile:
+				model.rotation.x = PI * 0.5
+			root.add_child(model)
+			_style_throwable_model(model)
+	else:
+		push_error("无法加载减速弹模型：%s" % THROWABLE_MODEL_PATH)
+
+	# 保留一圈低调的蓝色能量环，让真实模型仍能明确表达减速道具功能。
+	var energy_band := MeshInstance3D.new()
+	energy_band.name = "SlowEnergyBand"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.13
+	torus.outer_radius = 0.17
+	torus.rings = 16
+	torus.ring_segments = 8
+	energy_band.mesh = torus
+	if is_projectile:
+		energy_band.rotation.x = PI * 0.5
+	var energy_material := StandardMaterial3D.new()
+	energy_material.albedo_color = Color(0.08, 0.58, 0.82)
+	energy_material.metallic = 0.35
+	energy_material.roughness = 0.22
+	energy_material.emission_enabled = true
+	energy_material.emission = Color(0.04, 0.72, 1.0)
+	energy_material.emission_energy_multiplier = 2.1
+	energy_band.material_override = energy_material
+	energy_band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(energy_band)
+
+	if not is_projectile:
+		var pickup_marker := MeshInstance3D.new()
+		pickup_marker.name = "PickupMarker"
+		var marker_mesh := CylinderMesh.new()
+		marker_mesh.top_radius = 0.29
+		marker_mesh.bottom_radius = 0.29
+		marker_mesh.height = 0.018
+		pickup_marker.mesh = marker_mesh
+		pickup_marker.position.y = -0.2
+		var marker_material := StandardMaterial3D.new()
+		marker_material.albedo_color = Color(0.05, 0.42, 0.62, 0.42)
+		marker_material.emission_enabled = true
+		marker_material.emission = Color(0.02, 0.35, 0.56)
+		marker_material.emission_energy_multiplier = 0.8
+		marker_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		pickup_marker.material_override = marker_material
+		pickup_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(pickup_marker)
 	return root
+
+func _style_throwable_model(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		if mesh_instance.mesh != null:
+			for surface_index in range(mesh_instance.mesh.get_surface_count()):
+				var source_material := mesh_instance.mesh.surface_get_material(surface_index)
+				if not (source_material is StandardMaterial3D) or source_material.resource_name != "Main":
+					continue
+				var slow_material := (source_material as StandardMaterial3D).duplicate() as StandardMaterial3D
+				slow_material.albedo_color = Color(0.035, 0.32, 0.55)
+				slow_material.metallic = 0.62
+				slow_material.roughness = 0.28
+				slow_material.emission_enabled = true
+				slow_material.emission = Color(0.02, 0.48, 0.8)
+				slow_material.emission_energy_multiplier = 1.25
+				mesh_instance.set_surface_override_material(surface_index, slow_material)
+	for child in node.get_children():
+		_style_throwable_model(child)
 
 func _show_throwable_notice(text: String, color: Color, protect_existing: bool) -> void:
 	if throwable_notice_label == null:
