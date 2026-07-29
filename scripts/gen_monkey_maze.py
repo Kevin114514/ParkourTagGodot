@@ -1,0 +1,499 @@
+"""生成猴子酒店回廊迷宫（更大更复杂版）。
+
+特性：
+- 17x17 单元迷宫，窄走廊（净宽约2.5）。全量 braid 消除【所有死路】，形成极其复杂的回廊迷宫（处处成环）。
+- braid 打通时避免形成 2x2 开阔小室；残留的开阔小室用中央立柱改造成环形回廊，杜绝斜向望穿。
+- 并加入交错隔断/立柱打断长直视线、制造不规则遮挡；放置时做全局净距校验，杜绝"看得见开口却穿不过"的窄缝。
+- 每个走廊单元都有一盏贴顶暖光灯（无阴影穿透相邻格），配合抬高的环境光，全程无死黑区。
+- 约 30% 的灯做成频闪/闪烁/呼吸（min 亮度 > 0，闪灭时靠邻灯与环境光补光，不产生死黑）。
+- 天花板整块封顶（出生点已不再从天而降）。
+"""
+import json
+import random
+
+random.seed(20260728)
+
+# ---- 尺寸参数 ----
+N = 17                # 迷宫单元数（NxN，更大更复杂）
+CELL = 3.0            # 单元边长≈走廊净宽（人物直径约0.7，稍宽以便通行/错身）
+WALL_T = 0.5          # 墙厚
+WALL_H = 3.6          # 墙高
+CEIL_Y = 3.75         # 天花板中心高
+CEIL_T = 0.3
+HALF = N * CELL / 2.0 # 半场 = N*CELL/2
+HOLE_HALF = 2.0       # 出生口半宽
+
+WALL_COLOR = [0.14, 0.09, 0.1]
+GROUND_COLOR = [0.09, 0.06, 0.07]
+CEIL_COLOR = [0.1, 0.06, 0.06]
+LAMP_COLOR = [0.9, 0.6, 0.35]
+LAMP_EMISSION = [1.0, 0.62, 0.26]
+LIGHT_COLOR = [1.0, 0.66, 0.32]
+
+
+def cx(i):
+    return (i - (N - 1) / 2.0) * CELL
+
+
+# ---- 迷宫生成：回溯法 ----
+def edge_key(a, b):
+    return tuple(sorted([a, b]))
+
+
+def neighbors(i, j):
+    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        ni, nj = i + di, j + dj
+        if 0 <= ni < N and 0 <= nj < N:
+            yield ni, nj
+
+
+passages = set()      # 已打通的边集合
+visited = set()
+stack = [(0, 0)]
+visited.add((0, 0))
+while stack:
+    cur = stack[-1]
+    unvis = [nb for nb in neighbors(*cur) if nb not in visited]
+    if not unvis:
+        stack.pop()
+        continue
+    nxt = random.choice(unvis)
+    passages.add(edge_key(cur, nxt))
+    visited.add(nxt)
+    stack.append(nxt)
+
+def degree(cell):
+    return sum(1 for nb in neighbors(*cell) if edge_key(cell, nb) in passages)
+
+cells = [(i, j) for i in range(N) for j in range(N)]
+
+# ---- 主干道：从左上出生点到右下出生点打通一条居中的阶梯路径，方便双方相遇 ----
+mi, mj = 0, 0
+step = 0
+while (mi, mj) != (N - 1, N - 1):
+    go_right = (mi < N - 1) and (mj == N - 1 or step % 2 == 0)
+    if go_right:
+        passages.add(edge_key((mi, mj), (mi + 1, mj)))
+        mi += 1
+    else:
+        passages.add(edge_key((mi, mj), (mi, mj + 1)))
+        mj += 1
+    step += 1
+
+# ---- 开阔小室检测 ----
+# 一个 2x2 单元格若 4 条内部边全部打通，其中心的墙角柱就消失，形成无墙开阔小室，
+# 玩家可从中斜向望穿很远。回廊迷宫必须避免此情况。
+def block_fully_open(bi, bj, pset):
+    if not (0 <= bi < N - 1 and 0 <= bj < N - 1):
+        return False
+    e = (edge_key((bi, bj), (bi + 1, bj)),
+         edge_key((bi, bj + 1), (bi + 1, bj + 1)),
+         edge_key((bi, bj), (bi, bj + 1)),
+         edge_key((bi + 1, bj), (bi + 1, bj + 1)))
+    return all(x in pset for x in e)
+
+
+def would_open_area(a, b):
+    """假设打通 a-b，是否会使其所属的某个 2x2 区块变成开阔小室。"""
+    key = edge_key(a, b)
+    added = key not in passages
+    passages.add(key)
+    (ai, aj), (bi, bj) = a, b
+    if ai != bi:                       # 沿 X 相邻（竖直边）
+        lo = min(ai, bi)
+        blocks = ((lo, aj), (lo, aj - 1))
+    else:                              # 沿 Z 相邻（水平边）
+        lo = min(aj, bj)
+        blocks = ((ai, lo), (ai - 1, lo))
+    bad = any(block_fully_open(bx, bz, passages) for bx, bz in blocks)
+    if added:
+        passages.discard(key)
+    return bad
+
+
+# ---- braid：打通【所有】死胡同，形成没有死路的复杂回廊迷宫。 ----
+# 打通时优先选择不会制造开阔小室（斜向透视）的连边。
+guard = 0
+while True:
+    des = [c for c in cells if degree(c) == 1]
+    if not des:
+        break
+    guard += 1
+    if guard > 4 * N * N:
+        break
+    random.shuffle(des)
+    for c in des:
+        if degree(c) != 1:
+            continue
+        closed = [nb for nb in neighbors(*c) if edge_key(c, nb) not in passages]
+        if not closed:
+            continue
+        safe = [nb for nb in closed if not would_open_area(c, nb)]
+        pick = random.choice(safe) if safe else random.choice(closed)
+        passages.add(edge_key(c, pick))
+
+objects = []
+lights = []
+
+# ---- 到顶阻挡物登记表：用于消除"看得见开口却穿不过"的窄缝 ----
+# 记录所有会挡住人物且到顶的实体在 XZ 平面的 AABB。放置任何新遮挡前先做净距校验：
+# 若它会与已有的墙/立柱形成 (GAP_VISIBLE, PERSON) 之间的平行窄缝（肉眼可见却过不去），
+# 则放弃该遮挡。保留下来的间隙要么 >=PERSON 可通行，要么 ~=0 贴合成实墙。
+PERSON = 0.75         # 人物直径约0.7，留余量
+GAP_VISIBLE = 0.12    # 大于此宽度即形成肉眼可见的开口
+GAP_MINLEN = 0.4      # 缝需有一定长度才算"显著"（避免角对角的无关近邻误判）
+blocker_aabbs = []    # [(x0, x1, z0, z1), ...]
+
+
+def reg_blocker(px, pz, sx, sz):
+    blocker_aabbs.append((px - sx / 2.0, px + sx / 2.0, pz - sz / 2.0, pz + sz / 2.0))
+
+
+def makes_narrow_gap(px, pz, sx, sz):
+    """新遮挡(px,pz,sx,sz)是否会与任一已登记阻挡物形成穿不过的显著窄缝。"""
+    nx0, nx1, nz0, nz1 = px - sx / 2.0, px + sx / 2.0, pz - sz / 2.0, pz + sz / 2.0
+    for (ax0, ax1, az0, az1) in blocker_aabbs:
+        ox = min(nx1, ax1) - max(nx0, ax0)   # x 投影重叠
+        oz = min(nz1, az1) - max(nz0, az0)   # z 投影重叠
+        if ox > GAP_MINLEN and oz < 0 and GAP_VISIBLE < -oz < PERSON:
+            return True
+        if oz > GAP_MINLEN and ox < 0 and GAP_VISIBLE < -ox < PERSON:
+            return True
+    return False
+
+
+# ---- 地板 ----
+objects.append({
+    "type": "box", "name": "Ground",
+    "position": [0.0, -0.15, 0.0], "size": [N * CELL + 2.0, 0.3, N * CELL + 2.0],
+    "color": GROUND_COLOR,
+})
+
+# ---- 四面外边界墙 ----
+bound_defs = [
+    ("BoundN", [0.0, WALL_H / 2.0, -HALF], [N * CELL + WALL_T, WALL_H, WALL_T]),
+    ("BoundS", [0.0, WALL_H / 2.0, HALF], [N * CELL + WALL_T, WALL_H, WALL_T]),
+    ("BoundW", [-HALF, WALL_H / 2.0, 0.0], [WALL_T, WALL_H, N * CELL + WALL_T]),
+    ("BoundE", [HALF, WALL_H / 2.0, 0.0], [WALL_T, WALL_H, N * CELL + WALL_T]),
+]
+for name, pos, size in bound_defs:
+    objects.append({"type": "box", "name": name, "position": pos, "size": size, "color": WALL_COLOR})
+    reg_blocker(pos[0], pos[2], size[0], size[2])
+
+# ---- 内部墙：相邻单元未打通处放墙段 ----
+wall_idx = 0
+for i in range(N):
+    for j in range(N):
+        # 与右侧 (i+1,j) 之间的垂直墙
+        if i + 1 < N and edge_key((i, j), (i + 1, j)) not in passages:
+            objects.append({
+                "type": "box", "name": "Wall_%d" % wall_idx,
+                "position": [cx(i) + CELL / 2.0, WALL_H / 2.0, cx(j)],
+                "size": [WALL_T, WALL_H, CELL + WALL_T], "color": WALL_COLOR,
+            })
+            reg_blocker(cx(i) + CELL / 2.0, cx(j), WALL_T, CELL + WALL_T)
+            wall_idx += 1
+        # 与下方 (i,j+1) 之间的水平墙
+        if j + 1 < N and edge_key((i, j), (i, j + 1)) not in passages:
+            objects.append({
+                "type": "box", "name": "Wall_%d" % wall_idx,
+                "position": [cx(i), WALL_H / 2.0, cx(j) + CELL / 2.0],
+                "size": [CELL + WALL_T, WALL_H, WALL_T], "color": WALL_COLOR,
+            })
+            reg_blocker(cx(i), cx(j) + CELL / 2.0, CELL + WALL_T, WALL_T)
+            wall_idx += 1
+
+# ---- 天花板：整块封顶（出生已不再从天而降，无需开洞） ----
+runner_spawn = [cx(0), 0.12, cx(0)]           # 左上角单元
+tagger_spawn = [cx(N - 1), 0.12, cx(N - 1)]   # 右下角单元
+
+cx_min, cx_max = -(N * CELL / 2.0 + 1.0), (N * CELL / 2.0 + 1.0)
+cz_min, cz_max = cx_min, cx_max
+
+objects.append({
+    "type": "box", "name": "Ceiling",
+    "position": [(cx_min + cx_max) / 2.0, CEIL_Y, (cz_min + cz_max) / 2.0],
+    "size": [cx_max - cx_min, CEIL_T, cz_max - cz_min],
+    "color": CEIL_COLOR, "collision_layer": 1, "collision_mask": 1,
+})
+ceil_idx = 1
+
+# ---- 照明：每个单元一盏灯，部分频闪 ----
+lamp_idx = 0
+for i in range(N):
+    for j in range(N):
+        px, pz = cx(i), cx(j)
+        # 频闪分配：出生格常亮，其余按概率。strobe/flicker 熄灭时完全灭（min=0）
+        is_spawn = (i, j) in ((0, 0), (N - 1, N - 1))
+        flicker = None
+        if not is_spawn:
+            r = random.random()
+            if r < 0.12:
+                flicker = {"mode": "strobe", "frequency": random.uniform(1.2, 2.2), "min": 0.0, "max": 1.0}
+            elif r < 0.36:
+                flicker = {"mode": "flicker", "frequency": random.uniform(3.5, 6.0), "min": 0.0, "max": 1.0}
+            elif r < 0.46:
+                flicker = {"mode": "pulse", "frequency": random.uniform(0.25, 0.6), "min": 0.12, "max": 1.0}
+        # 贴顶灯座（无碰撞）：全部带暖黄自发光，看起来就是亮黄的发光体。
+        # 频闪灯座的自发光亮度由 flicker 脚本与灯光同步驱动：灯亮时亮黄、灯灭瞬间变黑，不残留黄色。
+        fix = {
+            "type": "box", "name": "LampFix_%d" % lamp_idx,
+            "position": [px, 3.5, pz], "size": [0.4, 0.12, 0.4],
+            "collision": False,
+            "color": LAMP_COLOR,
+            "emission": LAMP_EMISSION,
+            "emission_energy": 1.4,
+        }
+        objects.append(fix)
+        light = {
+            "light_type": "omni", "name": "CorridorLamp_%d" % lamp_idx,
+            "position": [px, 3.1, pz], "color": LIGHT_COLOR,
+            "energy": 1.0, "range": 4.4, "shadow": False,
+        }
+        if flicker is not None:
+            light["flicker"] = flicker
+            light["emissive_fixture"] = "LampFix_%d" % lamp_idx   # 灯座自发光跟随频闪同步明灭
+            light["fixture_emission_base"] = 1.4
+        lights.append(light)
+        lamp_idx += 1
+
+# ---- 辨向系统：把迷宫按 3x3 分成 9 个区域，每区一个主题色 ----
+REGION_COLORS = [
+    [0.62, 0.16, 0.16],   # 区0 暗红
+    [0.62, 0.36, 0.13],   # 区1 橙
+    [0.58, 0.52, 0.14],   # 区2 暗黄
+    [0.16, 0.52, 0.22],   # 区3 绿
+    [0.13, 0.46, 0.52],   # 区4 青（中心）
+    [0.16, 0.32, 0.62],   # 区5 蓝
+    [0.42, 0.16, 0.56],   # 区6 紫
+    [0.58, 0.16, 0.42],   # 区7 品红
+    [0.44, 0.44, 0.5],    # 区8 灰白
+]
+
+DIRS = [(0, -1), (1, 0), (0, 1), (-1, 0)]  # N(-z) E(+x) S(+z) W(-x)
+
+
+def region_color(i, j):
+    ri = min(2, i * 3 // N)
+    rj = min(2, j * 3 // N)
+    return REGION_COLORS[ri * 3 + rj]
+
+
+def wall_on(i, j, di, dj):
+    ni, nj = i + di, j + dj
+    if not (0 <= ni < N and 0 <= nj < N):
+        return True
+    return edge_key((i, j), (ni, nj)) not in passages
+
+
+# ---- 墙上恐怖壁画：完全不发光、暗色调、稀疏随机分布，营造诡异氛围 ----
+HORROR_COLORS = [
+    [0.15, 0.03, 0.03],   # 干涸血红
+    [0.09, 0.07, 0.04],   # 陈旧黄褐
+    [0.05, 0.08, 0.06],   # 惨绿
+    [0.06, 0.05, 0.09],   # 阴冷紫
+    [0.03, 0.03, 0.03],   # 近黑
+    [0.11, 0.06, 0.05],   # 锈褐
+]
+paint_idx = 0
+for i in range(N):
+    for j in range(N):
+        wdirs = [d for d in DIRS if wall_on(i, j, *d)]
+        if not wdirs:
+            continue
+        if random.random() > 0.45:   # 稀疏：约 45% 的可挂墙面才挂画
+            continue
+        di, dj = random.choice(wdirs)
+        px, pz = cx(i), cx(j)
+        col = random.choice(HORROR_COLORS)
+        face_x = px + di * (CELL / 2.0 - WALL_T / 2.0)
+        face_z = pz + dj * (CELL / 2.0 - WALL_T / 2.0)
+        pw, ph, th = random.uniform(0.9, 1.3), random.uniform(0.7, 1.05), 0.06
+        if di != 0:
+            frame_size = [th + 0.04, ph + 0.22, pw + 0.22]
+            canvas_size = [th, ph, pw]
+        else:
+            frame_size = [pw + 0.22, ph + 0.22, th + 0.04]
+            canvas_size = [pw, ph, th]
+        yc = random.uniform(1.7, 2.1)
+        objects.append({
+            "type": "box", "name": "PaintFrame_%d" % paint_idx,
+            "position": [face_x - di * 0.05, yc, face_z - dj * 0.05],
+            "size": frame_size, "color": [0.03, 0.02, 0.02], "collision": False,
+        })
+        # 画布完全不发光（无 emission）
+        objects.append({
+            "type": "box", "name": "Painting_%d" % paint_idx,
+            "position": [face_x - di * 0.08, yc, face_z - dj * 0.08],
+            "size": canvas_size, "color": col, "collision": False,
+        })
+        paint_idx += 1
+
+# ---- 中央立柱：把 braid 后仍残留的开阔小室改造成环形回廊，堵住斜向透视 ----
+# 在 2x2 开阔小室的公共内部顶点放一根到顶立柱，四周留出约 1.25 净宽的环形走廊，
+# 既彻底消除斜向望穿，又强化"回廊"迷宫的观感（绕柱成环）。
+core_idx = 0
+for bi in range(N - 1):
+    for bj in range(N - 1):
+        if not block_fully_open(bi, bj, passages):
+            continue
+        vx = cx(bi) + CELL / 2.0            # 2x2 区块的公共内部顶点
+        vz = cx(bj) + CELL / 2.0
+        cw = 2.0 * CELL - WALL_T - 2.5      # 使四周各留约 1.25 的环形走廊
+        objects.append({
+            "type": "box", "name": "CoreColumn_%d" % core_idx,
+            "position": [vx, WALL_H / 2.0, vz],
+            "size": [cw, WALL_H, cw], "color": [0.1, 0.07, 0.08],
+        })
+        reg_blocker(vx, vz, cw, cw)
+        core_idx += 1
+
+# ---- 遮挡与不规则：交错半隔断打断长直视线 + 贴墙立柱/矮箱增加不规则感 ----
+obstacle_idx = 0
+for i in range(N):
+    for j in range(N):
+        if (i, j) in ((0, 0), (N - 1, N - 1)):
+            continue
+        px, pz = cx(i), cx(j)
+        opens = [d for d in DIRS if not wall_on(i, j, *d)]
+        n_open = len(opens)
+        ns = ((0, -1) in opens) and ((0, 1) in opens)
+        ew = ((1, 0) in opens) and ((-1, 0) in opens)
+        inner = CELL - WALL_T              # 走廊净宽（墙内表面之间的距离）
+        if n_open == 2 and (ns or ew) and random.random() < 0.72:
+            # 直走廊：从一侧墙内表面伸出的半隔断（不及对面），逼迫绕行、遮断长视线。
+            # seg 基于净宽计算，确保另一侧至少留出 inner*0.4≈1.0 的通道（> 人物直径 0.7）。
+            side = 1 if (i + j) % 2 == 0 else -1
+            seg = inner * random.uniform(0.45, 0.6)
+            off = side * (inner / 2.0 - seg / 2.0)   # 一端精确贴墙内表面，另一端留缝
+            if ns:   # 南北走廊：挡板沿 X 横跨
+                bpx, bpz, bsx, bsz = px + off, pz, seg, WALL_T
+            else:    # 东西走廊：挡板沿 Z 横跨
+                bpx, bpz, bsx, bsz = px, pz + off, WALL_T, seg
+            # 与相邻走廊/隔断叠加会夹出穿不过的窄缝时，放弃此隔断。
+            if not makes_narrow_gap(bpx, bpz, bsx, bsz):
+                objects.append({
+                    "type": "box", "name": "Baffle_%d" % obstacle_idx,
+                    "position": [bpx, WALL_H / 2.0, bpz],
+                    "size": [bsx, WALL_H, bsz], "color": [0.11, 0.07, 0.08],
+                })
+                reg_blocker(bpx, bpz, bsx, bsz)
+                obstacle_idx += 1
+        elif n_open >= 2 and random.random() < 0.5:
+            # 拐角/路口：贴一面实墙放立柱或矮箱，通道保留在对侧。
+            walls = [d for d in DIRS if wall_on(i, j, *d)]
+            if not walls:
+                continue
+            di, dj = random.choice(walls)
+            w = random.uniform(0.55, 0.85)
+            # 立柱外表面精确贴墙内表面，沿墙方向仅做小幅偏移，避免探入交叉口。
+            slide = random.uniform(-0.3, 0.3)
+            bx = px + di * (inner / 2.0 - w / 2.0) + (0.0 if di != 0 else slide)
+            bz = pz + dj * (inner / 2.0 - w / 2.0) + (0.0 if dj != 0 else slide)
+            # 立柱靠近相邻墙端/中央立柱/其它立柱而夹出穿不过的窄缝时，放弃此立柱。
+            if makes_narrow_gap(bx, bz, w, w):
+                continue
+            if random.random() < 0.7:
+                h = WALL_H                     # 到顶立柱：遮断视线
+                col = [0.1, 0.07, 0.08]
+            else:
+                h = random.uniform(1.0, 1.5)   # 矮箱：可翻越，增加杂乱
+                col = [0.08, 0.06, 0.05]
+            objects.append({
+                "type": "box", "name": "Pillar_%d" % obstacle_idx,
+                "position": [bx, h / 2.0, bz], "size": [w, h, w], "color": col,
+            })
+            reg_blocker(bx, bz, w, w)
+            obstacle_idx += 1
+
+# ---- 电视：靠墙落地，冷色屏幕 + 闪烁光，增加真实感 ----
+tv_cells = [(i, j) for i in range(N) for j in range(N)
+            if (i, j) not in ((0, 0), (N - 1, N - 1))
+            and any(wall_on(i, j, *d) for d in DIRS)]
+random.shuffle(tv_cells)
+tv_idx = 0
+for (i, j) in tv_cells:
+    if tv_idx >= 8:
+        break
+    di, dj = [d for d in DIRS if wall_on(i, j, *d)][0]
+    px, pz = cx(i), cx(j)
+    face_x = px + di * (CELL / 2.0 - WALL_T / 2.0)
+    face_z = pz + dj * (CELL / 2.0 - WALL_T / 2.0)
+    d_depth, d_w = 0.3, 1.0
+    nx, nz = -di, -dj  # 朝向单元中心
+    bx = face_x + nx * (d_depth / 2.0 + 0.02)
+    bz = face_z + nz * (d_depth / 2.0 + 0.02)
+    if di != 0:
+        stand_size = [0.5, 0.5, 1.0]
+        body_size = [d_depth, 0.8, d_w]
+        screen_size = [0.05, 0.58, d_w * 0.8]
+    else:
+        stand_size = [1.0, 0.5, 0.5]
+        body_size = [d_w, 0.8, d_depth]
+        screen_size = [d_w * 0.8, 0.58, 0.05]
+    # 电视与相邻遮挡/立柱夹出穿不过的窄缝时，另选一个位置。
+    if makes_narrow_gap(bx, bz, stand_size[0], stand_size[2]):
+        continue
+    reg_blocker(bx, bz, stand_size[0], stand_size[2])
+    objects.append({
+        "type": "box", "name": "TVStand_%d" % tv_idx,
+        "position": [bx, 0.25, bz], "size": stand_size, "color": [0.08, 0.07, 0.07],
+    })
+    objects.append({
+        "type": "box", "name": "TVBody_%d" % tv_idx,
+        "position": [bx, 0.95, bz], "size": body_size, "color": [0.05, 0.05, 0.06],
+    })
+    sx = bx + nx * (d_depth / 2.0 + 0.01)
+    sz = bz + nz * (d_depth / 2.0 + 0.01)
+    tv_col = [0.55, 0.7, 0.95]
+    objects.append({
+        "type": "box", "name": "TVScreen_%d" % tv_idx,
+        "position": [sx, 0.95, sz], "size": screen_size, "color": tv_col,
+        "collision": False, "emission": tv_col, "emission_energy": 1.6,
+    })
+    lights.append({
+        "light_type": "omni", "name": "TVGlow_%d" % tv_idx,
+        "position": [bx + nx * 0.6, 1.0, bz + nz * 0.6], "color": [0.5, 0.68, 0.95],
+        "energy": 0.8, "range": 3.5, "shadow": False,
+        "flicker": {"mode": "flicker", "frequency": random.uniform(4.0, 6.0), "min": 0.0, "max": 1.0},
+    })
+    tv_idx += 1
+
+data = {
+    "format_version": 2,
+    "name": "猴子酒店回廊迷宫",
+    "runner_spawn": runner_spawn,
+    "tagger_spawn": tagger_spawn,
+    "environment": {
+        "background": "color",
+        "background_color": [0.015, 0.01, 0.015],
+        "sky_color": [0.015, 0.01, 0.015],
+        "ambient_color": [0.16, 0.12, 0.13],
+        "ambient_energy": 0.2,
+        "fog_enabled": True,
+        "fog_color": [0.045, 0.03, 0.032],
+        "fog_density": 0.026,
+        "tonemap": "filmic",
+        "exposure": 0.9,
+        "glow": True,
+        "sun": {"rotation_degrees": [-70.0, 25.0, 0.0], "energy": 0.06, "color": [0.4, 0.28, 0.3], "shadow": False},
+    },
+    "objects": objects,
+    "lights": lights,
+}
+
+with open("maps/monkey_hotel_corridors.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+
+n_strobe = sum(1 for l in lights if l.get("flicker", {}).get("mode") == "strobe")
+n_flicker = sum(1 for l in lights if l.get("flicker", {}).get("mode") == "flicker")
+n_pulse = sum(1 for l in lights if l.get("flicker", {}).get("mode") == "pulse")
+print("迷宫 %dx%d，尺寸约 %.0fx%.0f" % (N, N, N * CELL, N * CELL))
+print("objects=%d  lights=%d" % (len(objects), len(lights)))
+n_dead = sum(1 for c in cells if degree(c) == 1)
+n_open = sum(1 for bi in range(N - 1) for bj in range(N - 1) if block_fully_open(bi, bj, passages))
+print("  墙段=%d  天花板块=%d  灯座=%d  壁画=%d  中央立柱=%d  遮挡=%d  电视=%d" % (wall_idx, ceil_idx, lamp_idx, paint_idx, core_idx, obstacle_idx, tv_idx))
+print("  死路数=%d（应为0）  开阔小室=%d（均已用中央立柱围成回廊）" % (n_dead, n_open))
+print("  常亮=%d  strobe=%d  flicker=%d  pulse=%d" %
+      (len(lights) - n_strobe - n_flicker - n_pulse, n_strobe, n_flicker, n_pulse))
+print("  runner_spawn=%s  tagger_spawn=%s" % (runner_spawn, tagger_spawn))

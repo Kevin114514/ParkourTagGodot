@@ -1,5 +1,7 @@
 extends RefCounted
 
+const FlickerScript = preload("res://scripts/light_flicker.gd")
+
 const DEFAULT_RUNNER_SPAWN := Vector3(-23.0, 0.12, 22.0)
 const DEFAULT_TAGGER_SPAWN := Vector3(23.0, 0.12, -22.0)
 
@@ -282,7 +284,52 @@ static func _add_light(root: Node3D, data: Dictionary, context: Dictionary) -> L
 	light.shadow_enabled = _to_bool(data.get("shadow", false), false)
 	_apply_transform(light, data)
 	root.add_child(light)
+	_apply_light_flicker(light, data)
 	return light
+
+static func _apply_light_flicker(light: Light3D, data: Dictionary) -> void:
+	if not data.has("flicker"):
+		return
+	var raw = data["flicker"]
+	var cfg := {}
+	if typeof(raw) == TYPE_DICTIONARY:
+		cfg = raw
+	elif not _to_bool(raw, false):
+		return
+	var node := FlickerScript.new()
+	node.name = "Flicker"
+	node.target = light
+	node.base_energy = light.light_energy
+	node.mode = String(cfg.get("mode", "flicker")).to_lower()
+	node.frequency = float(cfg.get("frequency", 9.0))
+	node.min_energy = float(cfg.get("min", 0.12))
+	node.max_energy = float(cfg.get("max", 1.0))
+	# 关联灯座自发光：让灯座的暖黄自发光与频闪同步明灭
+	if data.has("emissive_fixture"):
+		var mat := _find_emissive_material(light.get_parent(), String(data["emissive_fixture"]))
+		if mat != null:
+			node.emissive_material = mat
+			node.emission_base = float(data.get("fixture_emission_base", mat.emission_energy_multiplier))
+	light.add_child(node)
+
+static func _find_emissive_material(parent: Node, fixture_name: String) -> StandardMaterial3D:
+	if parent == null:
+		return null
+	var fixture := parent.get_node_or_null(NodePath(fixture_name))
+	if fixture == null:
+		return null
+	return _first_mesh_material(fixture)
+
+static func _first_mesh_material(node: Node) -> StandardMaterial3D:
+	if node is MeshInstance3D:
+		var m = (node as MeshInstance3D).material_override
+		if m is StandardMaterial3D:
+			return m as StandardMaterial3D
+	for child in node.get_children():
+		var found := _first_mesh_material(child)
+		if found != null:
+			return found
+	return null
 
 static func _add_decal(root: Node3D, data: Dictionary, context: Dictionary) -> Decal:
 	var decal := Decal.new()

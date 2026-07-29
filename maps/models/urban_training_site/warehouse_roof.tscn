@@ -1,0 +1,200 @@
+[gd_scene load_steps=13 format=3]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_roof_panel"]
+albedo_color = Color(0.34, 0.38, 0.39, 1)
+metallic = 0.42
+roughness = 0.72
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_trim"]
+albedo_color = Color(0.12, 0.13, 0.13, 1)
+metallic = 0.55
+roughness = 0.64
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_vent"]
+albedo_color = Color(0.56, 0.58, 0.55, 1)
+metallic = 0.48
+roughness = 0.68
+
+[sub_resource type="BoxMesh" id="BoxMesh_structure"]
+size = Vector3(16.8, 0.28, 13.7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_roof_panel"]
+size = Vector3(8.9, 0.18, 14.2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_roof_rib"]
+size = Vector3(0.08, 0.08, 14.35)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_ridge"]
+top_radius = 0.12
+bottom_radius = 0.12
+height = 14.4
+radial_segments = 24
+
+[sub_resource type="BoxMesh" id="BoxMesh_gutter"]
+size = Vector3(17, 0.18, 0.22)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hvac_base"]
+size = Vector3(2.1, 0.42, 1.35)
+
+[sub_resource type="BoxMesh" id="BoxMesh_hvac_fan"]
+size = Vector3(1.45, 0.32, 0.95)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_exhaust"]
+top_radius = 0.34
+bottom_radius = 0.34
+height = 0.75
+radial_segments = 24
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_exhaust_cap"]
+top_radius = 0.46
+bottom_radius = 0.46
+height = 0.12
+radial_segments = 24
+
+[node name="WarehouseRoofModel" type="Node3D"]
+
+[node name="RoofStructure" type="MeshInstance3D" parent="."]
+mesh = SubResource("BoxMesh_structure")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofPanelWest" type="Node3D" parent="."]
+position = Vector3(-4.15, 0.4, 0)
+rotation_degrees = Vector3(0, 0, 8)
+
+[node name="PanelWest" type="MeshInstance3D" parent="RoofPanelWest"]
+mesh = SubResource("BoxMesh_roof_panel")
+material_override = SubResource("StandardMaterial3D_roof_panel")
+
+[node name="RibWest01" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(-4, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest02" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(-3, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest03" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(-2, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest04" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(-1, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest05" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(0, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest06" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(1, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest07" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(2, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest08" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(3, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibWest09" type="MeshInstance3D" parent="RoofPanelWest"]
+position = Vector3(4, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofPanelEast" type="Node3D" parent="."]
+position = Vector3(4.15, 0.4, 0)
+rotation_degrees = Vector3(0, 0, -8)
+
+[node name="PanelEast" type="MeshInstance3D" parent="RoofPanelEast"]
+mesh = SubResource("BoxMesh_roof_panel")
+material_override = SubResource("StandardMaterial3D_roof_panel")
+
+[node name="RibEast01" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(-4, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast02" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(-3, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast03" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(-2, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast04" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(-1, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast05" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(0, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast06" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(1, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast07" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(2, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast08" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(3, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RibEast09" type="MeshInstance3D" parent="RoofPanelEast"]
+position = Vector3(4, 0.13, 0)
+mesh = SubResource("BoxMesh_roof_rib")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofRidgeCap" type="MeshInstance3D" parent="."]
+position = Vector3(0, 1, 0)
+rotation_degrees = Vector3(90, 0, 0)
+mesh = SubResource("CylinderMesh_ridge")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofFrontGutter" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.2, 7.25)
+mesh = SubResource("BoxMesh_gutter")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofBackGutter" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.2, -7.25)
+mesh = SubResource("BoxMesh_gutter")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofHvacBase" type="MeshInstance3D" parent="."]
+position = Vector3(3.8, 0.63, -2.6)
+mesh = SubResource("BoxMesh_hvac_base")
+material_override = SubResource("StandardMaterial3D_vent")
+
+[node name="RoofHvacFanHousing" type="MeshInstance3D" parent="."]
+position = Vector3(3.8, 1, -2.6)
+mesh = SubResource("BoxMesh_hvac_fan")
+material_override = SubResource("StandardMaterial3D_trim")
+
+[node name="RoofExhaustVent" type="MeshInstance3D" parent="."]
+position = Vector3(-3.8, 0.7, 2.8)
+mesh = SubResource("CylinderMesh_exhaust")
+material_override = SubResource("StandardMaterial3D_vent")
+
+[node name="RoofExhaustCap" type="MeshInstance3D" parent="."]
+position = Vector3(-3.8, 1.14, 2.8)
+mesh = SubResource("CylinderMesh_exhaust_cap")
+material_override = SubResource("StandardMaterial3D_trim")

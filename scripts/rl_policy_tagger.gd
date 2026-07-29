@@ -67,10 +67,10 @@ func _physics_process(delta: float) -> void:
 		rl_stuck_timer += delta
 	else:
 		rl_stuck_timer = maxf(rl_stuck_timer - delta * 1.5, 0.0)
-	if _is_close_enough_for_catch():
+	if _is_close_enough_for_catch() and not is_catch_disabled_by_slow():
 		wants_catch_attempt = true
 		move_dir = _direction_to_target()
-	elif wants_catch_attempt:
+	elif wants_catch_attempt and not is_catch_disabled_by_slow():
 		move_dir = _direction_to_target()
 	elif rl_stuck_timer > 0.7:
 		rl_stuck_timer = 0.0
@@ -157,6 +157,8 @@ func _policy_move_dir() -> Vector3:
 		return Vector3.ZERO
 	var action_index := int(rl_policy[key])
 	if action_index == rl_catch_action_index:
+		if is_catch_disabled_by_slow():
+			return _direction_to_target()
 		wants_catch_attempt = true
 		return _direction_to_target()
 	if action_index < 0 or action_index >= ACTION_STEPS.size():
@@ -193,7 +195,7 @@ func _direction_to_target() -> Vector3:
 	return dir.normalized()
 
 func should_consume_ai_catch_attempt() -> bool:
-	var requested := wants_catch_attempt
+	var requested := wants_catch_attempt and not is_catch_disabled_by_slow()
 	wants_catch_attempt = false
 	return requested
 
