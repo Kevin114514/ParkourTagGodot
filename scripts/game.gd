@@ -32,7 +32,7 @@ const CATCH_HALF_ANGLE_COS := 0.0
 const AI_CATCH_COOLDOWN := CATCH_COOLDOWN
 const CATCH_ORIGIN_TOLERANCE := 2.2
 const THROWABLE_RESPAWN_TARGET := 8
-const THROWABLE_RESPAWN_INTERVAL := 2.5
+const THROWABLE_RESPAWN_INTERVAL := 1.0
 const THROWABLE_PICKUP_RANGE := 2.1
 const THROWABLE_THROW_SPEED := 20.0
 const THROWABLE_THROW_UPWARD_BONUS := 1.6
@@ -148,6 +148,8 @@ var minimap_opponent_dot: ColorRect
 var minimap_player_dot: ColorRect
 var minimap_reward_dots: Array[ColorRect] = []
 var title_layer: CanvasLayer
+var map_loading_layer: CanvasLayer
+var map_loading_label: Label
 var title_status: Label
 var ip_input: LineEdit
 var win_time_row: HBoxContainer
@@ -239,11 +241,12 @@ func _ready() -> void:
 	_ensure_input_actions()
 	_connect_multiplayer_signals()
 	_setup_world()
-	_load_active_map()
 	_build_hud()
 	get_viewport().size_changed.connect(_apply_hud_layout_scale)
 	_build_title_ui()
+	_build_map_loading_ui()
 	_show_title("")
+	_load_active_map()
 
 func _process(delta: float) -> void:
 	quit_confirm_timer = maxf(quit_confirm_timer - delta, 0.0)
@@ -445,6 +448,65 @@ func _apply_label_style(label: Label, color: Color = Color(0.18, 0.22, 0.42), ou
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_outline_color", Color(1.0, 1.0, 1.0, 0.72))
 	label.add_theme_constant_override("outline_size", outline_size)
+
+func _build_map_loading_ui() -> void:
+	map_loading_layer = CanvasLayer.new()
+	map_loading_layer.name = "MapLoadingUI"
+	map_loading_layer.layer = 20
+	add_child(map_loading_layer)
+
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0.015, 0.025, 0.055, 0.98)
+	backdrop.anchor_right = 1.0
+	backdrop.anchor_bottom = 1.0
+	backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	map_loading_layer.add_child(backdrop)
+
+	var center := CenterContainer.new()
+	center.anchor_right = 1.0
+	center.anchor_bottom = 1.0
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	map_loading_layer.add_child(center)
+
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(560.0, 224.0)
+	card.add_theme_stylebox_override("panel", _cartoon_style(Color(0.08, 0.15, 0.28, 0.98), Color(0.28, 0.82, 1.0), 5, 24, Vector2(0.0, 10.0), 18))
+	center.add_child(card)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 32)
+	margin.add_theme_constant_override("margin_right", 32)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	card.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 12)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "加载中"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", Color(0.45, 0.9, 1.0))
+	title.add_theme_color_override("font_outline_color", Color(0.01, 0.03, 0.08, 0.95))
+	title.add_theme_constant_override("outline_size", 5)
+	box.add_child(title)
+
+	map_loading_label = Label.new()
+	map_loading_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	map_loading_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	map_loading_label.add_theme_font_size_override("font_size", 21)
+	map_loading_label.add_theme_color_override("font_color", Color(0.9, 0.96, 1.0))
+	box.add_child(map_loading_label)
+
+	var hint := Label.new()
+	hint.text = "请稍候，场景资源首次加载可能需要几秒钟"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 16)
+	hint.add_theme_color_override("font_color", Color(0.6, 0.75, 0.9))
+	box.add_child(hint)
+	map_loading_layer.visible = false
 
 func _build_title_ui() -> void:
 	title_layer = CanvasLayer.new()
@@ -2188,26 +2250,48 @@ func _ensure_throwable_trajectory() -> void:
 	throwable_landing_marker.visible = false
 	add_child(throwable_landing_marker)
 
+func _show_map_loading_screen() -> void:
+	if map_loading_layer == null:
+		return
+	var display_name := map_name
+	for map_data in OFFICIAL_MAPS:
+		if String(map_data.get("path", "")) == selected_map_path:
+			display_name = String(map_data.get("name", map_name))
+			break
+	map_loading_label.text = "正在加载：%s\n正在生成场景、贴图与光照..." % display_name
+	map_loading_layer.visible = true
+	# 地图加载是同步任务；强制先提交一帧，避免大地图加载时窗口看起来卡死。
+	RenderingServer.force_draw()
+
+func _hide_map_loading_screen() -> void:
+	if map_loading_layer != null:
+		map_loading_layer.visible = false
+
 func _load_active_map() -> bool:
-	if _load_map_from_path(selected_map_path):
-		return true
-	for map_path in _map_search_paths():
-		if map_path == selected_map_path:
-			continue
-		if _load_map_from_path(map_path):
-			return true
-	_clear_map()
-	map_root = Node3D.new()
-	map_root.name = "LegacyBuiltinMap"
-	add_child(map_root)
-	_build_arena()
-	map_name = "内置备用地图"
-	active_map_path = "legacy_builtin"
-	_apply_map_environment({})
-	_update_map_ui()
-	if debug_mode:
-		_refresh_debug_collision_shapes()
-	return true
+	_show_map_loading_screen()
+	var loaded := _load_map_from_path(selected_map_path)
+	if not loaded:
+		for map_path in _map_search_paths():
+			if map_path == selected_map_path:
+				continue
+			if _load_map_from_path(map_path):
+				loaded = true
+				break
+	if not loaded:
+		_clear_map()
+		map_root = Node3D.new()
+		map_root.name = "LegacyBuiltinMap"
+		add_child(map_root)
+		_build_arena()
+		map_name = "内置备用地图"
+		active_map_path = "legacy_builtin"
+		_apply_map_environment({})
+		_update_map_ui()
+		if debug_mode:
+			_refresh_debug_collision_shapes()
+		loaded = true
+	call_deferred("_hide_map_loading_screen")
+	return loaded
 
 func _load_map_from_path(map_path: String) -> bool:
 	if map_path.is_empty() or not FileAccess.file_exists(map_path):
