@@ -241,6 +241,9 @@ func apply_speed_multiplier(multiplier: float, duration: float) -> void:
 	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
 	move_speed_effect_time = maxf(duration, 0.0)
 
+func is_catch_disabled_by_slow() -> bool:
+	return move_speed_effect_time > 0.0 and move_speed_multiplier < 1.0
+
 func _line_to_target_blocked() -> bool:
 	var from: Vector3 = global_position + Vector3.UP * 0.9
 	var to: Vector3 = target.global_position + Vector3.UP * 0.75

@@ -10,7 +10,7 @@ const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
 const PORT = 24591
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
-const GAME_VERSION := "1.0"
+const GAME_VERSION := "1.5"
 const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const USE_RL_POLICY_RUNNER := true
@@ -53,6 +53,7 @@ const THROWABLE_AI_THROW_MAX_DISTANCE := 17.5
 const THROWABLE_NOTICE_DURATION := 2.2
 const THROWABLE_PICKUP_NOTICE_PROTECT := 1.15
 const TAGGER_HITS_TO_WIN := 10
+const ROUND_TIME_LIMIT_SECONDS := 300.0
 const SLOW_PARTICLE_MOVE_THRESHOLD := 0.18
 const ACTION_CONFIRM_DURATION := 2.0
 const OPPONENT_MINIMAP_MEMORY := 5.0
@@ -154,6 +155,10 @@ var caught := false
 var ai_catch_cooldown := 0.0
 var catch_cooldown_remaining := 0.0
 var game_mode := "title"
+# When true a single_chase round runs with BOTH sides driven by the trained
+# self-play AI so the player can watch the tagger and runner fight each other.
+var ai_vs_ai_spectate := false
+var spectator_camera: Camera3D = null
 var network_started := false
 var remote_peer_id := 0
 var host_is_runner := true
@@ -260,7 +265,7 @@ func _process(delta: float) -> void:
 		if game_mode == "single":
 			_start_single_game()
 		elif game_mode == "single_chase":
-			_start_single_chase_game()
+			_start_ai_vs_ai_game() if ai_vs_ai_spectate else _start_single_chase_game()
 		elif game_mode == "host" and remote_peer_id != 0:
 			_start_synced_network_round()
 		return
@@ -276,6 +281,9 @@ func _process(delta: float) -> void:
 		return
 
 	time_alive += delta
+	if (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") and time_alive >= ROUND_TIME_LIMIT_SECONDS:
+		_on_runner_time_limit_survived()
+		return
 	ai_catch_cooldown = maxf(ai_catch_cooldown - delta, 0.0)
 	catch_cooldown_remaining = maxf(catch_cooldown_remaining - delta, 0.0)
 	_update_throwables(delta)
@@ -287,13 +295,7 @@ func _process(delta: float) -> void:
 	var catch_offset: Vector3 = player.global_position - tagger.global_position
 	catch_offset.y = 0.0
 	var distance: float = catch_offset.length()
-	if hud_label != null:
-		var local_actor := _local_controlled_actor()
-		if local_actor != null:
-			var actor_position := local_actor.global_position
-			hud_label.text = "时间  %.1f 秒\n坐标  X %.1f  Y %.1f  Z %.1f" % [time_alive, actor_position.x, actor_position.y, actor_position.z]
-		else:
-			hud_label.text = "时间  %.1f 秒" % time_alive
+	_update_round_hud()
 	_update_catch_crosshair()
 	_update_direction_marker()
 	_update_threat_overlay(distance)
@@ -308,8 +310,26 @@ func _process(delta: float) -> void:
 	if _local_is_tagger() and Input.is_action_just_pressed("catch_attack") and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
 		_request_local_catch_attempt()
 
-	if game_mode == "single":
+	if game_mode == "single" or ai_vs_ai_spectate:
 		_try_ai_catch_attempt(distance)
+
+	if ai_vs_ai_spectate:
+		_update_spectator_camera(delta)
+
+func _format_round_time(seconds: float) -> String:
+	var total := maxi(int(ceil(maxf(seconds, 0.0))), 0)
+	return "%02d:%02d" % [total / 60, total % 60]
+
+func _update_round_hud() -> void:
+	if hud_label == null:
+		return
+	var remaining := maxf(ROUND_TIME_LIMIT_SECONDS - time_alive, 0.0)
+	var text := "剩余时间 %s\n命中进度 %d / %d" % [_format_round_time(remaining), tagger_hit_count, TAGGER_HITS_TO_WIN]
+	var local_actor := _local_controlled_actor()
+	if local_actor != null:
+		var actor_position: Vector3 = local_actor.global_position
+		text += "\n坐标  X %.1f  Y %.1f  Z %.1f" % [actor_position.x, actor_position.y, actor_position.z]
+	hud_label.text = text
 
 func _confirm_round_action(action: String) -> bool:
 	if center_label == null:
@@ -602,6 +622,13 @@ func _build_title_ui() -> void:
 	single_chase_button.pressed.connect(Callable(self, "_start_single_chase_game"))
 	box.add_child(single_chase_button)
 	menu_controls.append(single_chase_button)
+
+	var ai_vs_ai_button := Button.new()
+	ai_vs_ai_button.text = "观战模式：追逐 AI VS 躲藏 AI"
+	_style_button(ai_vs_ai_button, Color(0.55, 0.32, 0.85), Color(0.22, 0.1, 0.42))
+	ai_vs_ai_button.pressed.connect(Callable(self, "_start_ai_vs_ai_game"))
+	box.add_child(ai_vs_ai_button)
+	menu_controls.append(ai_vs_ai_button)
 
 	var host_button := Button.new()
 	host_button.text = "创建联机房间"
@@ -1032,8 +1059,8 @@ func _show_title(message: String) -> void:
 	if win_time_row != null:
 		win_time_row.visible = true
 	if win_time_spinbox != null:
-		win_time_spinbox.editable = true
-		win_time_spinbox.set_value_no_signal(win_time_seconds)
+		win_time_spinbox.editable = false
+		win_time_spinbox.set_value_no_signal(ROUND_TIME_LIMIT_SECONDS)
 	if title_status != null:
 		title_status.text = message
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -1062,6 +1089,15 @@ func _start_single_game() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 func _start_single_chase_game() -> void:
+	ai_vs_ai_spectate = false
+	_begin_single_chase_round()
+
+func _start_ai_vs_ai_game() -> void:
+	# Watch the self-play trained tagger and runner AIs battle each other.
+	ai_vs_ai_spectate = true
+	_begin_single_chase_round()
+
+func _begin_single_chase_round() -> void:
 	_refresh_win_time_from_ui()
 	_close_network()
 	_clear_characters()
@@ -1082,7 +1118,7 @@ func _start_single_chase_game() -> void:
 	_prepare_throwable_round_state()
 	_apply_camera_mode_to_local_actor()
 	call_deferred("_apply_camera_mode_to_local_actor")
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED if not ai_vs_ai_spectate else Input.MOUSE_MODE_VISIBLE)
 
 func _start_host_game() -> void:
 	_refresh_win_time_from_ui()
@@ -1173,10 +1209,10 @@ func _update_lobby_ui() -> void:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "追逐者" if local_role == "躲藏者" else "躲藏者"
-	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n通关条件：躲藏者击中追逐者 %d 次\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, TAGGER_HITS_TO_WIN, map_name, _camera_mode_display_name()]
+	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n通关条件：躲藏者击中追逐者 %d 次，或坚持 5 分钟没被抓到\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, TAGGER_HITS_TO_WIN, map_name, _camera_mode_display_name()]
 	if win_time_spinbox != null:
-		win_time_spinbox.editable = multiplayer.is_server()
-		win_time_spinbox.set_value_no_signal(win_time_seconds)
+		win_time_spinbox.editable = false
+		win_time_spinbox.set_value_no_signal(ROUND_TIME_LIMIT_SECONDS)
 	if start_game_button != null:
 		start_game_button.visible = multiplayer.is_server()
 		start_game_button.disabled = not multiplayer.is_server() or remote_peer_id == 0
@@ -1249,9 +1285,9 @@ func _rpc_request_role_switch() -> void:
 	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
 
 @rpc("call_remote", "reliable")
-func _rpc_sync_lobby(new_host_is_runner: bool, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String, message: String) -> void:
+func _rpc_sync_lobby(new_host_is_runner: bool, _new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String, message: String) -> void:
 	host_is_runner = new_host_is_runner
-	win_time_seconds = new_win_time_seconds
+	win_time_seconds = ROUND_TIME_LIMIT_SECONDS
 	runner_skin_id = new_runner_skin_id
 	tagger_skin_id = new_tagger_skin_id
 	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
@@ -1559,11 +1595,22 @@ func _spawn_single_chase_characters() -> void:
 	_place_character_at_spawn(player, runner_spawn_position)
 
 	tagger = CharacterBody3D.new()
-	tagger.name = "PlayerTagger"
-	tagger.set_script(NetworkActorScript)
-	tagger.configure("tagger", 1, tagger_skin_id)
-	add_child(tagger)
-	_place_character_at_spawn(tagger, tagger_spawn_position)
+	if ai_vs_ai_spectate:
+		# Both sides are self-play trained AI battling each other; the local
+		# player only spectates.
+		tagger.name = "AITagger"
+		tagger.set_script(RLPolicyTaggerScript if USE_RL_POLICY_TAGGER else TaggerScript)
+		tagger.skin_id = tagger_skin_id
+		add_child(tagger)
+		_place_character_at_spawn(tagger, tagger_spawn_position)
+		tagger.target = player
+		_create_spectator_camera()
+	else:
+		tagger.name = "PlayerTagger"
+		tagger.set_script(NetworkActorScript)
+		tagger.configure("tagger", 1, tagger_skin_id)
+		add_child(tagger)
+		_place_character_at_spawn(tagger, tagger_spawn_position)
 	player.target = tagger
 	player.target_last_position = tagger.global_position
 
@@ -1600,11 +1647,48 @@ func _place_character_at_spawn(character: CharacterBody3D, configured_position: 
 	if "remote_velocity" in character:
 		character.remote_velocity = Vector3.ZERO
 
+func _create_spectator_camera() -> void:
+	if spectator_camera != null and is_instance_valid(spectator_camera):
+		spectator_camera.queue_free()
+	spectator_camera = Camera3D.new()
+	spectator_camera.name = "SpectatorCamera"
+	add_child(spectator_camera)
+	spectator_camera.current = true
+	_update_spectator_camera(0.0, true)
+
+func _update_spectator_camera(delta: float, snap: bool = false) -> void:
+	if spectator_camera == null or not is_instance_valid(spectator_camera):
+		return
+	if player == null or not is_instance_valid(player) or tagger == null or not is_instance_valid(tagger):
+		return
+	# Frame both fighters: sit behind their midpoint and look at it, backing off
+	# as the gap between tagger and runner grows.
+	var a: Vector3 = player.global_position
+	var b: Vector3 = tagger.global_position
+	var mid: Vector3 = (a + b) * 0.5
+	var gap: float = a.distance_to(b)
+	var back_dir: Vector3 = (b - a)
+	back_dir.y = 0.0
+	if back_dir.length_squared() < 0.01:
+		back_dir = Vector3.FORWARD
+	back_dir = back_dir.normalized()
+	var side: Vector3 = back_dir.cross(Vector3.UP).normalized()
+	var distance: float = clampf(gap * 0.9 + 8.0, 10.0, 34.0)
+	var desired: Vector3 = mid + side * distance * 0.4 + Vector3.UP * (distance * 0.55 + 4.0) - back_dir * distance * 0.5
+	if snap:
+		spectator_camera.global_position = desired
+	else:
+		spectator_camera.global_position = spectator_camera.global_position.lerp(desired, clampf(delta * 4.0, 0.0, 1.0))
+	spectator_camera.look_at(mid + Vector3.UP * 1.0, Vector3.UP)
+
 func _clear_characters() -> void:
 	if player != null and is_instance_valid(player):
 		player.queue_free()
 	if tagger != null and is_instance_valid(tagger):
 		tagger.queue_free()
+	if spectator_camera != null and is_instance_valid(spectator_camera):
+		spectator_camera.queue_free()
+	spectator_camera = null
 	player = null
 	tagger = null
 
@@ -1677,8 +1761,11 @@ func _grounded_spawn_position(base_position: Vector3) -> Vector3:
 	var point := hit.get("position", base_position) as Vector3
 	return point + Vector3.UP * 0.08
 
+func _tagger_catch_disabled_by_slow() -> bool:
+	return tagger != null and is_instance_valid(tagger) and tagger.has_method("is_catch_disabled_by_slow") and tagger.is_catch_disabled_by_slow()
+
 func _request_local_catch_attempt() -> void:
-	if tagger == null or not is_instance_valid(tagger) or catch_cooldown_remaining > 0.0:
+	if tagger == null or not is_instance_valid(tagger) or catch_cooldown_remaining > 0.0 or _tagger_catch_disabled_by_slow():
 		return
 	var origin: Vector3 = tagger.get_catch_origin() if tagger.has_method("get_catch_origin") else tagger.global_position + Vector3.UP * 1.0
 	var direction: Vector3 = tagger.get_catch_direction() if tagger.has_method("get_catch_direction") else -tagger.global_transform.basis.z
@@ -1694,7 +1781,7 @@ func _request_local_catch_attempt() -> void:
 @rpc("any_peer", "reliable")
 func _rpc_request_catch(origin: Vector3, direction: Vector3) -> void:
 	var sender_id := multiplayer.get_remote_sender_id()
-	if not multiplayer.is_server() or sender_id != _tagger_peer_id() or caught or catch_cooldown_remaining > 0.0:
+	if not multiplayer.is_server() or sender_id != _tagger_peer_id() or caught or catch_cooldown_remaining > 0.0 or _tagger_catch_disabled_by_slow():
 		return
 	catch_cooldown_remaining = CATCH_COOLDOWN
 	_play_catch_effect(origin, direction)
@@ -1710,7 +1797,7 @@ func _broadcast_catch_effect(origin: Vector3, direction: Vector3) -> void:
 		rpc_id(remote_peer_id, "_rpc_play_catch_effect", origin, direction)
 
 func _try_ai_catch_attempt(flat_distance: float) -> void:
-	if ai_catch_cooldown > 0.0 or flat_distance > CATCH_RANGE + 0.5:
+	if ai_catch_cooldown > 0.0 or flat_distance > CATCH_RANGE + 0.5 or _tagger_catch_disabled_by_slow():
 		return
 	if tagger.has_method("should_consume_ai_catch_attempt") and not tagger.should_consume_ai_catch_attempt():
 		return
@@ -1816,18 +1903,21 @@ func _play_catch_effect(origin: Vector3, direction: Vector3) -> void:
 	if is_instance_valid(effect_root):
 		effect_root.queue_free()
 
-func _on_runner_survived() -> void:
+func _on_runner_survived(reason: String = "") -> void:
 	caught = true
 	_update_catch_crosshair()
 	_clear_tagger_slow_particles()
 	player.is_control_locked = true
 	tagger.is_active = false
-	if game_mode == "single":
-		center_label.text = "躲藏者胜利！\n已击中追逐者 %d 次\n用时 %.2f 秒\n按 R 重新开始" % [tagger_hit_count, time_alive]
+	var result_detail := reason if not reason.is_empty() else "已击中追逐者 %d 次" % tagger_hit_count
+	if ai_vs_ai_spectate:
+		center_label.text = "躲藏 AI 获胜！\n%s\n本局耗时 %.2f 秒\n按 R 再看一局" % [result_detail, time_alive]
+	elif game_mode == "single":
+		center_label.text = "躲藏者胜利！\n%s\n用时 %.2f 秒\n按 R 重新开始" % [result_detail, time_alive]
 	elif game_mode == "single_chase":
-		center_label.text = "AI 躲藏者胜利！\n它击中追逐者 %d 次\n用时 %.2f 秒\n按 R 重新挑战" % [tagger_hit_count, time_alive]
+		center_label.text = "AI 躲藏者胜利！\n%s\n用时 %.2f 秒\n按 R 重新挑战" % [result_detail, time_alive]
 	else:
-		center_label.text = "本局结束\n躲藏者胜利！\n已击中追逐者 %d 次\n用时 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [tagger_hit_count, time_alive, MULTIPLAYER_RESULT_DELAY]
+		center_label.text = "本局结束\n躲藏者胜利！\n%s\n用时 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [result_detail, time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
 		rpc("_rpc_runner_survived", time_alive, tagger_hit_count)
@@ -1853,15 +1943,20 @@ func _on_player_caught() -> void:
 func _on_runner_fell() -> void:
 	_finish_runner_failed("躲藏者掉出地图！")
 
+func _on_runner_time_limit_survived() -> void:
+	_on_runner_survived("坚持 5 分钟没有被追逐者抓到")
+
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
 	_clear_tagger_slow_particles()
 	player.is_control_locked = true
 	tagger.is_active = false
-	if game_mode == "single":
-		center_label.text = "%s\n追逐者胜利\n坚持了 %.2f 秒\n按 R 重新开始" % [reason, time_alive]
+	if ai_vs_ai_spectate:
+		center_label.text = "%s\n追逐 AI 获胜！\n本局耗时 %.2f 秒\n按 R 再看一局" % [reason, time_alive]
+	elif game_mode == "single":
+		center_label.text = "%s\n追逐者胜利\n本局耗时 %.2f 秒\n按 R 重新开始" % [reason, time_alive]
 	elif game_mode == "single_chase":
-		center_label.text = "%s\n你抓到了 AI 躲藏者！\n用时 %.2f 秒\n按 R 重新挑战" % [reason, time_alive]
+		center_label.text = "%s\n追逐方获胜！\n本局耗时 %.2f 秒\n按 R 重新挑战" % [reason, time_alive]
 	else:
 		center_label.text = "本局结束\n%s\n追逐者胜利\n坚持了 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [reason, time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
@@ -2462,7 +2557,10 @@ func _update_catch_crosshair() -> void:
 	catch_cd_label.visible = show_cd
 	if not show_cd:
 		return
-	if catch_cooldown_remaining > 0.0:
+	if _tagger_catch_disabled_by_slow():
+		catch_cd_label.text = "减速中无法抓捕"
+		catch_cd_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0, 0.95))
+	elif catch_cooldown_remaining > 0.0:
 		catch_cd_label.text = "抓捕冷却 %.1fs" % catch_cooldown_remaining
 		catch_cd_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.3, 0.95))
 	else:

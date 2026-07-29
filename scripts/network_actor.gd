@@ -130,6 +130,9 @@ func apply_speed_multiplier(multiplier: float, duration: float) -> void:
 	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
 	move_speed_effect_time = maxf(duration, 0.0)
 
+func is_catch_disabled_by_slow() -> bool:
+	return move_speed_effect_time > 0.0 and move_speed_multiplier < 1.0
+
 func _send_state(delta: float) -> void:
 	if multiplayer.multiplayer_peer == null:
 		return
