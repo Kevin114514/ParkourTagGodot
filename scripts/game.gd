@@ -8,11 +8,13 @@ const RLPolicyTaggerScript = preload("res://scripts/rl_policy_tagger.gd")
 const NetworkActorScript = preload("res://scripts/network_actor.gd")
 const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
-# Quaternius 模型，通过 Poly Pizza 获取，均为 CC0 1.0。
+# 减速弹与药剂模型来自 Quaternius/Poly Pizza（CC0 1.0）；透视卡为项目内建立体模型。
 const THROWABLE_MODEL_PATH := "res://assets/throwables/scifi_slow_grenade.glb"
 const SPEED_BOOST_MODEL_PATH := "res://assets/throwables/speed_boost_potion.glb"
+const VISION_CARD_MODEL_PATH := "res://assets/throwables/vision_card.tscn"
 const ITEM_TYPE_SLOW_GRENADE := "slow_grenade"
 const ITEM_TYPE_SPEED_BOOST := "speed_boost"
+const ITEM_TYPE_VISION_CARD := "vision_card"
 const PORT = 24591
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
 const GAME_VERSION := "1.5.1"
@@ -44,6 +46,8 @@ const THROWABLE_SLOW_DURATION := 2.6
 const SPEED_BOOST_MULTIPLIER := 1.45
 const SPEED_BOOST_DURATION := 2.0
 const SPEED_BOOST_SPAWN_CHANCE := 0.35
+const TAGGER_CARD_RESPAWN_TARGET := 4
+const TAGGER_VISION_CARD_DURATION := 7.0
 const HUD_REFERENCE_HEIGHT := 720.0
 const HUD_FULLSCREEN_SCALE_BONUS := 1.10
 const HUD_FULLSCREEN_MAX_SCALE := 1.80
@@ -139,6 +143,9 @@ var slow_grenade_slot: PanelContainer
 var speed_boost_slot: PanelContainer
 var slow_grenade_slot_label: Label
 var speed_boost_slot_label: Label
+var tagger_inventory_bar: HBoxContainer
+var vision_card_slot: PanelContainer
+var vision_card_slot_label: Label
 var catch_cd_label: Label
 var direction_marker_label: Label
 var threat_overlay: ColorRect
@@ -220,12 +227,16 @@ var ground_throwables: Dictionary = {}
 var flying_throwables: Dictionary = {}
 var runner_has_slow_grenade := false
 var runner_has_speed_boost := false
+var tagger_has_vision_card := false
+var tagger_vision_timer := 0.0
 var throwable_respawn_timer := THROWABLE_RESPAWN_INTERVAL
 var next_ground_throwable_id := 1
 var next_flying_throwable_id := 1
 var throwable_notice_timer := 0.0
 var throwable_notice_protect_timer := 0.0
 var tagger_slow_particles: Node3D
+var vision_outline_entries: Array[Dictionary] = []
+var vision_outline_material: ShaderMaterial
 var tagger_slow_particle_timer := 0.0
 var tagger_slow_particle_elapsed := 0.0
 var tagger_slow_particle_last_position := Vector3.ZERO
@@ -328,6 +339,7 @@ func _process(delta: float) -> void:
 	var distance: float = catch_offset.length()
 	_update_round_hud()
 	_update_runner_inventory_hud()
+	_update_tagger_inventory_hud()
 	_update_catch_crosshair()
 	_update_direction_marker()
 	_update_threat_overlay(distance)
@@ -341,8 +353,13 @@ func _process(delta: float) -> void:
 		if Input.is_action_just_pressed("use_speed_boost"):
 			_request_local_speed_boost_use()
 
-	if _local_is_tagger() and Input.is_action_just_pressed("catch_attack") and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
-		_request_local_catch_attempt()
+	if _local_is_tagger() and Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		if Input.is_action_just_pressed("pickup_item"):
+			_request_local_tagger_card_pickup()
+		if Input.is_action_just_pressed("use_speed_boost"):
+			_request_local_vision_card_use()
+		if Input.is_action_just_pressed("catch_attack"):
+			_request_local_catch_attempt()
 
 	if game_mode == "single" or ai_vs_ai_spectate:
 		_try_ai_catch_attempt(distance)
@@ -1398,6 +1415,7 @@ func _start_synced_network_round() -> void:
 	var payload := _build_network_start_payload()
 	_start_network_round(remote_peer_id)
 	rpc("_rpc_begin_network_round", payload)
+	call_deferred("_sync_ground_items_to_peer", remote_peer_id)
 
 func _build_network_start_payload() -> Dictionary:
 	return {
@@ -1776,6 +1794,7 @@ func _update_spectator_camera(delta: float, snap: bool = false) -> void:
 	spectator_camera.look_at(mid + Vector3.UP * 1.0, Vector3.UP)
 
 func _clear_characters() -> void:
+	_clear_vision_outline()
 	if player != null and is_instance_valid(player):
 		player.queue_free()
 	if tagger != null and is_instance_valid(tagger):
@@ -2495,6 +2514,7 @@ func _build_hud() -> void:
 	hud_layer.add_child(throwable_notice_label)
 
 	_build_runner_inventory_ui()
+	_build_tagger_inventory_ui()
 
 	# 追逐者抓捕冷却显示（右下角）
 	catch_cd_label = Label.new()
@@ -2584,6 +2604,15 @@ func _apply_hud_layout_scale() -> void:
 		slow_grenade_slot_label.add_theme_font_size_override("font_size", roundi(17.0 * scale))
 	if speed_boost_slot_label != null:
 		speed_boost_slot_label.add_theme_font_size_override("font_size", roundi(17.0 * scale))
+	if tagger_inventory_bar != null:
+		tagger_inventory_bar.offset_left = 18.0 * scale
+		tagger_inventory_bar.offset_top = -128.0 * scale
+		tagger_inventory_bar.offset_right = 202.0 * scale
+		tagger_inventory_bar.offset_bottom = -18.0 * scale
+	if vision_card_slot != null:
+		vision_card_slot.custom_minimum_size = Vector2(184.0, 110.0) * scale
+	if vision_card_slot_label != null:
+		vision_card_slot_label.add_theme_font_size_override("font_size", roundi(17.0 * scale))
 
 	if minimap_panel == null:
 		return
@@ -2652,6 +2681,44 @@ func _update_runner_inventory_hud() -> void:
 		return
 	_update_inventory_slot(slow_grenade_slot, slow_grenade_slot_label, "减速弹", "左键投掷", runner_has_slow_grenade, Color(0.18, 0.72, 1.0))
 	_update_inventory_slot(speed_boost_slot, speed_boost_slot_label, "加速剂", "E 使用", runner_has_speed_boost, Color(0.24, 1.0, 0.42))
+
+func _build_tagger_inventory_ui() -> void:
+	tagger_inventory_bar = HBoxContainer.new()
+	tagger_inventory_bar.anchor_left = 0.0
+	tagger_inventory_bar.anchor_top = 1.0
+	tagger_inventory_bar.anchor_right = 0.0
+	tagger_inventory_bar.anchor_bottom = 1.0
+	tagger_inventory_bar.offset_left = 18.0
+	tagger_inventory_bar.offset_top = -128.0
+	tagger_inventory_bar.offset_right = 202.0
+	tagger_inventory_bar.offset_bottom = -18.0
+	tagger_inventory_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_layer.add_child(tagger_inventory_bar)
+
+	vision_card_slot = PanelContainer.new()
+	vision_card_slot.custom_minimum_size = Vector2(184.0, 110.0)
+	tagger_inventory_bar.add_child(vision_card_slot)
+	vision_card_slot_label = Label.new()
+	vision_card_slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vision_card_slot_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	vision_card_slot_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vision_card_slot_label.add_theme_font_size_override("font_size", 17)
+	vision_card_slot_label.add_theme_color_override("font_outline_color", Color(0.06, 0.01, 0.12, 0.92))
+	vision_card_slot_label.add_theme_constant_override("outline_size", 3)
+	vision_card_slot.add_child(vision_card_slot_label)
+	_update_tagger_inventory_hud()
+
+func _update_tagger_inventory_hud() -> void:
+	if tagger_inventory_bar == null:
+		return
+	var show_inventory := hud_layer != null and hud_layer.visible and _throwable_system_active() and not caught and _local_is_tagger()
+	tagger_inventory_bar.visible = show_inventory
+	if not show_inventory:
+		return
+	var vision_active := tagger_vision_timer > 0.0
+	_update_inventory_slot(vision_card_slot, vision_card_slot_label, "透视卡", "E 使用", tagger_has_vision_card or vision_active, Color(0.78, 0.24, 1.0))
+	if vision_active:
+		vision_card_slot_label.text = "透视卡\n透视中 %.1fs\n目标位置已显现" % tagger_vision_timer
 
 func _update_inventory_slot(slot: PanelContainer, label: Label, item_name: String, action_hint: String, is_held: bool, accent: Color) -> void:
 	if slot == null or label == null:
@@ -2732,19 +2799,23 @@ func _update_minimap_player() -> void:
 func _update_minimap_rewards() -> void:
 	if minimap_content == null:
 		return
-	while minimap_reward_dots.size() < ground_throwables.size():
+	var visible_items: Array[Dictionary] = []
+	for data in ground_throwables.values():
+		if _local_can_see_item_type(String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))):
+			visible_items.append(data)
+	while minimap_reward_dots.size() < visible_items.size():
 		var dot := ColorRect.new()
-		dot.color = Color(1.0, 0.86, 0.18, 0.95)
 		dot.size = Vector2(7.0, 7.0) * _hud_layout_scale()
 		minimap_reward_dots.append(dot)
 		minimap_content.add_child(dot)
-	var item_index := 0
-	for data in ground_throwables.values():
+	for item_index in range(visible_items.size()):
+		var data := visible_items[item_index]
 		var dot := minimap_reward_dots[item_index]
+		var item_type := String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))
+		dot.color = Color(0.84, 0.3, 1.0, 0.95) if _is_tagger_item_type(item_type) else Color(1.0, 0.86, 0.18, 0.95)
 		dot.position = _world_to_minimap(data.get("position", Vector3.ZERO)) - dot.size * 0.5
 		dot.visible = true
-		item_index += 1
-	for i in range(item_index, minimap_reward_dots.size()):
+	for i in range(visible_items.size(), minimap_reward_dots.size()):
 		minimap_reward_dots[i].visible = false
 
 func _update_minimap_opponent(delta: float) -> void:
@@ -2752,6 +2823,14 @@ func _update_minimap_opponent(delta: float) -> void:
 		return
 	var local_actor := _local_controlled_actor()
 	var opponent := _opponent_actor_for_local_player()
+	var vision_reveals_target := _local_is_tagger() and tagger_vision_timer > 0.0
+	if vision_reveals_target and opponent != null and is_instance_valid(opponent):
+		last_seen_opponent_position = opponent.global_position
+		minimap_opponent_dot.visible = true
+		minimap_opponent_dot.color = Color(0.96, 0.2, 1.0, 1.0)
+		minimap_opponent_dot.position = _world_to_minimap(last_seen_opponent_position) - minimap_opponent_dot.size * 0.5
+		minimap_opponent_dot.move_to_front()
+		return
 	if local_actor != null and opponent != null and _can_see_opponent(local_actor, opponent):
 		opponent_seen_timer = OPPONENT_MINIMAP_MEMORY
 		last_seen_opponent_position = opponent.global_position
@@ -2759,7 +2838,9 @@ func _update_minimap_opponent(delta: float) -> void:
 		opponent_seen_timer = maxf(opponent_seen_timer - delta, 0.0)
 	minimap_opponent_dot.visible = opponent_seen_timer > 0.0
 	if minimap_opponent_dot.visible:
+		minimap_opponent_dot.color = Color(1.0, 0.28, 0.2, 0.95)
 		minimap_opponent_dot.position = _world_to_minimap(last_seen_opponent_position) - minimap_opponent_dot.size * 0.5
+		minimap_opponent_dot.move_to_front()
 
 func _world_to_minimap(world_position: Vector3) -> Vector2:
 	var center := runner_spawn_position.lerp(tagger_spawn_position, 0.5)
@@ -2938,6 +3019,8 @@ func _throwable_system_active() -> bool:
 func _prepare_throwable_round_state() -> void:
 	runner_has_slow_grenade = false
 	runner_has_speed_boost = false
+	tagger_has_vision_card = false
+	tagger_vision_timer = 0.0
 	throwable_respawn_timer = 0.15
 	next_ground_throwable_id = 1
 	next_flying_throwable_id = 1
@@ -2951,6 +3034,8 @@ func _prepare_throwable_round_state() -> void:
 func _clear_all_throwables() -> void:
 	runner_has_slow_grenade = false
 	runner_has_speed_boost = false
+	tagger_has_vision_card = false
+	tagger_vision_timer = 0.0
 	throwable_respawn_timer = THROWABLE_RESPAWN_INTERVAL
 	for data in ground_throwables.values():
 		var node := data.get("node", null) as Node3D
@@ -2966,19 +3051,42 @@ func _clear_all_throwables() -> void:
 	_hide_throwable_notice()
 	_hide_held_throwable_visual()
 	_clear_tagger_slow_particles()
+	_clear_vision_outline()
 	_update_runner_inventory_hud()
+	_update_tagger_inventory_hud()
 
 func _runner_inventory_full() -> bool:
 	return runner_has_slow_grenade and runner_has_speed_boost
 
+func _is_runner_item_type(item_type: String) -> bool:
+	return item_type == ITEM_TYPE_SLOW_GRENADE or item_type == ITEM_TYPE_SPEED_BOOST
+
+func _is_tagger_item_type(item_type: String) -> bool:
+	return item_type == ITEM_TYPE_VISION_CARD
+
+func _local_can_see_item_type(item_type: String) -> bool:
+	if _local_is_runner():
+		return _is_runner_item_type(item_type)
+	if _local_is_tagger():
+		return _is_tagger_item_type(item_type)
+	return false
+
 func _runner_can_pickup_item_type(item_type: String) -> bool:
 	if item_type == ITEM_TYPE_SPEED_BOOST:
 		return not runner_has_speed_boost
-	return not runner_has_slow_grenade
+	if item_type == ITEM_TYPE_SLOW_GRENADE:
+		return not runner_has_slow_grenade
+	return false
+
+func _tagger_can_pickup_item_type(item_type: String) -> bool:
+	return item_type == ITEM_TYPE_VISION_CARD and not tagger_has_vision_card
 
 func _update_throwables(delta: float) -> void:
 	if not _throwable_system_active() or caught:
+		_clear_vision_outline()
 		return
+	tagger_vision_timer = maxf(tagger_vision_timer - delta, 0.0)
+	_update_vision_outline()
 	if multiplayer.multiplayer_peer == null or multiplayer.is_server():
 		throwable_respawn_timer = maxf(throwable_respawn_timer - delta, 0.0)
 		if throwable_respawn_timer <= 0.0:
@@ -3031,15 +3139,29 @@ func _has_clear_throw_line(from: Vector3, to: Vector3) -> bool:
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	return hit.is_empty()
 
+func _ground_item_count(item_type: String) -> int:
+	var count := 0
+	for data in ground_throwables.values():
+		if String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE)) == item_type:
+			count += 1
+	return count
+
+func _ground_runner_item_count() -> int:
+	return _ground_item_count(ITEM_TYPE_SLOW_GRENADE) + _ground_item_count(ITEM_TYPE_SPEED_BOOST)
+
+func _ground_items_filled() -> bool:
+	return _ground_runner_item_count() >= THROWABLE_RESPAWN_TARGET and _ground_item_count(ITEM_TYPE_VISION_CARD) >= TAGGER_CARD_RESPAWN_TARGET
+
 func _maybe_fill_throwable_spawns(force_fill: bool) -> void:
 	if not _throwable_system_active():
 		return
-	if not force_fill and ground_throwables.size() >= THROWABLE_RESPAWN_TARGET:
+	if not force_fill and _ground_items_filled():
 		throwable_respawn_timer = THROWABLE_RESPAWN_INTERVAL
 		return
 	_ensure_throwable_root()
 	var fill_attempts := 0
-	while ground_throwables.size() < THROWABLE_RESPAWN_TARGET and fill_attempts < THROWABLE_RESPAWN_TARGET * 4:
+	var total_target := THROWABLE_RESPAWN_TARGET + TAGGER_CARD_RESPAWN_TARGET
+	while not _ground_items_filled() and fill_attempts < total_target * 6:
 		fill_attempts += 1
 		var spawn_position: Variant = _find_throwable_spawn_position()
 		if spawn_position == null:
@@ -3050,18 +3172,18 @@ func _maybe_fill_throwable_spawns(force_fill: bool) -> void:
 	throwable_respawn_timer = THROWABLE_RESPAWN_INTERVAL
 
 func _choose_ground_item_type() -> String:
-	var grenade_count := 0
-	var boost_count := 0
-	for data in ground_throwables.values():
-		if String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE)) == ITEM_TYPE_SPEED_BOOST:
-			boost_count += 1
-		else:
-			grenade_count += 1
-	var remaining_slots := THROWABLE_RESPAWN_TARGET - ground_throwables.size()
-	# 每轮补满时至少生成一枚减速弹和一瓶加速剂，余下位置再按概率分配。
-	if grenade_count == 0 and remaining_slots <= 1:
+	var grenade_count := _ground_item_count(ITEM_TYPE_SLOW_GRENADE)
+	var boost_count := _ground_item_count(ITEM_TYPE_SPEED_BOOST)
+	var card_count := _ground_item_count(ITEM_TYPE_VISION_CARD)
+	var runner_count := grenade_count + boost_count
+	var runner_slots_left := THROWABLE_RESPAWN_TARGET - runner_count
+	var card_slots_left := TAGGER_CARD_RESPAWN_TARGET - card_count
+	if card_slots_left > 0 and (runner_slots_left <= 0 or randf() < 0.35):
+		return ITEM_TYPE_VISION_CARD
+	# 逃脱方保持至少一枚减速弹和一瓶加速剂，剩余槽位按既有概率分配。
+	if grenade_count == 0 and runner_slots_left <= 1:
 		return ITEM_TYPE_SLOW_GRENADE
-	if boost_count == 0 and remaining_slots <= 1:
+	if boost_count == 0 and runner_slots_left <= 1:
 		return ITEM_TYPE_SPEED_BOOST
 	return ITEM_TYPE_SPEED_BOOST if randf() < SPEED_BOOST_SPAWN_CHANCE else ITEM_TYPE_SLOW_GRENADE
 
@@ -3197,10 +3319,13 @@ func _spawn_ground_throwable(position: Vector3, item_id: int = -1, item_type: St
 		next_ground_throwable_id += 1
 	else:
 		next_ground_throwable_id = max(next_ground_throwable_id, item_id + 1)
-	var resolved_type := item_type if item_type == ITEM_TYPE_SPEED_BOOST else ITEM_TYPE_SLOW_GRENADE
+	var resolved_type := item_type
+	if not _is_runner_item_type(resolved_type) and not _is_tagger_item_type(resolved_type):
+		resolved_type = ITEM_TYPE_SLOW_GRENADE
 	var node := _create_ground_item_visual(resolved_type)
 	node.name = "GroundItem_%s_%d" % [resolved_type, resolved_id]
 	node.position = position
+	node.visible = _local_can_see_item_type(resolved_type)
 	throwable_root.add_child(node)
 	ground_throwables[resolved_id] = {"id": resolved_id, "node": node, "position": position, "item_type": resolved_type}
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
@@ -3277,6 +3402,108 @@ func _pickup_throwable_on_authority(item_id: int) -> void:
 			_show_throwable_notice("已拾取减速弹！单击左键投掷", Color(0.34, 1.0, 0.58), true)
 	_sync_runner_inventory_state()
 
+func _request_local_tagger_card_pickup() -> void:
+	if not _local_is_tagger():
+		return
+	var nearest_id := _find_tagger_card_pickup_candidate(_get_local_actor(), THROWABLE_PICKUP_RANGE)
+	if nearest_id < 0:
+		var message := "已携带透视卡" if tagger_has_vision_card else "附近没有可拾取的透视卡"
+		_show_throwable_notice(message, Color(0.9, 0.5, 1.0), false)
+		return
+	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
+		rpc_id(1, "_rpc_request_pickup_tagger_card", nearest_id)
+		return
+	_pickup_tagger_card_on_authority(nearest_id)
+
+func _find_tagger_card_pickup_candidate(actor: Node3D, pickup_range: float) -> int:
+	if actor == null or not is_instance_valid(actor):
+		return -1
+	var best_id := -1
+	var best_distance := pickup_range
+	for item_id in ground_throwables.keys():
+		var data: Dictionary = ground_throwables[item_id]
+		if not _tagger_can_pickup_item_type(String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))):
+			continue
+		var distance := actor.global_position.distance_to(data.get("position", Vector3.ZERO))
+		if distance < best_distance:
+			best_distance = distance
+			best_id = int(item_id)
+	return best_id
+
+func _pickup_tagger_card_on_authority(item_id: int) -> void:
+	if not ground_throwables.has(item_id) or tagger == null or not is_instance_valid(tagger):
+		return
+	var data: Dictionary = ground_throwables[item_id]
+	var item_type := String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE))
+	var position: Vector3 = data.get("position", Vector3.ZERO)
+	if not _tagger_can_pickup_item_type(item_type) or tagger.global_position.distance_to(position) > THROWABLE_PICKUP_RANGE + 0.25:
+		return
+	_remove_ground_throwable(item_id, true)
+	tagger_has_vision_card = true
+	if _local_is_tagger():
+		_show_throwable_notice("已拾取透视卡！按 E 使用", Color(0.9, 0.5, 1.0), true)
+	_sync_tagger_card_state()
+
+func _sync_tagger_card_state() -> void:
+	_update_tagger_inventory_hud()
+	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
+		rpc_id(remote_peer_id, "_rpc_set_tagger_card_state", tagger_has_vision_card)
+
+func _request_local_vision_card_use() -> void:
+	if not _local_is_tagger():
+		return
+	if not tagger_has_vision_card:
+		_show_throwable_notice("没有透视卡，靠近后按 F 拾取", Color(1.0, 0.78, 0.22), false)
+		return
+	if multiplayer.multiplayer_peer != null and not multiplayer.is_server():
+		rpc_id(1, "_rpc_request_use_vision_card")
+		return
+	_use_vision_card_on_authority()
+
+func _use_vision_card_on_authority() -> void:
+	if not tagger_has_vision_card:
+		return
+	tagger_has_vision_card = false
+	tagger_vision_timer = TAGGER_VISION_CARD_DURATION
+	_update_vision_outline()
+	if _local_is_tagger():
+		_show_throwable_notice("透视卡已激活：小地图与穿墙轮廓显示 %.0f 秒" % TAGGER_VISION_CARD_DURATION, Color(0.9, 0.5, 1.0), true)
+	_sync_tagger_card_state()
+	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
+		rpc_id(remote_peer_id, "_rpc_activate_vision_card", TAGGER_VISION_CARD_DURATION)
+
+func _update_vision_outline() -> void:
+	var should_show := _local_is_tagger() and tagger_vision_timer > 0.0 and player != null and is_instance_valid(player)
+	if not should_show:
+		_clear_vision_outline()
+		return
+	if not vision_outline_entries.is_empty():
+		return
+	if vision_outline_material == null:
+		var outline_shader := Shader.new()
+		outline_shader.code = "shader_type spatial;\nrender_mode unshaded, depth_test_disabled, cull_front;\nvoid vertex() { VERTEX += NORMAL * 0.065; }\nvoid fragment() { ALBEDO = vec3(0.95, 0.08, 1.0); EMISSION = vec3(1.3, 0.05, 1.8); }"
+		vision_outline_material = ShaderMaterial.new()
+		vision_outline_material.shader = outline_shader
+		vision_outline_material.render_priority = 127
+	var runner_meshes: Array[MeshInstance3D] = []
+	_collect_vision_meshes(player, runner_meshes)
+	for mesh in runner_meshes:
+		vision_outline_entries.append({"mesh": mesh, "previous_overlay": mesh.material_overlay})
+		mesh.material_overlay = vision_outline_material
+
+func _collect_vision_meshes(node: Node, output: Array[MeshInstance3D]) -> void:
+	if node is MeshInstance3D:
+		output.append(node as MeshInstance3D)
+	for child in node.get_children():
+		_collect_vision_meshes(child, output)
+
+func _clear_vision_outline() -> void:
+	for entry in vision_outline_entries:
+		var mesh := entry.get("mesh", null) as MeshInstance3D
+		if mesh != null and is_instance_valid(mesh):
+			mesh.material_overlay = entry.get("previous_overlay", null) as Material
+	vision_outline_entries.clear()
+
 func _sync_runner_inventory_state() -> void:
 	_update_held_throwable_visual()
 	_update_runner_inventory_hud()
@@ -3286,6 +3513,17 @@ func _sync_runner_inventory_state() -> void:
 func _sync_runner_inventory_to_peer(peer_id: int) -> void:
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and peer_id > 0:
 		rpc_id(peer_id, "_rpc_set_runner_inventory_state", runner_has_slow_grenade, runner_has_speed_boost)
+
+func _sync_ground_items_to_peer(peer_id: int) -> void:
+	if multiplayer.multiplayer_peer == null or not multiplayer.is_server() or peer_id <= 0:
+		return
+	for item_id in ground_throwables.keys():
+		var data: Dictionary = ground_throwables[item_id]
+		rpc_id(peer_id, "_rpc_sync_ground_throwable_spawn", int(item_id), data.get("position", Vector3.ZERO), String(data.get("item_type", ITEM_TYPE_SLOW_GRENADE)))
+	_sync_runner_inventory_to_peer(peer_id)
+	rpc_id(peer_id, "_rpc_set_tagger_card_state", tagger_has_vision_card)
+	if tagger_vision_timer > 0.0:
+		rpc_id(peer_id, "_rpc_activate_vision_card", tagger_vision_timer)
 
 func _request_local_speed_boost_use() -> void:
 	if not _local_is_runner():
@@ -3578,7 +3816,61 @@ func _play_throwable_hit_effect(position: Vector3) -> void:
 func _create_ground_item_visual(item_type: String) -> Node3D:
 	if item_type == ITEM_TYPE_SPEED_BOOST:
 		return _create_speed_boost_visual()
+	if item_type == ITEM_TYPE_VISION_CARD:
+		return _create_vision_card_visual()
 	return _create_throwable_visual(false)
+
+func _create_vision_card_visual() -> Node3D:
+	var root := Node3D.new()
+	var model_resource := load(VISION_CARD_MODEL_PATH)
+	if model_resource is PackedScene:
+		var model := (model_resource as PackedScene).instantiate() as Node3D
+		if model != null:
+			model.name = "VisionCardModel"
+			model.position.y = 0.38
+			model.rotation.y = deg_to_rad(20.0)
+			root.add_child(model)
+	else:
+		push_error("无法加载透视卡模型：%s" % VISION_CARD_MODEL_PATH)
+
+	var energy_ring := MeshInstance3D.new()
+	energy_ring.name = "VisionCardEnergyRing"
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.2
+	torus.outer_radius = 0.255
+	torus.rings = 20
+	torus.ring_segments = 10
+	energy_ring.mesh = torus
+	energy_ring.position.y = -0.2
+	var energy_material := StandardMaterial3D.new()
+	energy_material.albedo_color = Color(0.76, 0.16, 1.0)
+	energy_material.metallic = 0.25
+	energy_material.roughness = 0.2
+	energy_material.emission_enabled = true
+	energy_material.emission = Color(0.68, 0.05, 1.0)
+	energy_material.emission_energy_multiplier = 2.0
+	energy_ring.material_override = energy_material
+	energy_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(energy_ring)
+
+	var pickup_marker := MeshInstance3D.new()
+	pickup_marker.name = "VisionCardPickupMarker"
+	var marker_mesh := CylinderMesh.new()
+	marker_mesh.top_radius = 0.32
+	marker_mesh.bottom_radius = 0.32
+	marker_mesh.height = 0.018
+	pickup_marker.mesh = marker_mesh
+	pickup_marker.position.y = -0.2
+	var marker_material := StandardMaterial3D.new()
+	marker_material.albedo_color = Color(0.48, 0.08, 0.75, 0.42)
+	marker_material.emission_enabled = true
+	marker_material.emission = Color(0.58, 0.05, 0.9)
+	marker_material.emission_energy_multiplier = 0.9
+	marker_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pickup_marker.material_override = marker_material
+	pickup_marker.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(pickup_marker)
+	return root
 
 func _create_speed_boost_visual() -> Node3D:
 	var root := Node3D.new()
@@ -3897,7 +4189,9 @@ func _throwable_status_text() -> String:
 	if not _throwable_system_active():
 		return ""
 	if _local_is_runner():
-		return "道具：减速弹 %s｜加速剂 %s（场上 %d 个）" % ["已携带，左键投掷" if runner_has_slow_grenade else "空槽，F 拾取", "已携带，E 使用" if runner_has_speed_boost else "空槽，F 拾取", ground_throwables.size()]
+		return "道具：减速弹 %s｜加速剂 %s（场上逃脱道具 %d 个）" % ["已携带，左键投掷" if runner_has_slow_grenade else "空槽，F 拾取", "已携带，E 使用" if runner_has_speed_boost else "空槽，F 拾取", _ground_runner_item_count()]
+	if _local_is_tagger():
+		return "卡片：透视卡 %s（场上卡片 %d 张）" % ["透视中 %.1fs" % tagger_vision_timer if tagger_vision_timer > 0.0 else "已携带，E 使用" if tagger_has_vision_card else "空槽，F 拾取", _ground_item_count(ITEM_TYPE_VISION_CARD)]
 	return "场上道具：%d 个" % ground_throwables.size()
 
 @rpc("call_remote", "reliable")
@@ -3917,11 +4211,22 @@ func _rpc_set_runner_inventory_state(has_slow_grenade: bool, has_speed_boost: bo
 	if not has_slow_grenade:
 		_hide_throwable_trajectory()
 
+@rpc("call_remote", "reliable")
+func _rpc_set_tagger_card_state(has_vision_card: bool) -> void:
+	tagger_has_vision_card = has_vision_card
+	_update_tagger_inventory_hud()
+
 @rpc("any_peer", "reliable")
 func _rpc_request_pickup_throwable(item_id: int) -> void:
 	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _runner_peer_id():
 		return
 	_pickup_throwable_on_authority(item_id)
+
+@rpc("any_peer", "reliable")
+func _rpc_request_pickup_tagger_card(item_id: int) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _tagger_peer_id():
+		return
+	_pickup_tagger_card_on_authority(item_id)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_throw_throwable(origin: Vector3, direction: Vector3) -> void:
@@ -3934,6 +4239,12 @@ func _rpc_request_use_speed_boost() -> void:
 	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _runner_peer_id():
 		return
 	_use_speed_boost_on_authority()
+
+@rpc("any_peer", "reliable")
+func _rpc_request_use_vision_card() -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _tagger_peer_id():
+		return
+	_use_vision_card_on_authority()
 
 @rpc("call_remote", "reliable")
 func _rpc_spawn_flying_throwable(projectile_id: int, origin: Vector3, velocity: Vector3) -> void:
@@ -3949,6 +4260,14 @@ func _rpc_apply_runner_speed_boost(multiplier: float, duration: float) -> void:
 		player.apply_speed_multiplier(multiplier, duration)
 	if _local_is_runner():
 		_show_throwable_notice("使用加速剂：速度提升 %.0f%%，持续 %.1f 秒" % [(multiplier - 1.0) * 100.0, duration], Color(0.36, 1.0, 0.42), true)
+
+@rpc("call_remote", "reliable")
+func _rpc_activate_vision_card(duration: float) -> void:
+	tagger_vision_timer = maxf(duration, 0.0)
+	_update_tagger_inventory_hud()
+	_update_vision_outline()
+	if _local_is_tagger():
+		_show_throwable_notice("透视卡已激活：小地图与穿墙轮廓已显示", Color(0.9, 0.5, 1.0), true)
 
 @rpc("call_remote", "reliable")
 func _rpc_apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3, current_hit_count: int) -> void:

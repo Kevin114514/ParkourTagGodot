@@ -1,0 +1,54 @@
+[gd_scene load_steps=7 format=3]
+
+[sub_resource type="StandardMaterial3D" id="CardBaseMaterial"]
+albedo_color = Color(0.065, 0.025, 0.16, 1)
+metallic = 0.35
+roughness = 0.28
+emission_enabled = true
+emission = Color(0.16, 0.035, 0.48, 1)
+emission_energy_multiplier = 0.45
+
+[sub_resource type="BoxMesh" id="CardBaseMesh"]
+material = SubResource("CardBaseMaterial")
+size = Vector3(0.74, 1.04, 0.055)
+
+[sub_resource type="StandardMaterial3D" id="CardFaceMaterial"]
+albedo_color = Color(0.1, 0.64, 0.92, 1)
+metallic = 0.18
+roughness = 0.22
+emission_enabled = true
+emission = Color(0.03, 0.38, 0.85, 1)
+emission_energy_multiplier = 0.9
+
+[sub_resource type="BoxMesh" id="CardFaceMesh"]
+material = SubResource("CardFaceMaterial")
+size = Vector3(0.56, 0.76, 0.016)
+
+[sub_resource type="StandardMaterial3D" id="EyeMaterial"]
+albedo_color = Color(0.95, 0.28, 0.9, 1)
+metallic = 0.28
+roughness = 0.18
+emission_enabled = true
+emission = Color(0.92, 0.06, 0.78, 1)
+emission_energy_multiplier = 1.55
+
+[sub_resource type="SphereMesh" id="EyeMesh"]
+material = SubResource("EyeMaterial")
+radius = 0.16
+height = 0.32
+radial_segments = 24
+rings = 12
+
+[node name="VisionCard" type="Node3D"]
+
+[node name="CardBase" type="MeshInstance3D" parent="."]
+mesh = SubResource("CardBaseMesh")
+
+[node name="VisionFace" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, 0.036)
+mesh = SubResource("CardFaceMesh")
+
+[node name="Eye" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, 0.055)
+scale = Vector3(1.35, 0.62, 0.12)
+mesh = SubResource("EyeMesh")
