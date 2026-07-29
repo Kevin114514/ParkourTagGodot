@@ -24,6 +24,7 @@ const USE_RL_POLICY_RUNNER := true
 const VOID_Y = -12.0
 const DEFAULT_SKY_COLOR := Color(0.48, 0.78, 1.0)
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
+const DEFAULT_MAP_BGM_PATH := "res://assets/audio/chase_loop.ogg"
 const USER_MAP_PATH = "user://maps/current_map.json"
 const NETWORK_SYNC_MAP_PATH = "user://network_sync/maps/host_map.json"
 const NETWORK_SYNC_SKIN_PREFIX = "network_host_"
@@ -256,6 +257,9 @@ var quit_confirm_timer := 0.0
 var restart_confirm_timer := 0.0
 var opponent_seen_timer := 0.0
 var last_seen_opponent_position := Vector3.ZERO
+var active_map_bgm_enabled := true
+var active_map_bgm_loop := true
+var active_map_bgm_path := DEFAULT_MAP_BGM_PATH
 @onready var chase_music: AudioStreamPlayer = $ChaseMusic
 
 func _ready() -> void:
@@ -273,22 +277,55 @@ func _ready() -> void:
 	_load_active_map()
 
 func _setup_chase_music() -> void:
-	if chase_music.stream is AudioStreamOggVorbis:
-		(chase_music.stream as AudioStreamOggVorbis).loop = true
 	if not chase_music.finished.is_connected(_on_chase_music_finished):
 		chase_music.finished.connect(_on_chase_music_finished)
 	chase_music.stop()
 
 func _on_chase_music_finished() -> void:
-	_start_chase_music()
+	if active_map_bgm_loop:
+		_start_chase_music()
+
+func _apply_map_bgm(config: Dictionary) -> void:
+	_stop_chase_music()
+	active_map_bgm_enabled = bool(config.get("enabled", true))
+	active_map_bgm_loop = bool(config.get("loop", true))
+	active_map_bgm_path = String(config.get("path", "")).strip_edges()
+	if active_map_bgm_path.is_empty():
+		active_map_bgm_path = DEFAULT_MAP_BGM_PATH
+	chase_music.volume_db = clampf(float(config.get("volume_db", 0.0)), -80.0, 6.0)
+	if not active_map_bgm_enabled:
+		chase_music.stream = null
+		return
+	var stream := _load_map_bgm_stream(active_map_bgm_path)
+	if stream == null and active_map_bgm_path != DEFAULT_MAP_BGM_PATH:
+		push_warning("地图 BGM 加载失败，使用默认音乐：%s" % active_map_bgm_path)
+		active_map_bgm_path = DEFAULT_MAP_BGM_PATH
+		stream = _load_map_bgm_stream(DEFAULT_MAP_BGM_PATH)
+	chase_music.stream = stream
+
+func _load_map_bgm_stream(path: String) -> AudioStream:
+	var stream: AudioStream
+	if path.begins_with("res://") and ResourceLoader.exists(path, "AudioStream"):
+		stream = ResourceLoader.load(path, "AudioStream") as AudioStream
+	elif path.get_extension().to_lower() == "ogg" and FileAccess.file_exists(path):
+		var file_path := ProjectSettings.globalize_path(path) if path.begins_with("res://") or path.begins_with("user://") else path
+		stream = AudioStreamOggVorbis.load_from_file(file_path)
+	if stream == null:
+		return null
+	stream = stream.duplicate() as AudioStream
+	if stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = active_map_bgm_loop
+	return stream
 
 func _start_chase_music() -> void:
+	if not active_map_bgm_enabled:
+		return
 	if network_round_loading or map_loading_layer == null or map_loading_layer.visible:
 		return
 	if game_mode != "single" and game_mode != "single_chase" and game_mode != "host" and game_mode != "client":
 		return
 	if chase_music.stream == null:
-		push_error("追逐音乐资源未加载：res://assets/audio/chase_loop.ogg")
+		push_error("地图 BGM 资源未加载：%s" % active_map_bgm_path)
 		return
 	if not chase_music.playing:
 		chase_music.play()
@@ -1378,7 +1415,7 @@ func _enter_lobby(message: String) -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _update_lobby_ui() -> void:
-	if lobby_role_label == null:
+	if game_mode != "lobby" or lobby_role_label == null:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "追逐者" if local_role == "躲藏者" else "躲藏者"
@@ -1732,9 +1769,11 @@ func _apply_network_map_payload(payload: Dictionary) -> void:
 	map_name = String(payload.get("name", map_name))
 	var host_path := String(payload.get("path", ""))
 	var map_text := String(payload.get("text", ""))
+	var sync_root := NETWORK_SYNC_MAP_PATH.get_base_dir()
+	_clear_sync_directory(sync_root)
 	var raw_files = payload.get("files", [])
 	if raw_files is Array:
-		_write_sync_files(NETWORK_SYNC_MAP_PATH.get_base_dir(), raw_files as Array)
+		_write_sync_files(sync_root, raw_files as Array)
 	if not map_text.is_empty() and _write_text_file(NETWORK_SYNC_MAP_PATH, map_text):
 		selected_map_path = NETWORK_SYNC_MAP_PATH
 		return
@@ -1778,6 +1817,25 @@ func _apply_network_skin_payload(payload: Dictionary) -> String:
 			file.store_buffer(data)
 			file.close()
 	return synced_skin_id
+
+func _clear_sync_directory(path: String) -> void:
+	if not DirAccess.dir_exists_absolute(path):
+		return
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while not entry.is_empty():
+		if entry != "." and entry != "..":
+			var child_path := path.path_join(entry)
+			if dir.current_is_dir():
+				_clear_sync_directory(child_path)
+				DirAccess.remove_absolute(child_path)
+			else:
+				DirAccess.remove_absolute(child_path)
+		entry = dir.get_next()
+	dir.list_dir_end()
 
 func _write_sync_files(target_root: String, files: Array) -> void:
 	if not _ensure_user_dir(target_root):
@@ -2518,6 +2576,7 @@ func _load_active_map(strict: bool = false) -> bool:
 		map_name = "内置备用地图"
 		active_map_path = "legacy_builtin"
 		_apply_map_environment({})
+		_apply_map_bgm({})
 		_update_map_ui()
 		if debug_mode:
 			_refresh_debug_collision_shapes()
@@ -2543,6 +2602,7 @@ func _load_map_from_path(map_path: String) -> bool:
 	var gameplay: Dictionary = result.get("gameplay", {})
 	minimap_world_radius = maxf(1.0, float(gameplay.get("world_radius", DEFAULT_MINIMAP_WORLD_RADIUS)))
 	_apply_map_environment(result.get("environment", {}))
+	_apply_map_bgm(result.get("bgm", {}))
 	_update_map_ui()
 	if debug_mode:
 		_refresh_debug_collision_shapes()

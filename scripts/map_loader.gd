@@ -14,6 +14,7 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 		"tagger_spawn": DEFAULT_TAGGER_SPAWN,
 		"environment": {},
 		"gameplay": {},
+		"bgm": {},
 		"format_version": 1,
 		"error": ""
 	}
@@ -63,8 +64,27 @@ static func load_map(parent: Node3D, map_path: String) -> Dictionary:
 	result["tagger_spawn"] = _to_vector3(data.get("tagger_spawn", DEFAULT_TAGGER_SPAWN), DEFAULT_TAGGER_SPAWN)
 	result["environment"] = data["environment"] if data.has("environment") and typeof(data["environment"]) == TYPE_DICTIONARY else {}
 	result["gameplay"] = data["gameplay"] if data.has("gameplay") and typeof(data["gameplay"]) == TYPE_DICTIONARY else {}
+	result["bgm"] = _parse_bgm(data, map_path)
 	result["format_version"] = int(data.get("format_version", 1))
 	return result
+
+static func _parse_bgm(data: Dictionary, map_path: String) -> Dictionary:
+	var config := {
+		"enabled": true,
+		"path": "",
+		"volume_db": 0.0,
+		"loop": true
+	}
+	var raw_bgm = data.get("bgm", {})
+	if typeof(raw_bgm) != TYPE_DICTIONARY:
+		return config
+	var bgm := raw_bgm as Dictionary
+	config["enabled"] = _to_bool(bgm.get("enabled", true), true)
+	var raw_path := String(bgm.get("path", "")).strip_edges()
+	config["path"] = _resolve_asset_path(map_path, raw_path)
+	config["volume_db"] = clampf(float(bgm.get("volume_db", 0.0)), -80.0, 6.0)
+	config["loop"] = _to_bool(bgm.get("loop", true), true)
+	return config
 
 static func _build_context(data: Dictionary, map_path: String) -> Dictionary:
 	return {

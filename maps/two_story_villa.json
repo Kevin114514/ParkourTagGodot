@@ -1,6 +1,7 @@
 {
   "format_version": 2,
   "name": "双层别墅追逐战",
+  "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-21.0, 0.12, 21.0],
   "tagger_spawn": [21.0, 0.12, -21.0],
   "objects": [

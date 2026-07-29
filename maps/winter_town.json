@@ -1,6 +1,7 @@
 {
   "format_version": 2,
   "name": "冬日小镇",
+  "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-13.5, 1.2, 15.0],
   "tagger_spawn": [13.5, 1.2, -15.0],
   "environment": {

@@ -1,6 +1,7 @@
 {
   "format_version": 2,
   "name": "圆环障碍训练场",
+  "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-18.0, 0.12, 18.0],
   "tagger_spawn": [18.0, 0.12, -18.0],
   "objects": [

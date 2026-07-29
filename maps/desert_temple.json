@@ -1,6 +1,7 @@
 {
   "format_version": 2,
   "name": "沙漠神殿",
+  "bgm": {"path":"res://assets/audio/chase_loop.ogg","volume_db":0.0,"loop":true},
   "runner_spawn": [-17.0, 4.32, 14.0],
   "tagger_spawn": [17.0, 4.32, -14.0],
   "objects": [
