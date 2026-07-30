@@ -30,8 +30,6 @@ var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
 const STEP_MAX_HEIGHT := 0.55
 const STEP_FORWARD_DISTANCE := 0.45
-var _step_inward_dir := Vector3.ZERO  # 上一次台阶检测的内侧方向（法线反向）
-
 func configure(new_role: String, peer_id: int, new_skin_id: String = "default") -> void:
 	role = new_role
 	owner_peer_id = peer_id
@@ -154,36 +152,64 @@ func _receive_state(new_position: Vector3, new_rotation_y: float, new_velocity: 
 
 func _move_with_step_climbing(delta: float) -> void:
 	var horizontal_vel := Vector3(velocity.x, 0.0, velocity.z)
-	if horizontal_vel.length_squared() < 0.01 or not is_on_floor():
-		move_and_slide()
-		return
-
-	var move_dir := horizontal_vel.normalized()
-	# 用当前实际水平速度推进台阶，保留 move_toward 的结果（松键会自然减速）
-	var current_speed := horizontal_vel.length()
-	var space := get_world_3d().direct_space_state
-
-	# 子步进检测：将一帧拆成多次小步，更快捕捉台阶避免漂移
-	var sub_steps := 3
-	var sub_delta := delta / float(sub_steps)
-	for i in sub_steps:
-		var foot_origin := _get_step_foot_position()
-		var step_result := _detect_step_ahead(space, foot_origin, move_dir)
-		if step_result != Vector3.ZERO:
-			global_position.y += step_result.y - foot_origin.y + 0.01
-			global_position.x += move_dir.x * current_speed * sub_delta
-			global_position.z += move_dir.z * current_speed * sub_delta
-			# 沿楼梯正交方向（内侧）补偿，防止漂移到楼梯侧面掉下去
-			if _step_inward_dir.length_squared() > 0.01:
-				global_position.x += _step_inward_dir.x * 0.04
-				global_position.z += _step_inward_dir.z * 0.04
-		else:
-			# 本子步没有台阶，正常移动（不覆盖 velocity，保留按键对应的速度）
-			move_and_slide()
+	if horizontal_vel.length_squared() >= 0.01 and is_on_floor() and velocity.y <= 0.0:
+		if _try_step_move(horizontal_vel, delta):
 			return
+	move_and_slide()
 
-	# 所有子步都在爬台阶：保留水平速度供下一帧衔接，仅清零 Y
-	velocity.y = 0.0
+func _try_step_move(horizontal_vel: Vector3, delta: float) -> bool:
+	var foot_origin := _get_step_foot_position()
+	var step_result := _detect_step_ahead(get_world_3d().direct_space_state, foot_origin, horizontal_vel.normalized())
+	if step_result == Vector3.ZERO:
+		return false
+
+	var step_up := step_result.y - foot_origin.y + 0.01
+	if step_up <= 0.0 or step_up > STEP_MAX_HEIGHT + 0.02:
+		return false
+
+	var start_transform := global_transform
+	var up_motion := Vector3.UP * step_up
+	var up_result := PhysicsTestMotionResult3D.new()
+	if _body_test_motion(start_transform, up_motion, up_result):
+		return false
+
+	var raised_transform := start_transform
+	raised_transform.origin += up_motion
+	var horizontal_motion := horizontal_vel * delta
+	var forward_result := PhysicsTestMotionResult3D.new()
+	if _body_test_motion(raised_transform, horizontal_motion, forward_result):
+		return false
+
+	var forward_transform := raised_transform
+	forward_transform.origin += horizontal_motion
+	var down_result := PhysicsTestMotionResult3D.new()
+	if not _body_test_motion(forward_transform, Vector3.DOWN * (step_up + 0.05), down_result):
+		return false
+	# 胶囊首次落到台阶棱角时法线会偏斜；只要求落点具有向上的支撑分量。
+	# 台阶顶面是否水平已经由 _detect_step_ahead() 单独验证。
+	if down_result.get_collision_normal().dot(Vector3.UP) <= 0.05:
+		return false
+
+	var target_position := forward_transform.origin + down_result.get_travel()
+	var actual_step_height := target_position.y - start_transform.origin.y
+	if actual_step_height < 0.02 or actual_step_height > STEP_MAX_HEIGHT + 0.01:
+		return false
+
+	global_position = target_position
+	velocity.x = horizontal_vel.x
+	velocity.y = -0.2
+	velocity.z = horizontal_vel.z
+	return true
+
+func _body_test_motion(from: Transform3D, motion: Vector3, result: PhysicsTestMotionResult3D) -> bool:
+	var parameters := PhysicsTestMotionParameters3D.new()
+	parameters.from = from
+	parameters.motion = motion
+	parameters.margin = safe_margin
+	parameters.max_collisions = 4
+	parameters.recovery_as_collision = false
+	parameters.collide_separation_ray = false
+	return PhysicsServer3D.body_test_motion(get_rid(), parameters, result)
 
 func _get_step_foot_position() -> Vector3:
 	var collision := get_node_or_null("Collision") as CollisionShape3D
@@ -203,11 +229,10 @@ func _get_step_foot_position() -> Vector3:
 	return foot_position
 
 func _detect_step_ahead(space: PhysicsDirectSpaceState3D, origin: Vector3, move_dir: Vector3) -> Vector3:
-	# 横向平行射线 + 扇形角度射线，覆盖角色整个身宽，
-	# 解决斜向接近台阶时角色侧边先撞棱角、中心射线没命中导致被卡住的问题
-	var angles := [0.0, 22.0, -22.0, 45.0, -45.0]
+	# 仅沿实际移动方向发射角色身宽内的平行射线，避免侧方台阶提前抬升。
+	var angles := [0.0]
 	var side := move_dir.cross(Vector3.UP).normalized()
-	var lateral_offsets := [0.0, 0.32, -0.32]
+	var lateral_offsets := [0.0, 0.25, -0.25]
 	var rid := get_rid()
 	var mask := collision_mask
 	var best_result := Vector3.ZERO
@@ -249,9 +274,11 @@ func _try_step_ray(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vecto
 	if not high_hit.is_empty():
 		return Vector3.ZERO
 
-	# 使用碰撞法线方向来确定台阶内侧偏移方向
 	var hit_point: Vector3 = low_hit["position"]
 	var hit_normal: Vector3 = low_hit["normal"]
+	# 可行走斜坡交给 move_and_slide，只有陡峭立面才可能是台阶。
+	if hit_normal.angle_to(Vector3.UP) <= floor_max_angle:
+		return Vector3.ZERO
 	var inward := -Vector3(hit_normal.x, 0.0, hit_normal.z).normalized()
 	if inward.length_squared() < 0.01:
 		inward = dir
@@ -271,6 +298,8 @@ func _try_step_ray(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vecto
 	var step_top: Vector3 = down_hit["position"]
 	var step_normal: Vector3 = down_hit["normal"]
 
+	# 低位射线已确认前方是陡峭端面；允许端面后方连接可行走斜坡。
+	# 普通斜坡会在低位法线检查处返回，不会持续触发手动步进。
 	if step_normal.angle_to(Vector3.UP) > floor_max_angle:
 		return Vector3.ZERO
 
@@ -278,8 +307,6 @@ func _try_step_ray(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vecto
 	if step_height < 0.02 or step_height > STEP_MAX_HEIGHT:
 		return Vector3.ZERO
 
-	# 记录台阶内侧方向，供传送补偿使用
-	_step_inward_dir = inward
 	return step_top
 
 func _apply_gravity(delta: float) -> void:
