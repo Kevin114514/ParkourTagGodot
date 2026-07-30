@@ -3234,7 +3234,7 @@
         1.4,
         17.0
       ],
-      "collision": "none",
+      "collision": "hard",
       "material_id": "nether_brick_rail"
     },
     {
@@ -3250,7 +3250,7 @@
         1.4,
         17.0
       ],
-      "collision": "none",
+      "collision": "hard",
       "material_id": "nether_brick_rail"
     },
     {

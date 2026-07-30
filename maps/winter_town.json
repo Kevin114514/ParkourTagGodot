@@ -468,13 +468,13 @@
     {"type": "box", "name": "OasisFlower5", "position": [2.0, -6.65, -17.0], "size": [0.4, 0.5, 0.4], "material_id": "petal_pink", "collision": "hard"},
 
     {"type": "box", "name": "WallTVBody", "position": [-18.55, -4.3, 10.0], "size": [0.28, 2.35, 3.65], "material_id": "iron_dark", "collision": "hard"},
-    {"type": "box", "name": "WallTVScreen", "position": [-18.38, -4.3, 10.0], "size": [0.08, 1.85, 3.2], "material_id": "deep_blue", "collision": "none"},
+    {"type": "box", "name": "WallTVScreen", "position": [-18.38, -4.3, 10.0], "size": [0.08, 1.85, 3.2], "material_id": "deep_blue", "collision": "hard"},
     {"type": "decal", "name": "WallTVPicture", "position": [-17.95, -4.3, 10.0], "rotation_degrees": [90.0, 0.0, -90.0], "size": [3.1, 1.0, 1.78], "albedo_texture": "textures/winter_town/tv_chair_hoop_cartoon.png", "color": [1.0, 1.0, 1.0], "albedo_mix": 1.0},
-    {"type": "box", "name": "WallTVSpeaker", "position": [-18.36, -5.37, 10.0], "size": [0.06, 0.08, 1.0], "material_id": "iron", "collision": "none"},
-    {"type": "box", "name": "WallTVPowerLED", "position": [-18.32, -5.35, 11.55], "size": [0.04, 0.06, 0.06], "material_id": "crystal_cyan", "collision": "none"},
+    {"type": "box", "name": "WallTVSpeaker", "position": [-18.36, -5.37, 10.0], "size": [0.06, 0.08, 1.0], "material_id": "iron", "collision": "hard"},
+    {"type": "box", "name": "WallTVPowerLED", "position": [-18.32, -5.35, 11.55], "size": [0.04, 0.06, 0.06], "material_id": "crystal_cyan", "collision": "hard"},
 
-    {"type": "box", "name": "CatRugBorder", "position": [-2.8, -6.98, 11.4], "size": [6.6, 0.04, 9.6], "material_id": "treasure_gold", "collision": "none"},
-    {"type": "box", "name": "CatRugBase", "position": [-2.8, -6.9625, 11.4], "size": [6.2, 0.045, 9.2], "material_id": "snow", "collision": "none"},
+    {"type": "box", "name": "CatRugBorder", "position": [-2.8, -6.98, 11.4], "size": [6.6, 0.04, 9.6], "material_id": "treasure_gold", "collision": "hard"},
+    {"type": "box", "name": "CatRugBase", "position": [-2.8, -6.9625, 11.4], "size": [6.2, 0.045, 9.2], "material_id": "snow", "collision": "hard"},
     {"type": "decal", "name": "CatRugDecal", "position": [-2.8, -6.2, 11.4], "rotation_degrees": [0.0, 180.0, 0.0], "size": [6.0, 2.0, 9.0], "albedo_texture": "textures/winter_town/catgirl_poster_cute.png", "color": [1.0, 1.0, 1.0], "albedo_mix": 1.0},
     {"type": "light", "light_type": "omni", "name": "CatRugLight", "position": [-2.8, -4.0, 11.4], "color": [1.0, 0.95, 0.85], "energy": 1.6, "range": 8.0, "shadow": false},
 
@@ -497,7 +497,7 @@
     {"type": "box", "name": "SleighFrontR", "position": [7.9, -6.55, -9.3], "size": [1.0, 0.18, 0.28], "material_id": "iron_dark", "rotation_degrees": [0.0, 0.0, 40.0], "collision": "hard"},
     {"type": "box", "name": "SleighBody", "position": [6.0, -6.35, -10.0], "size": [2.8, 0.9, 1.4], "material_id": "gift_red", "collision": "hard"},
     {"type": "box", "name": "SleighBodyTrim", "position": [6.0, -5.9, -10.0], "size": [2.9, 0.15, 1.5], "material_id": "gift_gold", "collision": "hard"},
-    {"type": "box", "name": "SleighSeat", "position": [5.2, -5.75, -10.0], "size": [1.2, 0.3, 1.3], "material_id": "wood_light", "collision": "hard"},
+    {"type": "box", "name": "SleighSeat", "position": [5.2, -5.675, -10.0], "size": [1.2, 0.3, 1.3], "material_id": "wood_light", "collision": "hard"},
     {"type": "box", "name": "SleighSeatBack", "position": [4.7, -5.35, -10.0], "size": [0.25, 1.0, 1.3], "material_id": "gift_red", "collision": "hard"},
     {"type": "box", "name": "SleighDash", "position": [7.2, -5.6, -10.0], "size": [0.22, 0.7, 1.35], "material_id": "gift_gold", "rotation_degrees": [0.0, 0.0, -18.0], "collision": "hard"},
     {"type": "box", "name": "SleighGift1", "position": [6.2, -5.55, -10.0], "size": [0.7, 0.7, 0.7], "material_id": "gift_green", "collision": "hard"},
@@ -522,7 +522,7 @@
     {"type": "box", "name": "SleighEmptyFrontR", "position": [-12.1, -6.55, 16.7], "size": [1.0, 0.18, 0.28], "material_id": "iron_dark", "rotation_degrees": [0.0, 0.0, 40.0], "collision": "hard"},
     {"type": "box", "name": "SleighEmptyBody", "position": [-14.0, -6.35, 16.0], "size": [2.8, 0.9, 1.4], "material_id": "gift_green", "collision": "hard"},
     {"type": "box", "name": "SleighEmptyTrim", "position": [-14.0, -5.9, 16.0], "size": [2.9, 0.15, 1.5], "material_id": "gift_gold", "collision": "hard"},
-    {"type": "box", "name": "SleighEmptySeat", "position": [-14.8, -5.75, 16.0], "size": [1.2, 0.3, 1.3], "material_id": "wood_light", "collision": "hard"},
+    {"type": "box", "name": "SleighEmptySeat", "position": [-14.8, -5.675, 16.0], "size": [1.2, 0.3, 1.3], "material_id": "wood_light", "collision": "hard"},
     {"type": "box", "name": "SleighEmptySeatBack", "position": [-15.3, -5.35, 16.0], "size": [0.25, 1.0, 1.3], "material_id": "gift_green", "collision": "hard"},
     {"type": "box", "name": "SleighEmptyDash", "position": [-13.8, -5.6, 16.0], "size": [0.22, 0.7, 1.35], "material_id": "gift_gold", "rotation_degrees": [0.0, 0.0, -18.0], "collision": "hard"}
   ],

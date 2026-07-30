@@ -192,7 +192,7 @@
     {"type":"cylinder","material_id":"desert_sandstone","name":"L3DomeTier04","position":[0.0,9.95,0.0],"radius":7.0,"height":0.5,"color":[0.82,0.61,0.30]},
     {"type":"cylinder","material_id":"desert_sandstone","name":"L3DomeTier05","position":[0.0,10.45,0.0],"radius":4.0,"height":0.5,"color":[0.88,0.69,0.37]},
     {"type":"cylinder","material_id":"desert_sandstone","name":"L3DomeCrown","position":[0.0,10.95,0.0],"radius":1.6,"height":0.5,"color":[0.75,0.50,0.19]},
-    {"type":"sphere","material_id":"desert_gold","name":"L3DomeFinial","position":[0.0,11.5,0.0],"radius":0.55,"color":[0.95,0.70,0.15],"collision":false},
+    {"type":"sphere","material_id":"desert_gold","name":"L3DomeFinial","position":[0.0,11.5,0.0],"radius":0.55,"color":[0.95,0.70,0.15],"collision":"hard"},
 
     {"type":"cylinder","material_id":"desert_stone","name":"L1ObeliskWest","position":[-16.0,1.75,13.0],"radius":0.75,"height":2.2,"color":[0.44,0.27,0.11]},
     {"type":"cylinder","material_id":"desert_stone","name":"L1ObeliskEast","position":[16.0,1.75,13.0],"radius":0.75,"height":2.2,"color":[0.44,0.27,0.11]},
@@ -204,7 +204,7 @@
     {"type":"box","material_id":"desert_chest","name":"L1TreasureChestWest","position":[-3.2,1.62,15.5],"size":[1.6,0.75,1.0],"color":[0.55,0.28,0.05]},
     {"type":"box","material_id":"desert_chest","name":"L1TreasureChestEast","position":[3.2,1.62,15.5],"size":[1.6,0.75,1.0],"color":[0.55,0.28,0.05]},
     {"type":"box","material_id":"desert_chest","name":"L1TreasureChestNorth","position":[0.0,1.25,-17.0],"size":[1.8,0.75,1.1],"color":[0.55,0.28,0.05]},
-    {"type":"box","material_id":"desert_gold","name":"L1GoldInlay","position":[0.0,1.24,17.65],"size":[6.5,0.04,0.18],"color":[0.95,0.66,0.12],"collision":false},
+    {"type":"box","material_id":"desert_gold","name":"L1GoldInlay","position":[0.0,1.24,17.65],"size":[6.5,0.04,0.18],"color":[0.95,0.66,0.12],"collision":"hard"},
 
     {"type":"box","material_id":"desert_stone","name":"L2LowBlockNorthWest","position":[-8.0,4.76,-16.0],"size":[2.8,1.1,1.4],"rotation_degrees":[0.0,12.0,0.0],"color":[0.60,0.39,0.17]},
     {"type":"box","material_id":"desert_stone","name":"L2LowBlockNorthEast","position":[8.0,4.76,-16.0],"size":[2.8,1.1,1.4],"rotation_degrees":[0.0,-12.0,0.0],"color":[0.60,0.39,0.17]},

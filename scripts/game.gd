@@ -288,6 +288,10 @@ var discovered_throwable_levels: Array[float] = []
 var discovered_level_samples: Array = []
 # 楼层轮转索引，保证道具在各楼层之间均衡分配。
 var throwable_level_cursor := 0
+# 地图声明的道具禁止生成区域（XZ 轴对齐盒），落入其中的候选点会被跳过。
+# 每个元素为 Dictionary：{min_x, max_x, min_z, max_z, min_y, max_y}；
+# min_y/max_y 为可选竖直范围，缺省时表示不限高度（覆盖整根立柱）。
+var item_no_spawn_zones: Array = []
 
 var throwable_root: Node3D
 var throwable_trajectory: MeshInstance3D
@@ -3194,6 +3198,7 @@ func _load_map_from_path(map_path: String) -> bool:
 	throwable_level_cursor = 0
 	var gameplay: Dictionary = result.get("gameplay", {})
 	minimap_world_radius = maxf(1.0, float(gameplay.get("world_radius", DEFAULT_MINIMAP_WORLD_RADIUS)))
+	_parse_item_no_spawn_zones(gameplay.get("no_item_spawn_zones", []))
 	_apply_map_environment(result.get("environment", {}))
 	_apply_map_bgm(result.get("bgm", {}))
 	_apply_lava_flow_shaders(result.get("materials", {}))
@@ -4137,6 +4142,55 @@ func _choose_ground_item_type() -> String:
 		return ITEM_TYPE_SPEED_BOOST
 	return ITEM_TYPE_SPEED_BOOST if randf() < SPEED_BOOST_SPAWN_CHANCE else ITEM_TYPE_SLOW_GRENADE
 
+# 解析地图声明的道具禁止生成区域，规整为轴对齐盒缓存。
+# 支持两种写法：
+#   {"center":[x,y,z], "size":[w,h,d]}  —— 中心+尺寸（与地图物件写法一致）
+#   {"min":[x,y,z], "max":[x,y,z]}      —— 直接给包围盒
+# 竖直范围（y）可选：缺省则视为整根立柱（不限高度）。
+func _parse_item_no_spawn_zones(raw) -> void:
+	item_no_spawn_zones.clear()
+	if not (raw is Array):
+		return
+	for entry in raw:
+		if not (entry is Dictionary):
+			continue
+		var zone := {}
+		if entry.has("center") and entry.has("size"):
+			var c = entry["center"]
+			var s = entry["size"]
+			if not (c is Array and s is Array and c.size() >= 3 and s.size() >= 3):
+				continue
+			var cx := float(c[0]); var cy := float(c[1]); var cz := float(c[2])
+			var hx := absf(float(s[0])) * 0.5
+			var hy := absf(float(s[1])) * 0.5
+			var hz := absf(float(s[2])) * 0.5
+			zone = {"min_x": cx - hx, "max_x": cx + hx, "min_z": cz - hz, "max_z": cz + hz, "min_y": cy - hy, "max_y": cy + hy}
+		elif entry.has("min") and entry.has("max"):
+			var mn = entry["min"]
+			var mx = entry["max"]
+			if not (mn is Array and mx is Array and mn.size() >= 3 and mx.size() >= 3):
+				continue
+			zone = {"min_x": minf(float(mn[0]), float(mx[0])), "max_x": maxf(float(mn[0]), float(mx[0])), "min_z": minf(float(mn[2]), float(mx[2])), "max_z": maxf(float(mn[2]), float(mx[2])), "min_y": minf(float(mn[1]), float(mx[1])), "max_y": maxf(float(mn[1]), float(mx[1]))}
+		else:
+			continue
+		# 若地图未限定高度，则清除竖直约束视为整根立柱。
+		if not (entry.has("limit_height") and _to_bool(entry["limit_height"], false)):
+			zone["min_y"] = -INF
+			zone["max_y"] = INF
+		item_no_spawn_zones.append(zone)
+
+# 判断某个候选生成点是否落入任一禁止生成区域（XZ 命中且在竖直范围内）。
+func _is_in_no_spawn_zone(position: Vector3) -> bool:
+	for zone in item_no_spawn_zones:
+		if position.x < zone["min_x"] or position.x > zone["max_x"]:
+			continue
+		if position.z < zone["min_z"] or position.z > zone["max_z"]:
+			continue
+		if position.y < zone["min_y"] or position.y > zone["max_y"]:
+			continue
+		return true
+	return false
+
 func _find_throwable_spawn_position():
 	if get_world_3d() == null:
 		return null
@@ -4173,6 +4227,9 @@ func _find_throwable_spawn_position():
 		for surface_position in surfaces:
 			var position := surface_position + Vector3.UP * 0.28
 			if position.distance_to(runner_spawn_position) < 4.0 or position.distance_to(tagger_spawn_position) < 4.0:
+				continue
+			# 跳过地图声明的禁止生成区域（如龙宫两座龙雕像顶部）。
+			if _is_in_no_spawn_zone(position):
 				continue
 			var too_close := false
 			for data in ground_throwables.values():

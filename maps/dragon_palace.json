@@ -12,7 +12,8 @@
     8.0
   ],
   "environment": {
-    "background": "color",
+    "background": "sky",
+    "sky_type": "nether_dynamic",
     "background_color": [
       0.46,
       0.69,
@@ -23,6 +24,26 @@
       0.69,
       0.95
     ],
+    "sky_top_color": [
+      0.28,
+      0.52,
+      0.86
+    ],
+    "sky_horizon_color": [
+      0.68,
+      0.82,
+      0.96
+    ],
+    "cloud_color": [
+      0.98,
+      0.98,
+      1.0
+    ],
+    "sky_cloud_scale": 2.6,
+    "sky_cloud_speed": 0.012,
+    "sky_horizon_glow": 0.35,
+    "sky_horizon_softness": 3.0,
+    "fog_sky_affect": 0.6,
     "ambient_color": [
       0.7,
       0.77,
@@ -22268,6 +22289,10 @@
     }
   ],
   "gameplay": {
-    "world_radius": 70.0
+    "world_radius": 70.0,
+    "no_item_spawn_zones": [
+      { "name": "WestDragonStatueNoSpawn", "center": [-12.2, 6.0, 17.0], "size": [10.3, 24.0, 7.5] },
+      { "name": "EastDragonStatueNoSpawn", "center": [12.2, 6.0, 17.0], "size": [10.3, 24.0, 7.5] }
+    ]
   }
 }
