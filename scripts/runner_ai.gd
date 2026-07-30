@@ -25,6 +25,7 @@ var survival_timer := 0.0
 var _gap_jump := false
 var throwable_targets: Array[Vector3] = []
 var has_throwable := false
+var has_speed_boost := false
 var hit_progress := 0
 var hits_to_win := 10
 var move_speed_multiplier := 1.0
@@ -93,20 +94,21 @@ func _physics_process(delta: float) -> void:
 	else:
 		coyote_timer = maxf(coyote_timer - delta, 0.0)
 
+	var current_walk_speed := walk_speed * move_speed_multiplier
 	if _should_jump():
 		velocity.y = maxf(velocity.y, jump_velocity)
 		# 跨越断桥间隙时给一个朝逃跑方向的水平助推，确保能稳稳越过缺口
 		if _gap_jump and desired_dir.length_squared() > 0.01:
 			var jdir := desired_dir.normalized()
-			velocity.x = jdir.x * walk_speed
-			velocity.z = jdir.z * walk_speed
+			velocity.x = jdir.x * current_walk_speed
+			velocity.z = jdir.z * current_walk_speed
 		coyote_timer = 0.0
 
 	_apply_gravity(delta)
 
 	var accel := acceleration if is_on_floor() else air_acceleration
-	velocity.x = move_toward(velocity.x, desired_dir.x * walk_speed, accel * delta)
-	velocity.z = move_toward(velocity.z, desired_dir.z * walk_speed, accel * delta)
+	velocity.x = move_toward(velocity.x, desired_dir.x * current_walk_speed, accel * delta)
+	velocity.z = move_toward(velocity.z, desired_dir.z * current_walk_speed, accel * delta)
 
 	if desired_dir.length_squared() > 0.01:
 		var face_dir := desired_dir.normalized()
@@ -115,15 +117,25 @@ func _physics_process(delta: float) -> void:
 	_move_with_step_climbing(delta)
 	last_position = global_position
 
-func set_throwable_context(new_targets: Array[Vector3], new_has_throwable: bool, new_hit_progress: int, new_hits_to_win: int) -> void:
+func set_throwable_context(new_targets: Array[Vector3], new_has_throwable: bool, new_has_speed_boost: bool, new_hit_progress: int, new_hits_to_win: int) -> void:
 	throwable_targets = new_targets
 	has_throwable = new_has_throwable
+	has_speed_boost = new_has_speed_boost
 	hit_progress = new_hit_progress
 	hits_to_win = max(1, new_hits_to_win)
 
 func apply_speed_multiplier(multiplier: float, duration: float) -> void:
 	move_speed_multiplier = clampf(multiplier, 0.25, 2.5)
 	move_speed_effect_time = maxf(duration, 0.0)
+
+func should_use_ai_speed_boost(distance_to_tagger: float, new_hit_progress: int, new_hits_to_win: int) -> bool:
+	if not has_speed_boost or move_speed_effect_time > 0.0:
+		return false
+	var near_defeat := new_hit_progress >= maxi(new_hits_to_win - 2, 0)
+	return distance_to_tagger <= 7.5 or (near_defeat and distance_to_tagger <= 11.0)
+
+func _needs_throwable_pickup() -> bool:
+	return not has_throwable or not has_speed_boost
 
 func _nearest_throwable_position():
 	if throwable_targets.is_empty():
@@ -160,7 +172,7 @@ func _compute_escape_dir(target_velocity: Vector3) -> Vector3:
 
 	var nearest_throwable: Variant = _nearest_throwable_position()
 	var item_dir := Vector3.ZERO
-	if not has_throwable and nearest_throwable != null:
+	if _needs_throwable_pickup() and nearest_throwable != null:
 		item_dir = (nearest_throwable as Vector3) - global_position
 		item_dir.y = 0.0
 
@@ -211,7 +223,7 @@ func _score_escape_candidate(dir: Vector3, away: Vector3, target_velocity: Vecto
 	var current_target := target.global_position
 	var current_distance := global_position.distance_to(current_target)
 	var lookahead := clampf(current_distance / 8.0, 0.35, 0.95)
-	var future_self := global_position + dir * walk_speed * lookahead
+	var future_self := global_position + dir * walk_speed * move_speed_multiplier * lookahead
 	var future_target := current_target + target_velocity * lookahead
 	var future_radius := Vector2(future_self.x, future_self.z).length()
 	var current_radius := Vector2(global_position.x, global_position.z).length()
@@ -254,7 +266,7 @@ func _score_escape_candidate(dir: Vector3, away: Vector3, target_velocity: Vecto
 		score -= 4.0
 
 	var nearest_item: Variant = _nearest_throwable_position()
-	if not has_throwable and nearest_item != null:
+	if _needs_throwable_pickup() and nearest_item != null:
 		var item_position := nearest_item as Vector3
 		var to_item := item_position - global_position
 		to_item.y = 0.0

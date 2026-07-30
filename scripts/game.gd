@@ -11,6 +11,7 @@ const SkinAPI = preload("res://scripts/skin_api.gd")
 const NETHER_SKY_SHADER = preload("res://scripts/nether_sky.gdshader")
 const LAVA_FLOW_SHADER = preload("res://scripts/lava_flow.gdshader")
 const CatchAttackIconScript = preload("res://scripts/catch_attack_icon.gd")
+const BasketballKillSequenceScript = preload("res://scripts/basketball_kill_sequence.gd")
 # 减速弹与药剂模型来自 Quaternius/Poly Pizza（CC0 1.0）；透视卡为项目内建立体模型。
 const THROWABLE_MODEL_PATH := "res://assets/throwables/scifi_slow_grenade.glb"
 const SPEED_BOOST_MODEL_PATH := "res://assets/throwables/speed_boost_potion.glb"
@@ -24,6 +25,7 @@ const ITEM_TYPE_SLOW_GRENADE := "slow_grenade"
 const ITEM_TYPE_SPEED_BOOST := "speed_boost"
 const ITEM_TYPE_VISION_CARD := "vision_card"
 const PORT = 24591
+const BASKETBALL_SECRET_CODE := "0721"
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
 const GAME_VERSION := "1.5.1"
 const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
@@ -230,6 +232,9 @@ var game_mode := "title"
 # When true a single_chase round runs with BOTH sides driven by the trained
 # self-play AI so the player can watch the tagger and runner fight each other.
 var ai_vs_ai_spectate := false
+var basketball_finish_mode := false
+var basketball_finish_playing := false
+var basketball_sequence: Node3D = null
 var spectator_camera: Camera3D = null
 var network_started := false
 var network_round_loading := false
@@ -533,6 +538,8 @@ func _process(delta: float) -> void:
 	restart_confirm_timer = maxf(restart_confirm_timer - delta, 0.0)
 	if center_label != null and quit_confirm_timer <= 0.0 and restart_confirm_timer <= 0.0 and (center_label.text == "再按一次 Q 返回标题/房间" or center_label.text == "再按一次 R 重新开始本局"):
 		center_label.text = ""
+	if basketball_finish_playing:
+		return
 	if Input.is_action_just_pressed("quit_room"):
 		if game_mode == "single" or game_mode == "single_chase":
 			if not _confirm_round_action("quit"):
@@ -1095,7 +1102,7 @@ func _build_title_ui() -> void:
 	var single_button := Button.new()
 	single_button.text = "单人模式：躲藏者 VS AI 追逐者"
 	_style_button(single_button, Color(1.0, 0.52, 0.17), Color(0.64, 0.23, 0.06))
-	single_button.pressed.connect(Callable(self, "_start_single_game"))
+	single_button.pressed.connect(Callable(self, "_start_normal_single_game"))
 	box.add_child(single_button)
 	menu_controls.append(single_button)
 
@@ -1125,6 +1132,7 @@ func _build_title_ui() -> void:
 	ip_input.placeholder_text = "输入房主 IP"
 	ip_input.custom_minimum_size = Vector2(0.0, 42.0)
 	_style_input(ip_input)
+	ip_input.text_submitted.connect(Callable(self, "_on_ip_input_submitted"))
 	box.add_child(ip_input)
 	menu_controls.append(ip_input)
 
@@ -1672,6 +1680,8 @@ func _show_title(message: String) -> void:
 	_clear_characters()
 	_clear_all_throwables()
 	game_mode = "title"
+	basketball_finish_mode = false
+	basketball_finish_playing = false
 	_start_menu_music()
 	network_started = false
 	remote_peer_id = 0
@@ -1701,7 +1711,23 @@ func _show_title(message: String) -> void:
 		title_status.text = message
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
+func _start_normal_single_game() -> void:
+	basketball_finish_mode = false
+	_start_single_game()
+
+func _start_basketball_single_game() -> void:
+	basketball_finish_mode = true
+	_start_single_game()
+	if center_label != null:
+		center_label.text = "篮球终结模式"
+		var mode_token := round_transition_token
+		get_tree().create_timer(1.5).timeout.connect(func():
+			if mode_token == round_transition_token and not caught and center_label != null and center_label.text == "篮球终结模式":
+				center_label.text = ""
+		)
+
 func _start_single_game() -> void:
+	round_transition_token += 1
 	_refresh_win_target_from_ui()
 	_close_network()
 	_clear_characters()
@@ -1777,11 +1803,18 @@ func _start_host_game() -> void:
 	host_is_runner = true
 	_enter_lobby("房间已创建，等待 1 名玩家加入...\n端口：%d\n加入者输入你的局域网 IP。" % PORT)
 
+func _on_ip_input_submitted(_submitted_text: String) -> void:
+	_start_client_game()
+
 func _start_client_game() -> void:
+	var ip := ip_input.text.strip_edges()
+	if ip == BASKETBALL_SECRET_CODE:
+		_start_basketball_single_game()
+		return
+	basketball_finish_mode = false
 	is_leaving_room = false
 	_close_network()
 	_clear_characters()
-	var ip := ip_input.text.strip_edges()
 	if ip.is_empty():
 		ip = "127.0.0.1"
 	var peer := ENetMultiplayerPeer.new()
@@ -2491,6 +2524,10 @@ func _update_spectator_camera(delta: float, snap: bool = false) -> void:
 
 func _clear_characters() -> void:
 	_clear_vision_outline()
+	basketball_finish_playing = false
+	if basketball_sequence != null and is_instance_valid(basketball_sequence):
+		basketball_sequence.queue_free()
+	basketball_sequence = null
 	if player != null and is_instance_valid(player):
 		player.queue_free()
 	if tagger != null and is_instance_valid(tagger):
@@ -2616,7 +2653,8 @@ func _broadcast_catch_effect(origin: Vector3, direction: Vector3) -> void:
 func _try_ai_catch_attempt(flat_distance: float) -> void:
 	if ai_catch_cooldown > 0.0 or flat_distance > CATCH_RANGE + 0.5 or _tagger_catch_disabled_by_slow():
 		return
-	if tagger.has_method("should_consume_ai_catch_attempt") and not tagger.should_consume_ai_catch_attempt():
+	# 篮球终结模式必须在进入平 A 范围时稳定出手，不能被 RL 策略中稀疏的技能动作门控。
+	if not basketball_finish_mode and tagger.has_method("should_consume_ai_catch_attempt") and not tagger.should_consume_ai_catch_attempt():
 		return
 	ai_catch_cooldown = AI_CATCH_COOLDOWN
 	var origin: Vector3 = tagger.get_catch_origin() if tagger.has_method("get_catch_origin") else tagger.global_position + Vector3.UP * 1.0
@@ -2757,7 +2795,35 @@ func _rpc_runner_survived(final_time: float, final_hit_count: int, result_detail
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _on_player_caught() -> void:
+	if basketball_finish_mode and game_mode == "single":
+		_play_basketball_catch_finish()
+		return
 	_finish_runner_failed("躲藏者被抓到了！")
+
+func _play_basketball_catch_finish() -> void:
+	if basketball_finish_playing or caught or player == null or tagger == null or not is_instance_valid(player) or not is_instance_valid(tagger):
+		return
+	basketball_finish_playing = true
+	caught = true
+	_stop_chase_music()
+	_clear_tagger_slow_particles()
+	_update_catch_crosshair()
+	player.is_control_locked = true
+	tagger.is_active = false
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	if center_label != null:
+		center_label.text = "终结技：空中灌篮！"
+
+	if player.has_method("set_camera_mode"):
+		player.set_camera_mode("third_person")
+	var sequence = BasketballKillSequenceScript.new()
+	basketball_sequence = sequence
+	add_child(sequence)
+	sequence.play(player, tagger)
+	await sequence.finished
+	basketball_finish_playing = false
+	if game_mode == "single" and player != null and tagger != null and is_instance_valid(player) and is_instance_valid(tagger):
+		_finish_runner_failed("躲藏者被追逐者投进了篮筐！")
 
 func _on_runner_fell() -> void:
 	_finish_runner_failed("躲藏者掉出地图！")
@@ -3920,18 +3986,25 @@ func _update_ai_runner_throwable_strategy(delta: float) -> void:
 		return
 	ai_runner_throw_cooldown = maxf(ai_runner_throw_cooldown - delta, 0.0)
 	if player.has_method("set_throwable_context"):
-		player.set_throwable_context(_ground_pickup_positions_for_runner(), _runner_inventory_full(), tagger_hit_count, hits_to_win)
+		player.set_throwable_context(_ground_pickup_positions_for_runner(), runner_has_slow_grenade, runner_has_speed_boost, tagger_hit_count, hits_to_win)
+	if player.has_method("set_rl_match_context"):
+		player.set_rl_match_context(maxf(win_time_seconds - time_alive, 0.0), win_time_seconds)
 	if not _runner_inventory_full():
 		var pickup_id := _find_pickup_candidate_for_actor(player, THROWABLE_AI_PICKUP_RANGE)
 		if pickup_id >= 0:
 			_pickup_throwable_on_authority(pickup_id)
+
+	var origin: Vector3 = _runner_throw_origin(player)
+	var to_tagger: Vector3 = tagger.global_position + Vector3.UP * 0.8 - origin
+	var flat_distance: float = Vector2(to_tagger.x, to_tagger.z).length()
+	if runner_has_speed_boost and player.has_method("should_use_ai_speed_boost") \
+	and player.should_use_ai_speed_boost(flat_distance, tagger_hit_count, hits_to_win):
+		_use_speed_boost_on_authority()
+
 	if not runner_has_slow_grenade or ai_runner_throw_cooldown > 0.0:
 		return
 	if player.has_method("should_consume_ai_throw_attempt") and not player.should_consume_ai_throw_attempt():
 		return
-	var origin: Vector3 = _runner_throw_origin(player)
-	var to_tagger: Vector3 = tagger.global_position + Vector3.UP * 0.8 - origin
-	var flat_distance: float = Vector2(to_tagger.x, to_tagger.z).length()
 	if flat_distance < THROWABLE_AI_THROW_MIN_DISTANCE or flat_distance > THROWABLE_AI_THROW_MAX_DISTANCE:
 		return
 	if not _has_clear_throw_line(origin, tagger.global_position + Vector3.UP * 0.85):
