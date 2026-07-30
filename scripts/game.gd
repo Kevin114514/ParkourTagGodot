@@ -51,7 +51,7 @@ const CATCH_COOLDOWN := 1.5
 const CATCH_HALF_ANGLE_COS := 0.0
 const AI_CATCH_COOLDOWN := CATCH_COOLDOWN
 const CATCH_ORIGIN_TOLERANCE := 2.2
-const THROWABLE_RESPAWN_TARGET := 8
+const THROWABLE_RESPAWN_TARGET := 12
 const THROWABLE_RESPAWN_INTERVAL := 1.0
 const THROWABLE_PICKUP_RANGE := 2.1
 const THROWABLE_THROW_SPEED := 20.0
@@ -64,18 +64,27 @@ const THROWABLE_SLOW_DURATION := 2.6
 const SPEED_BOOST_MULTIPLIER := 1.45
 const SPEED_BOOST_DURATION := 2.0
 const SPEED_BOOST_SPAWN_CHANCE := 0.35
-const TAGGER_CARD_RESPAWN_TARGET := 4
+const TAGGER_CARD_RESPAWN_TARGET := 6
 const TAGGER_VISION_CARD_DURATION := 7.0
 const HUD_REFERENCE_HEIGHT := 720.0
 const HUD_FULLSCREEN_SCALE_BONUS := 1.10
 const HUD_FULLSCREEN_MAX_SCALE := 1.80
-const THROWABLE_MIN_SPAWN_GAP := 4.5
+const THROWABLE_MIN_SPAWN_GAP := 3.6
 const THROWABLE_SPAWN_ATTEMPTS := 32
 const THROWABLE_SPAWN_CLEARANCE_HEIGHT := 1.8
 const THROWABLE_SPAWN_CLEARANCE_RADIUS := 0.32
 const THROWABLE_MIN_SURFACE_NORMAL_Y := 0.7
 const THROWABLE_ACTIVE_LEVEL_TOLERANCE := 3.25
 const THROWABLE_MAX_SURFACE_LAYERS := 12
+# 主动楼层发现：不再让道具高度被出生点绑定，而是扫描整张地图收集所有可站立楼层。
+const THROWABLE_LEVEL_SCAN_COLUMNS := 40          # 水平扫描列数（网格采样点，越大越精细）
+const THROWABLE_LEVEL_SCAN_TOP := 80.0           # 每列向下射线的起始高度（相对出生层顶部）
+const THROWABLE_LEVEL_SCAN_BOTTOM := 60.0        # 每列向下射线的终止深度（相对出生层底部）
+const THROWABLE_LEVEL_SCAN_MAX_LAYERS := 16      # 每列逐层排除时的最大楼层数
+const THROWABLE_LEVEL_CLUSTER_TOLERANCE := 1.6   # 楼层聚类容差：高度差小于此值视为同一层
+const THROWABLE_LEVEL_MIN_SAMPLES := 2           # 一个楼层至少被命中多少次才算有效（滤除孤立薄板）
+const THROWABLE_LEVEL_SCAN_RADIUS_MIN := 18.0    # 网格扫描的最小半径
+const THROWABLE_LEVEL_SCAN_RADIUS_MAX := 60.0    # 网格扫描的最大半径
 const THROWABLE_THROW_ORIGIN_TOLERANCE := 2.4
 const THROWABLE_TRAJECTORY_STEPS := 34
 const THROWABLE_TRAJECTORY_STEP_TIME := 0.065
@@ -268,6 +277,12 @@ var debug_actor_material: StandardMaterial3D
 var selected_camera_mode := "first_person"
 var runner_spawn_position := Vector3(-23.0, 0.12, 22.0)
 var tagger_spawn_position := Vector3(23.0, 0.12, -22.0)
+# 主动发现的所有可站立楼层高度（升序），由 _discover_spawnable_levels() 填充并缓存。
+var discovered_throwable_levels: Array[float] = []
+# 每层已发现的水平采样点，用于把撒点集中到该层真实存在地面的区域。
+var discovered_level_samples: Array = []
+# 楼层轮转索引，保证道具在各楼层之间均衡分配。
+var throwable_level_cursor := 0
 
 var throwable_root: Node3D
 var throwable_trajectory: MeshInstance3D
@@ -2917,7 +2932,10 @@ func _apply_map_environment(raw_environment) -> void:
 	if sky_type == "nether_dynamic":
 		env.background_mode = Environment.BG_SKY
 		env.sky = _build_nether_sky(data)
-		env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		# 仅当地图显式声明 sky_ambient=true 时才用天空作为环境光来源；
+		# 否则保持地图原有的 ambient_color/energy 颜色源，加天空云不改变画面亮度。
+		if _to_bool(data.get("sky_ambient", false), false):
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 		# 让雾也染天空地平线，使远处岩浆与天空之间平滑渐变而非硬切
 		if "fog_sky_affect" in env:
 			env.set("fog_sky_affect", float(data.get("fog_sky_affect", 1.0)))
@@ -3158,6 +3176,10 @@ func _load_map_from_path(map_path: String) -> bool:
 	active_map_path = map_path
 	runner_spawn_position = result.get("runner_spawn", runner_spawn_position)
 	tagger_spawn_position = result.get("tagger_spawn", tagger_spawn_position)
+	# 新地图加载后清空楼层缓存，下一次生成道具时会重新扫描发现所有楼层。
+	discovered_throwable_levels.clear()
+	discovered_level_samples.clear()
+	throwable_level_cursor = 0
 	var gameplay: Dictionary = result.get("gameplay", {})
 	minimap_world_radius = maxf(1.0, float(gameplay.get("world_radius", DEFAULT_MINIMAP_WORLD_RADIUS)))
 	_apply_map_environment(result.get("environment", {}))
@@ -4098,29 +4120,34 @@ func _choose_ground_item_type() -> String:
 func _find_throwable_spawn_position():
 	if get_world_3d() == null:
 		return null
+	var space_state := get_world_3d().direct_space_state
+	# 确保已发现整张地图的所有可站立楼层（结果会缓存，切图时清空）。
+	_ensure_spawnable_levels(space_state)
+	var active_heights := _throwable_active_heights()
 	var center := runner_spawn_position.lerp(tagger_spawn_position, 0.5)
 	var span := runner_spawn_position.distance_to(tagger_spawn_position)
-	# Clamp the search radius so probes stay inside compact maps instead of
-	# overshooting the map bounds (which previously yielded zero valid spawns).
-	var max_radius := clampf(span * 0.5, 10.0, 26.0)
-	var space_state := get_world_3d().direct_space_state
-	var active_heights := _throwable_active_heights()
-	var total_attempts: int = maxi(THROWABLE_SPAWN_ATTEMPTS, 64)
+	# 水平搜索半径显著放宽，让远离出生点连线的边角楼层也能被覆盖。
+	var max_radius := clampf(span * 0.65, 14.0, THROWABLE_LEVEL_SCAN_RADIUS_MAX)
+	var total_attempts: int = maxi(THROWABLE_SPAWN_ATTEMPTS, 96)
 	for attempt in range(total_attempts):
-		var angle := randf() * TAU
-		# Late attempts shrink toward the guaranteed-walkable centre so a slot
-		# can still be found on small or crowded maps.
-		var falloff := 1.0 - float(attempt) / float(total_attempts)
-		var radius := randf_range(4.0, lerpf(6.0, max_radius, falloff))
-		# Alternate the sampling origin so playable ground offset from the
-		# midpoint (e.g. multi-room maps) is still covered.
-		var origin := center
-		match attempt % 3:
-			1:
-				origin = runner_spawn_position
-			2:
-				origin = tagger_spawn_position
-		var probe := origin + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+		var probe: Vector3
+		# 轮转到某一层，并优先在该层实际存在地面的采样点附近撒点，
+		# 保证每一层（含边角）都能均衡地刷到道具。
+		var level_probe: Variant = _pick_level_biased_probe(attempt)
+		if level_probe != null:
+			probe = level_probe as Vector3
+		else:
+			# 回退：以出生点为原点的随机撒点（兼容未发现楼层的极端情况）。
+			var angle := randf() * TAU
+			var falloff := 1.0 - float(attempt) / float(total_attempts)
+			var radius := randf_range(4.0, lerpf(8.0, max_radius, falloff))
+			var origin := center
+			match attempt % 3:
+				1:
+					origin = runner_spawn_position
+				2:
+					origin = tagger_spawn_position
+			probe = origin + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
 		var surfaces := _throwable_surfaces_at_probe(probe, active_heights, space_state)
 		surfaces.shuffle()
 		for surface_position in surfaces:
@@ -4134,11 +4161,40 @@ func _find_throwable_spawn_position():
 					too_close = true
 					break
 			if not too_close:
+				# 成功放置后推进楼层游标，让下一件道具轮到其它楼层，实现跨层均衡。
+				if not discovered_level_samples.is_empty():
+					throwable_level_cursor = (throwable_level_cursor + 1) % discovered_level_samples.size()
 				return position
 	return null
 
+# 轮转到某个已发现楼层，并在该层的一个真实水平采样点附近抖动出一个探测点。
+# 返回 null 表示尚无可用楼层采样（交由调用方回退到随机撒点）。
+func _pick_level_biased_probe(attempt: int) -> Variant:
+	if discovered_level_samples.is_empty():
+		return null
+	var level_count := discovered_level_samples.size()
+	# 逐层轮转，保证生成次数在各楼层之间均衡分配。
+	var level_index := (throwable_level_cursor + attempt) % level_count
+	var samples: Array = discovered_level_samples[level_index]
+	if samples.is_empty():
+		return null
+	var base: Vector3 = samples[randi() % samples.size()]
+	# 在该采样点周围小范围抖动，覆盖同层邻近区域又不至于跑出这一层。
+	var jitter_angle := randf() * TAU
+	var jitter := randf_range(0.0, 3.0)
+	return base + Vector3(cos(jitter_angle) * jitter, 0.0, sin(jitter_angle) * jitter)
+
 func _throwable_active_heights() -> Array[float]:
+	# 基础高度来自出生点，再叠加主动发现的所有楼层，最后并入玩家实时踩踏高度。
 	var heights: Array[float] = [runner_spawn_position.y, tagger_spawn_position.y]
+	for level_height in discovered_throwable_levels:
+		var known := false
+		for height in heights:
+			if absf(height - level_height) < 0.25:
+				known = true
+				break
+		if not known:
+			heights.append(level_height)
 	for raw_actor in [player, tagger]:
 		var actor := raw_actor as CharacterBody3D
 		if actor == null or not is_instance_valid(actor) or not actor.is_on_floor():
@@ -4153,6 +4209,77 @@ func _throwable_active_heights() -> Array[float]:
 			heights.append(actor_height)
 	return heights
 
+# 主动扫描整张地图，发现所有可站立楼层（不再让道具高度被出生点绑定）。
+# 结果缓存在 discovered_throwable_levels / discovered_level_samples 中，切图时清空。
+func _ensure_spawnable_levels(space_state: PhysicsDirectSpaceState3D) -> void:
+	if not discovered_throwable_levels.is_empty():
+		return
+	_discover_spawnable_levels(space_state)
+
+func _discover_spawnable_levels(space_state: PhysicsDirectSpaceState3D) -> void:
+	discovered_throwable_levels.clear()
+	discovered_level_samples.clear()
+	throwable_level_cursor = 0
+	if space_state == null:
+		return
+	var center := runner_spawn_position.lerp(tagger_spawn_position, 0.5)
+	var span := runner_spawn_position.distance_to(tagger_spawn_position)
+	var scan_radius := clampf(span * 0.75, THROWABLE_LEVEL_SCAN_RADIUS_MIN, THROWABLE_LEVEL_SCAN_RADIUS_MAX)
+	var top_y := maxf(runner_spawn_position.y, tagger_spawn_position.y) + THROWABLE_LEVEL_SCAN_TOP
+	var bottom_y := minf(runner_spawn_position.y, tagger_spawn_position.y) - THROWABLE_LEVEL_SCAN_BOTTOM
+	# 聚类桶：key 为四舍五入后的层高，value 为 {"sum":高度累加, "count":样本数, "samples":水平点列表}
+	var clusters: Array = []
+	# 用黄金角螺旋在圆盘内均匀撒列，避免规则网格产生的对齐条纹。
+	var golden_angle := PI * (3.0 - sqrt(5.0))
+	for column in range(THROWABLE_LEVEL_SCAN_COLUMNS):
+		var t := (float(column) + 0.5) / float(THROWABLE_LEVEL_SCAN_COLUMNS)
+		var r := scan_radius * sqrt(t)
+		var a := golden_angle * float(column)
+		var probe_xz := center + Vector3(cos(a) * r, 0.0, sin(a) * r)
+		var from := Vector3(probe_xz.x, top_y, probe_xz.z)
+		var to := Vector3(probe_xz.x, bottom_y, probe_xz.z)
+		var last_hit_y := INF
+		for _layer in range(THROWABLE_LEVEL_SCAN_MAX_LAYERS):
+			var query := PhysicsRayQueryParameters3D.create(from, to)
+			query.collision_mask = 1
+			var hit := space_state.intersect_ray(query)
+			if hit.is_empty():
+				break
+			var normal: Vector3 = hit.get("normal", Vector3.ZERO)
+			var pos: Vector3 = hit.get("position", Vector3.ZERO)
+			# 防御：命中高度没有明显下降说明卡在同一面，提前结束避免死循环。
+			if pos.y >= last_hit_y - 0.01:
+				break
+			last_hit_y = pos.y
+			# 仅收集足够水平、且上方有净空可放道具的朝上表面。
+			if normal.y >= THROWABLE_MIN_SURFACE_NORMAL_Y and _has_throwable_spawn_clearance(pos, space_state):
+				_accumulate_level_cluster(clusters, pos)
+			# 从命中点略下方继续，以穿透到更低的楼层（同一碰撞体的多层地面也能命中）。
+			from = Vector3(probe_xz.x, pos.y - 0.25, probe_xz.z)
+	# 滤除样本过少的孤立薄板，按高度升序输出楼层。
+	clusters.sort_custom(func(x, y): return float(x["sum"]) / float(x["count"]) < float(y["sum"]) / float(y["count"]))
+	for cluster in clusters:
+		var count: int = int(cluster["count"])
+		if count < THROWABLE_LEVEL_MIN_SAMPLES:
+			continue
+		var level_height := float(cluster["sum"]) / float(count)
+		discovered_throwable_levels.append(level_height)
+		discovered_level_samples.append(cluster["samples"])
+	# 若一层都没发现（多半是物理世界尚未就绪，或极简纯出生台地图），
+	# 不写入任何缓存，保持为空——这样下一帧会重新扫描；期间道具仍可
+	# 借助 _throwable_active_heights 中的出生点高度与撒点回退在出生层生成，行为不退化。
+
+# 把一个命中点归入相近高度的聚类桶，或新建一个桶。
+func _accumulate_level_cluster(clusters: Array, pos: Vector3) -> void:
+	for cluster in clusters:
+		var avg := float(cluster["sum"]) / float(cluster["count"])
+		if absf(avg - pos.y) <= THROWABLE_LEVEL_CLUSTER_TOLERANCE:
+			cluster["sum"] = float(cluster["sum"]) + pos.y
+			cluster["count"] = int(cluster["count"]) + 1
+			(cluster["samples"] as Array).append(pos)
+			return
+	clusters.append({"sum": pos.y, "count": 1, "samples": [pos]})
+
 func _throwable_surfaces_at_probe(probe: Vector3, active_heights: Array[float], space_state: PhysicsDirectSpaceState3D) -> Array[Vector3]:
 	var surfaces: Array[Vector3] = []
 	# 先从各个角色活动高度内部向下探测，封顶室内地图不会被屋顶抢先命中。
@@ -4163,8 +4290,8 @@ func _throwable_surfaces_at_probe(probe: Vector3, active_heights: Array[float], 
 		local_query.collision_mask = 1
 		_append_throwable_surface(space_state.intersect_ray(local_query), active_heights, surfaces, space_state)
 
-	# 再从地图上方逐层排除已命中的碰撞体，收集平台、楼层等重叠上表面。
-	var excluded: Array[RID] = []
+	# 再从地图上方逐层向下推进探测，收集平台、楼层等重叠上表面。
+	# 用命中点下移的方式穿透楼层，可正确处理同一碰撞体包含多层地面的情况。
 	var highest_active := active_heights[0]
 	var lowest_active := active_heights[0]
 	for active_height in active_heights:
@@ -4172,18 +4299,20 @@ func _throwable_surfaces_at_probe(probe: Vector3, active_heights: Array[float], 
 		lowest_active = minf(lowest_active, active_height)
 	var from := Vector3(probe.x, highest_active + 64.0, probe.z)
 	var to := Vector3(probe.x, lowest_active - 128.0, probe.z)
+	var last_hit_y := INF
 	for _layer in range(THROWABLE_MAX_SURFACE_LAYERS):
 		var query := PhysicsRayQueryParameters3D.create(from, to)
 		query.collision_mask = 1
-		query.exclude = excluded
 		var hit := space_state.intersect_ray(query)
 		if hit.is_empty():
 			break
-		_append_throwable_surface(hit, active_heights, surfaces, space_state)
-		var hit_rid: RID = hit.get("rid", RID())
-		if not hit_rid.is_valid():
+		var hit_pos: Vector3 = hit.get("position", Vector3.ZERO)
+		# 命中高度未明显下降说明卡在同一面，提前结束避免死循环。
+		if hit_pos.y >= last_hit_y - 0.01:
 			break
-		excluded.append(hit_rid)
+		last_hit_y = hit_pos.y
+		_append_throwable_surface(hit, active_heights, surfaces, space_state)
+		from = Vector3(probe.x, hit_pos.y - 0.25, probe.z)
 	return surfaces
 
 func _append_throwable_surface(hit: Dictionary, active_heights: Array[float], surfaces: Array[Vector3], space_state: PhysicsDirectSpaceState3D) -> void:

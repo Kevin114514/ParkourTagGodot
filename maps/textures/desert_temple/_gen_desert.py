@@ -84,67 +84,36 @@ def make_sand(seed, name):
 
 
 def make_sandstone(seed, name, dark=False):
-    """砂岩砌块：细密沙粒颗粒 + 不规则斑驳 + 方块砌缝网格 + 侵蚀凹陷。
+    """砂岩：纯沙粒颗粒面，无任何砖砌缝/砌块网格/方向性条纹。
 
-    不使用任何规则正弦条纹（避免出现木纹样横条），纹理全部来自
-    多倍频噪声，观感是均匀的沙岩颗粒面。均值偏亮，靠物体色调染沙色。
+    纹理全部来自多倍频噪声：细密沙粒（grain）+ 超高频沙点（stipple）
+    + 低频矿物斑驳（patch）。均值偏亮，靠物体色调染沙色。
     """
     if dark:
         base = (216, 200, 168)
-        seam = (150, 128, 96)
         mott = (192, 172, 138)      # 斑驳暗色
-        rows, cols = 6, 5           # 更密的砌块
-        seam_w = 0.045
     else:
         base = (240, 228, 202)
-        seam = (178, 156, 120)
         mott = (216, 200, 168)
-        rows, cols = 5, 4
-        seam_w = 0.038
     # 细密沙粒（高频，多倍频）—— 砂岩表面主质感
     grain = noise_field(S, 64, 3, 0.5, seed + 1)
     # 超高频沙点（单粒沙感，颗粒粗糙）
     stipple = noise_field(S, 140, 2, 0.5, seed + 13)
-    # 中频斑驳（矿物色块，不规则）
+    # 中频斑驳（矿物色块，不规则、无方向性）
     patch = noise_field(S, 12, 3, 0.55, seed + 5)
-    ero = noise_field(S, 20, 3, 0.55, seed + 9)      # 侵蚀斑
     img = Image.new("RGB", (S, S))
     px = img.load()
-    rh = S / rows
-    cw = S / cols
-    rnd = random.Random(seed)
-    row_off = [rnd.uniform(0, cw) for _ in range(rows + 1)]  # 砖块错缝
-    block_tint = {}
     for y in range(S):
-        ri = int(y / rh)
         for x in range(S):
             # 不规则矿物斑驳（无方向性）
             p = patch[y][x]
             c = lerp3(mott, base, 0.30 + 0.70 * p)
-            # 细密沙粒明暗（高频颗粒，加强对比）
+            # 细密沙粒明暗（高频颗粒）
             g = grain[y][x] - 0.5
             c = (c[0] + g * 40, c[1] + g * 36, c[2] + g * 28)
             # 超高频沙点：模拟一粒粒沙子的粗糙感
             s = stipple[y][x] - 0.5
             c = (c[0] + s * 22, c[1] + s * 20, c[2] + s * 16)
-            # 每块整体微色偏
-            xoff = (x + row_off[ri]) % cw
-            ci = int((x + row_off[ri]) / cw)
-            key = (ri, ci)
-            if key not in block_tint:
-                block_tint[key] = rnd.uniform(-0.045, 0.045)
-            c = (c[0] * (1 + block_tint[key]), c[1] * (1 + block_tint[key]), c[2] * (1 + block_tint[key]))
-            # 砌缝：水平 + 竖直（错缝）
-            rin = (y - ri * rh) / rh
-            v_edge = min(rin, 1.0 - rin)
-            h_edge = min(xoff / cw, 1.0 - xoff / cw)
-            edge = min(v_edge, h_edge)
-            if edge < seam_w:
-                c = lerp3(seam, c, edge / seam_w)
-            # 侵蚀凹陷
-            e = ero[y][x]
-            if e < 0.18:
-                c = lerp3(seam, c, 0.45 + e / 0.18 * 0.55)
             px[x, y] = (clampc(c[0]), clampc(c[1]), clampc(c[2]))
     save(img, name)
 

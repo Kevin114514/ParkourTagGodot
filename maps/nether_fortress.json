@@ -35,6 +35,7 @@
     "fog_aerial_perspective": 0.0,
     "glow": true,
     "sky_type": "nether_dynamic",
+    "sky_ambient": true,
     "sky_horizon_softness": 2.2,
     "sky_top_color": [
       0.16,
