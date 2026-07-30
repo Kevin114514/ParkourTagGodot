@@ -90,7 +90,8 @@ const WIN_MODE_SURVIVAL := "survival"
 const DEFAULT_HITS_TO_WIN := 10
 const MIN_HITS_TO_WIN := 1
 const MAX_HITS_TO_WIN := 100
-const DEFAULT_WIN_TIME_SECONDS := 300.0
+const DEFAULT_SURVIVAL_TIME_SECONDS := 60.0
+const DEFAULT_HITS_TIME_SECONDS := 300.0
 const MIN_WIN_TIME_SECONDS := 10.0
 const MAX_WIN_TIME_SECONDS := 3600.0
 const SLOW_PARTICLE_MOVE_THRESHOLD := 0.18
@@ -237,9 +238,11 @@ var local_round_load_ready := false
 var remote_round_load_ready := false
 var remote_peer_id := 0
 var host_is_runner := true
-var win_mode := WIN_MODE_HITS
+var win_mode := WIN_MODE_SURVIVAL
 var hits_to_win := DEFAULT_HITS_TO_WIN
-var win_time_seconds := DEFAULT_WIN_TIME_SECONDS
+var survival_time_seconds := DEFAULT_SURVIVAL_TIME_SECONDS
+var hits_time_seconds := DEFAULT_HITS_TIME_SECONDS
+var win_time_seconds := DEFAULT_SURVIVAL_TIME_SECONDS
 var is_leaving_room := false
 var round_transition_token := 0
 var map_root: Node3D
@@ -1499,6 +1502,7 @@ func _switch_win_mode(_direction: int) -> void:
 		return
 	_refresh_win_target_from_ui()
 	win_mode = WIN_MODE_HITS if win_mode == WIN_MODE_SURVIVAL else WIN_MODE_SURVIVAL
+	win_time_seconds = _time_for_mode(win_mode)
 	_update_win_mode_ui()
 	_sync_lobby_settings("房间规则已同步，等待房主开始游戏。")
 	_update_lobby_ui()
@@ -1516,18 +1520,31 @@ func _on_win_time_changed(value: float) -> void:
 		_update_win_mode_ui()
 		return
 	win_time_seconds = clampf(value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	_set_time_for_mode(win_mode, win_time_seconds)
 	_sync_lobby_settings("房间规则已同步，等待房主开始游戏。")
 	_update_lobby_ui()
+
+func _time_for_mode(mode: String) -> float:
+	return survival_time_seconds if mode == WIN_MODE_SURVIVAL else hits_time_seconds
+
+func _set_time_for_mode(mode: String, value: float) -> void:
+	var clamped_value := clampf(value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	if mode == WIN_MODE_SURVIVAL:
+		survival_time_seconds = clamped_value
+	else:
+		hits_time_seconds = clamped_value
 
 func _refresh_win_target_from_ui() -> void:
 	if win_target_spinbox != null:
 		hits_to_win = clampi(int(round(win_target_spinbox.value)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
 	if win_time_spinbox != null:
 		win_time_seconds = clampf(win_time_spinbox.value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	_set_time_for_mode(win_mode, win_time_seconds)
 
 func _update_win_mode_ui() -> void:
 	var is_survival := win_mode == WIN_MODE_SURVIVAL
 	var can_edit := game_mode != "lobby" or multiplayer.is_server()
+	win_time_seconds = _time_for_mode(win_mode)
 	if win_mode_label != null:
 		win_mode_label.text = "限时躲藏" if is_survival else "命中获胜"
 	if win_mode_previous_button != null:
@@ -1934,6 +1951,7 @@ func _rpc_sync_lobby(new_host_is_runner: bool, new_win_mode: String, new_hits_to
 	win_mode = WIN_MODE_SURVIVAL if new_win_mode == WIN_MODE_SURVIVAL else WIN_MODE_HITS
 	hits_to_win = clampi(new_hits_to_win, MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
 	win_time_seconds = clampf(new_win_time_seconds, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	_set_time_for_mode(win_mode, win_time_seconds)
 	runner_skin_id = new_runner_skin_id
 	tagger_skin_id = new_tagger_skin_id
 	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
@@ -2181,6 +2199,7 @@ func _apply_network_start_payload(payload: Dictionary) -> void:
 	win_mode = WIN_MODE_SURVIVAL if String(payload.get("win_mode", win_mode)) == WIN_MODE_SURVIVAL else WIN_MODE_HITS
 	hits_to_win = clampi(int(payload.get("hits_to_win", hits_to_win)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
 	win_time_seconds = clampf(float(payload.get("win_time_seconds", win_time_seconds)), MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	_set_time_for_mode(win_mode, win_time_seconds)
 	selected_camera_mode = "first_person" if String(payload.get("selected_camera_mode", selected_camera_mode)) == "first_person" else "third_person"
 	selected_map_index = int(payload.get("selected_map_index", selected_map_index))
 	var map_payload = payload.get("map", {})
