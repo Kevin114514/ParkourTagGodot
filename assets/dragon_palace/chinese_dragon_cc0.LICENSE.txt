@@ -1,0 +1,7 @@
+Asset: Chinese Dragon
+Author: davmo24
+Source: https://www.meshy.ai/3d-models/Chinese-Dragon-019cc938-42b3-7317-9fee-f8b188861525
+Public metadata: https://api.meshy.ai/web/public/v2/tasks/019cc938-42b3-7317-9fee-f8b188861525
+License: CC0
+
+The project copy was converted to GLB and optimized from 1,397,836 to 104,837 triangles in Blender while retaining UVs and embedded textures. The Dragon Palace map applies its own stone and gilded PBR material overrides.

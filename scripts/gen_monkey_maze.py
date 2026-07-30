@@ -5,8 +5,10 @@
 - braid 打通时避免形成 2x2 开阔小室；残留的开阔小室用中央立柱改造成环形回廊，杜绝斜向望穿。
 - 并加入交错隔断/立柱打断长直视线、制造不规则遮挡；放置时做全局净距校验，杜绝"看得见开口却穿不过"的窄缝。
 - 每个走廊单元都有一盏贴顶暖光灯（无阴影穿透相邻格），配合抬高的环境光，全程无死黑区。
-- 约 30% 的灯做成频闪/闪烁/呼吸（min 亮度 > 0，闪灭时靠邻灯与环境光补光，不产生死黑）。
+- 约 88% 的走廊灯为强频闪，另有少量随机闪烁/呼吸灯；仅出生点及约 2% 的普通灯保持常亮。
 - 天花板整块封顶（出生点已不再从天而降）。
+- 灯与壁画在【所有到顶实体（中央立柱/隔断/立柱）】放置完毕后再生成：灯若落入实体则挪到最近空走廊，
+  壁画若与实体显著重叠则跳过，杜绝"灯/画卡在墙（柱）中间"。
 """
 import json
 import random
@@ -189,6 +191,35 @@ def makes_narrow_gap(px, pz, sx, sz):
     return False
 
 
+# ---- 到顶实体登记表：供【灯具/壁画】避让，杜绝"灯/画卡进墙（柱）里" ----
+# 记录所有"到天花板"的实体（外/内墙、转角柱、中央立柱、到顶隔断、到顶立柱）在 XZ 的 AABB。
+# 贴顶灯座(y≈3.5)与壁画(y≈1.9)若落入其中就会被埋进实体 → 放置时据此避让。
+tall_aabbs = []       # [(x0, x1, z0, z1), ...]
+
+
+def reg_tall(px, pz, sx, sz):
+    tall_aabbs.append((px - sx / 2.0, px + sx / 2.0, pz - sz / 2.0, pz + sz / 2.0))
+
+
+def point_in_tall(x, z, margin=0.0):
+    """点 (x,z)（含灯具半宽 margin）是否落入任一到顶实体内。"""
+    for (x0, x1, z0, z1) in tall_aabbs:
+        if x0 - margin < x < x1 + margin and z0 - margin < z < z1 + margin:
+            return True
+    return False
+
+
+def box_hits_tall(bx0, bx1, bz0, bz1, min_overlap=0.03):
+    """矩形足迹与任一到顶实体在两个方向都有显著重叠（> min_overlap）时判为冲突。
+    仅贴合边缘（如壁画贴在其安装墙上，法向重叠≈0）不算冲突。"""
+    for (ax0, ax1, az0, az1) in tall_aabbs:
+        ox = min(bx1, ax1) - max(bx0, ax0)
+        oz = min(bz1, az1) - max(bz0, az0)
+        if ox > min_overlap and oz > min_overlap:
+            return True
+    return False
+
+
 # ---- 地板 ----
 _ground_size = [N * CELL + 2.0, 0.3, N * CELL + 2.0]
 objects.append({
@@ -210,6 +241,7 @@ for name, pos, size in bound_defs:
     objects.append({"type": "box", "name": name, "position": pos, "size": size,
                     "color": WALL_COLOR, "material_id": "wall", "uv_scale": tex_uv(size)})
     reg_blocker(pos[0], pos[2], size[0], size[2])
+    reg_tall(pos[0], pos[2], size[0], size[2])
 
 # ---- 内部墙 + 转角角柱 ----
 # 关键修复（墙角持续闪烁抖动的主因）：
@@ -268,6 +300,7 @@ def emit_wall(px, pz, sx, sz, idx, name="Wall"):
         "material_id": "wall", "uv_scale": tex_uv(size),
     })
     reg_blocker(px, pz, sx, sz)
+    reg_tall(px, pz, sx, sz)
 
 
 wall_idx = 0
@@ -333,45 +366,6 @@ objects.append({
 })
 ceil_idx = 1
 
-# ---- 照明：每个单元一盏灯，部分频闪 ----
-lamp_idx = 0
-for i in range(N):
-    for j in range(N):
-        px, pz = cx(i), cx(j)
-        # 频闪分配：出生格常亮，其余按概率。strobe/flicker 熄灭时完全灭（min=0）
-        is_spawn = (i, j) in ((0, 0), (N - 1, N - 1))
-        flicker = None
-        if not is_spawn:
-            r = random.random()
-            if r < 0.12:
-                flicker = {"mode": "strobe", "frequency": random.uniform(1.2, 2.2), "min": 0.0, "max": 1.0}
-            elif r < 0.36:
-                flicker = {"mode": "flicker", "frequency": random.uniform(3.5, 6.0), "min": 0.0, "max": 1.0}
-            elif r < 0.46:
-                flicker = {"mode": "pulse", "frequency": random.uniform(0.25, 0.6), "min": 0.12, "max": 1.0}
-        # 贴顶灯座（无碰撞）：全部带暖黄自发光，看起来就是亮黄的发光体。
-        # 频闪灯座的自发光亮度由 flicker 脚本与灯光同步驱动：灯亮时亮黄、灯灭瞬间变黑，不残留黄色。
-        fix = {
-            "type": "box", "name": "LampFix_%d" % lamp_idx,
-            "position": [px, 3.5, pz], "size": [0.4, 0.12, 0.4],
-            "collision": False,
-            "color": LAMP_COLOR,
-            "emission": LAMP_EMISSION,
-            "emission_energy": 1.4,
-        }
-        objects.append(fix)
-        light = {
-            "light_type": "omni", "name": "CorridorLamp_%d" % lamp_idx,
-            "position": [px, 3.1, pz], "color": LIGHT_COLOR,
-            "energy": 1.0, "range": 4.4, "shadow": False,
-        }
-        if flicker is not None:
-            light["flicker"] = flicker
-            light["emissive_fixture"] = "LampFix_%d" % lamp_idx   # 灯座自发光跟随频闪同步明灭
-            light["fixture_emission_base"] = 1.4
-        lights.append(light)
-        lamp_idx += 1
-
 # ---- 辨向系统：把迷宫按 3x3 分成 9 个区域，每区一个主题色 ----
 REGION_COLORS = [
     [0.62, 0.16, 0.16],   # 区0 暗红
@@ -401,49 +395,6 @@ def wall_on(i, j, di, dj):
     return edge_key((i, j), (ni, nj)) not in passages
 
 
-# ---- 墙上恐怖壁画：完全不发光、暗色调、稀疏随机分布，营造诡异氛围 ----
-HORROR_COLORS = [
-    [0.15, 0.03, 0.03],   # 干涸血红
-    [0.09, 0.07, 0.04],   # 陈旧黄褐
-    [0.05, 0.08, 0.06],   # 惨绿
-    [0.06, 0.05, 0.09],   # 阴冷紫
-    [0.03, 0.03, 0.03],   # 近黑
-    [0.11, 0.06, 0.05],   # 锈褐
-]
-paint_idx = 0
-for i in range(N):
-    for j in range(N):
-        wdirs = [d for d in DIRS if wall_on(i, j, *d)]
-        if not wdirs:
-            continue
-        if random.random() > 0.45:   # 稀疏：约 45% 的可挂墙面才挂画
-            continue
-        di, dj = random.choice(wdirs)
-        px, pz = cx(i), cx(j)
-        face_x = px + di * (CELL / 2.0 - WALL_T / 2.0)
-        face_z = pz + dj * (CELL / 2.0 - WALL_T / 2.0)
-        pw, ph, th = random.uniform(0.9, 1.3), random.uniform(0.7, 1.05), 0.06
-        if di != 0:
-            frame_size = [th + 0.04, ph + 0.22, pw + 0.22]
-            canvas_size = [th, ph, pw]
-        else:
-            frame_size = [pw + 0.22, ph + 0.22, th + 0.04]
-            canvas_size = [pw, ph, th]
-        yc = random.uniform(1.7, 2.1)
-        objects.append({
-            "type": "box", "name": "PaintFrame_%d" % paint_idx,
-            "position": [face_x - di * 0.05, yc, face_z - dj * 0.05],
-            "size": frame_size, "color": [0.03, 0.02, 0.02], "collision": False,
-        })
-        # 画布：贴恐怖壁画贴图，完全不发光。白 tint 保留原图色调，UV 不平铺（整张画铺满）。
-        objects.append({
-            "type": "box", "name": "Painting_%d" % paint_idx,
-            "position": [face_x - di * 0.08, yc, face_z - dj * 0.08],
-            "size": canvas_size, "color": [0.9, 0.9, 0.9], "collision": False,
-            "material_id": "painting",
-        })
-        paint_idx += 1
-
 # ---- 中央立柱：把 braid 后仍残留的开阔小室改造成环形回廊，堵住斜向透视 ----
 # 在 2x2 开阔小室的公共内部顶点放一根到顶立柱，四周留出约 1.25 净宽的环形走廊，
 # 既彻底消除斜向望穿，又强化"回廊"迷宫的观感（绕柱成环）。
@@ -462,6 +413,7 @@ for bi in range(N - 1):
             "material_id": "pillar", "uv_scale": tex_uv([cw, WALL_H, cw]),
         })
         reg_blocker(vx, vz, cw, cw)
+        reg_tall(vx, vz, cw, cw)
         core_idx += 1
 
 # ---- 遮挡与不规则：交错半隔断打断长直视线 + 贴墙立柱/矮箱增加不规则感 ----
@@ -495,6 +447,7 @@ for i in range(N):
                     "material_id": "wall", "uv_scale": tex_uv([bsx, WALL_H, bsz]),
                 })
                 reg_blocker(bpx, bpz, bsx, bsz)
+                reg_tall(bpx, bpz, bsx, bsz)   # 到顶隔断：登记供灯/画避让
                 obstacle_idx += 1
         elif n_open >= 2 and random.random() < 0.5:
             # 拐角/路口：贴一面实墙放立柱或矮箱，通道保留在对侧。
@@ -513,15 +466,19 @@ for i in range(N):
             if random.random() < 0.7:
                 h = WALL_H                     # 到顶立柱：遮断视线
                 col = PILLAR_COLOR
+                is_tall = True
             else:
                 h = random.uniform(1.0, 1.5)   # 矮箱：可翻越，增加杂乱
                 col = [0.6, 0.56, 0.54]        # 稍暗一档，与到顶柱区分
+                is_tall = False
             objects.append({
                 "type": "box", "name": "Pillar_%d" % obstacle_idx,
                 "position": [bx, h / 2.0, bz], "size": [w, h, w], "color": col,
                 "material_id": "pillar", "uv_scale": tex_uv([w, h, w]),
             })
             reg_blocker(bx, bz, w, w)
+            if is_tall:                        # 仅到顶立柱登记供灯/画避让（矮箱不及灯/画高度）
+                reg_tall(bx, bz, w, w)
             obstacle_idx += 1
 
 # ---- 电视：靠墙落地，冷色屏幕 + 闪烁光，增加真实感 ----
@@ -567,15 +524,138 @@ for (i, j) in tv_cells:
     objects.append({
         "type": "box", "name": "TVScreen_%d" % tv_idx,
         "position": [sx, 0.95, sz], "size": screen_size, "color": tv_col,
-        "collision": False, "emission": tv_col, "emission_energy": 1.6,
+        "collision": False, "emission": tv_col, "emission_energy": 1.2,
     })
     lights.append({
         "light_type": "omni", "name": "TVGlow_%d" % tv_idx,
         "position": [bx + nx * 0.6, 1.0, bz + nz * 0.6], "color": [0.5, 0.68, 0.95],
-        "energy": 0.8, "range": 3.5, "shadow": False,
+        "energy": 0.6, "range": 3.5, "shadow": False,
         "flicker": {"mode": "flicker", "frequency": random.uniform(4.0, 6.0), "min": 0.0, "max": 1.0},
     })
     tv_idx += 1
+
+# ---- 照明：每个单元一盏灯，部分频闪 ----
+# 【关键修复】灯必须在所有到顶实体（中央立柱/隔断/立柱）之后放置，才能据 tall_aabbs 避让。
+# 若灯座中心落入到顶实体，则沿四周（含斜向）挪到最近的空走廊格，避免"灯卡进墙/柱里"。
+LAMP_HALF = 0.22   # 灯座半宽（0.4/2）+ 余量
+
+
+def lamp_free(x, z):
+    return not point_in_tall(x, z, margin=LAMP_HALF)
+
+
+# 灯光使用独立随机源，调整闪烁比例不会连带改变后续壁画的位置与数量。
+lamp_rng = random.Random(20260730)
+lamp_idx = 0
+for i in range(N):
+    for j in range(N):
+        px, pz = cx(i), cx(j)
+        lx, lz = px, pz
+        if not lamp_free(lx, lz):
+            # 落在到顶实体里：向周围空走廊挪位（小幅度优先；斜向可移出中央立柱的角落）。
+            moved = False
+            cand = []
+            for mag in (0.7, 0.95):
+                for dx, dz in ((-1, 0), (1, 0), (0, -1), (0, 1),
+                               (-1, -1), (1, -1), (-1, 1), (1, 1)):
+                    cand.append((px + dx * mag, pz + dz * mag))
+            for (oxp, ozp) in cand:
+                if lamp_free(oxp, ozp):
+                    lx, lz, moved = oxp, ozp, True
+                    break
+            if not moved:
+                continue   # 该格已被到顶实体完全占据，无地面可照，跳过
+        # 频闪分配：两个出生格固定常亮；其余约 88% 为强频闪、8% 随机闪烁、2% 呼吸、仅 2% 常亮。
+        # strobe/flicker 会完全闪灭（min=0），靠密集邻灯与环境光避免整片区域同时死黑。
+        is_spawn = (i, j) in ((0, 0), (N - 1, N - 1))
+        flicker = None
+        if not is_spawn:
+            # 保持旧版全局随机数消耗不变，以免此次灯光调整移动后续壁画。
+            legacy_r = random.random()
+            if legacy_r < 0.46:
+                random.uniform(0.0, 1.0)
+            r = lamp_rng.random()
+            if r < 0.88:
+                flicker = {"mode": "strobe", "frequency": lamp_rng.uniform(0.35, 0.7), "min": 0.0, "max": 1.0}
+            elif r < 0.96:
+                flicker = {"mode": "flicker", "frequency": lamp_rng.uniform(3.5, 6.0), "min": 0.0, "max": 1.0}
+            elif r < 0.98:
+                flicker = {"mode": "pulse", "frequency": lamp_rng.uniform(0.25, 0.6), "min": 0.12, "max": 1.0}
+        # 贴顶灯座（无碰撞）：全部带暖黄自发光，看起来就是亮黄的发光体。
+        # 频闪灯座的自发光亮度由 flicker 脚本与灯光同步驱动：灯亮时亮黄、灯灭瞬间变黑，不残留黄色。
+        fix = {
+            "type": "box", "name": "LampFix_%d" % lamp_idx,
+            "position": [lx, 3.5, lz], "size": [0.4, 0.12, 0.4],
+            "collision": False,
+            "color": LAMP_COLOR,
+            "emission": LAMP_EMISSION,
+            "emission_energy": 1.0,
+        }
+        objects.append(fix)
+        light = {
+            "light_type": "omni", "name": "CorridorLamp_%d" % lamp_idx,
+            "position": [lx, 3.1, lz], "color": LIGHT_COLOR,
+            "energy": 0.75, "range": 4.4, "shadow": False,
+        }
+        if flicker is not None:
+            light["flicker"] = flicker
+            light["emissive_fixture"] = "LampFix_%d" % lamp_idx   # 灯座自发光跟随频闪同步明灭
+            light["fixture_emission_base"] = 1.0
+        lights.append(light)
+        lamp_idx += 1
+
+# ---- 墙上恐怖壁画：完全不发光、暗色调、稀疏随机分布，营造诡异氛围 ----
+# 【关键修复】壁画同样在所有到顶实体之后放置：若画框足迹与到顶实体显著重叠（被立柱/隔断/
+# 中央柱挡在前面、埋进实体里），则跳过该处壁画。仅与安装墙贴合（法向重叠≈0）不算冲突。
+HORROR_COLORS = [
+    [0.15, 0.03, 0.03],   # 干涸血红
+    [0.09, 0.07, 0.04],   # 陈旧黄褐
+    [0.05, 0.08, 0.06],   # 惨绿
+    [0.06, 0.05, 0.09],   # 阴冷紫
+    [0.03, 0.03, 0.03],   # 近黑
+    [0.11, 0.06, 0.05],   # 锈褐
+]
+paint_idx = 0
+for i in range(N):
+    for j in range(N):
+        wdirs = [d for d in DIRS if wall_on(i, j, *d)]
+        if not wdirs:
+            continue
+        if random.random() > 0.45:   # 稀疏：约 45% 的可挂墙面才挂画
+            continue
+        di, dj = random.choice(wdirs)
+        px, pz = cx(i), cx(j)
+        face_x = px + di * (CELL / 2.0 - WALL_T / 2.0)
+        face_z = pz + dj * (CELL / 2.0 - WALL_T / 2.0)
+        # 壁画源图为正方形；画布保持 1:1，避免非等比缩放。仍消耗两次随机数以保持后续地图随机序列不变。
+        pw_raw, ph_raw, th = random.uniform(0.9, 1.3), random.uniform(0.7, 1.05), 0.06
+        side = min(pw_raw, ph_raw)
+        if di != 0:
+            frame_size = [th + 0.04, side + 0.22, side + 0.22]
+            canvas_size = [th, side, side]
+        else:
+            frame_size = [side + 0.22, side + 0.22, th + 0.04]
+            canvas_size = [side, side, th]
+        yc = random.uniform(1.7, 2.1)
+        fcx = face_x - di * 0.05
+        fcz = face_z - dj * 0.05
+        # 画框在 XZ 的足迹被到顶实体显著遮挡（埋进立柱/隔断/中央柱）→ 跳过此画。
+        if box_hits_tall(fcx - frame_size[0] / 2.0, fcx + frame_size[0] / 2.0,
+                         fcz - frame_size[2] / 2.0, fcz + frame_size[2] / 2.0):
+            continue
+        objects.append({
+            "type": "box", "name": "PaintFrame_%d" % paint_idx,
+            "position": [fcx, yc, fcz],
+            "size": frame_size, "color": [0.03, 0.02, 0.02], "collision": False,
+        })
+        # 画布保持正方形 1:1 比例，确保源图不被非等比拉伸；使用有厚度的 BoxMesh 保证各朝向正常受光。
+        objects.append({
+            "type": "box", "name": "Painting_%d" % paint_idx,
+            "position": [face_x - di * 0.08, yc, face_z - dj * 0.08],
+            "size": canvas_size, "color": [0.9, 0.9, 0.9], "collision": False,
+            "material_id": "painting",
+        })
+        paint_idx += 1
 
 # ---- 消除 Z-fighting（贴图闪烁抖动）----
 # 墙底面(y=0)与地板顶面(y=0)、墙顶面(y=WALL_H)与天花板底面(y=WALL_H)精确共面，
@@ -606,7 +686,7 @@ data = {
         "tonemap": "filmic",
         "exposure": 0.9,
         "glow": True,
-        "sun": {"rotation_degrees": [-70.0, 25.0, 0.0], "energy": 0.06, "color": [0.4, 0.28, 0.3], "shadow": False},
+        "sun": {"rotation_degrees": [-70.0, 25.0, 0.0], "energy": 0.045, "color": [0.4, 0.28, 0.3], "shadow": False},
     },
     "materials": MATERIALS,
     "objects": objects,

@@ -1,0 +1,25 @@
+Pine
+- Author: Quaternius
+- Source: https://poly.pizza/m/igSu0cPoBz
+- Asset URL: https://static.poly.pizza/712aaefa-ae7f-4cb3-8834-a1b8860df3b2.glb
+- License: CC0 1.0
+- Original mesh: 1,646 triangles
+
+Hanging Lantern
+- Author: Kay Lousberg
+- Source: https://poly.pizza/m/3jzk3YShv1
+- Asset URL: https://static.poly.pizza/31b8c80d-3607-4f84-a857-749419e4742e.glb
+- License: CC0 1.0
+- Original mesh: 472 triangles
+
+Both assets are used as decorative models in the Dragon Palace map. Collision is supplied by simplified project-side proxy shapes.
+
+PBR Textures
+- Source: Poly Haven (https://polyhaven.com/)
+- License: CC0 1.0
+- Stone Tiles: https://polyhaven.com/a/stone_tiles
+- Dark Wooden Planks: https://polyhaven.com/a/dark_wooden_planks
+- Red Plaster Weathered: https://polyhaven.com/a/red_plaster_weathered
+- Yellow Plaster 02: https://polyhaven.com/a/yellow_plaster_02
+- Clay Roof Tiles: https://polyhaven.com/a/clay_roof_tiles
+- Project copies use the 1K JPG diffuse, OpenGL normal, and roughness maps.

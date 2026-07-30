@@ -109,6 +109,8 @@ static func _add_object(root: Node3D, data: Dictionary, context: Dictionary) -> 
 			_add_csg_cylinder(root, data, context)
 		"capsule":
 			_add_capsule(root, data, context)
+		"path_mesh":
+			_add_path_mesh(root, data, context)
 		"model", "scene", "mesh":
 			_add_model(root, data, context)
 		"prefab":
@@ -228,6 +230,111 @@ static func _add_capsule(root: Node3D, data: Dictionary, context: Dictionary) ->
 		mesh.mesh = capsule
 		mesh.material_override = _material_from_data(data, context, Color(0.4, 0.4, 0.4))
 		body.add_child(mesh)
+	return body
+
+static func _add_path_mesh(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:
+	var raw_points: Array = data.get("points", [])
+	var width := float(data.get("width", 4.0))
+	var thickness := float(data.get("thickness", 0.35))
+	var body := _create_body(root, data)
+	if raw_points.size() < 2 or width <= 0.0:
+		push_warning("连续道路缺少有效 points/width：%s" % body.name)
+		return body
+	var points: Array[Vector3] = []
+	for raw_point in raw_points:
+		points.append(_to_vector3(raw_point, Vector3.ZERO))
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var vertices: Array[Vector3] = []
+	for index in range(points.size()):
+		var tangent: Vector3
+		if index == 0:
+			tangent = points[1] - points[0]
+		elif index == points.size() - 1:
+			tangent = points[-1] - points[-2]
+		else:
+			tangent = points[index + 1] - points[index - 1]
+		tangent.y = 0.0
+		if tangent.length_squared() < 0.000001:
+			tangent = Vector3.FORWARD
+		tangent = tangent.normalized()
+		var side := Vector3(-tangent.z, 0.0, tangent.x) * width * 0.5
+		vertices.append(points[index] - side)
+		vertices.append(points[index] + side)
+	var distances: Array[float] = [0.0]
+	for index in range(1, points.size()):
+		distances.append(distances[-1] + points[index - 1].distance_to(points[index]))
+	var uv_width := width / 3.0
+	for index in range(points.size() - 1):
+		var base := index * 2
+		var v0 := distances[index] / 3.0
+		var v1 := distances[index + 1] / 3.0
+		# 顶面统一逆时针绕序，法线朝上；镜像道路也保持相同的物理正面。
+		var top_indices := [base, base + 1, base + 2, base + 1, base + 3, base + 2]
+		var top_uvs := [Vector2(0.0, v0), Vector2(uv_width, v0), Vector2(0.0, v1),
+			Vector2(uv_width, v0), Vector2(uv_width, v1), Vector2(0.0, v1)]
+		for triangle_index in range(top_indices.size()):
+			surface.set_uv(top_uvs[triangle_index])
+			surface.add_vertex(vertices[top_indices[triangle_index]])
+		var bottom_left := vertices[base] - Vector3.UP * thickness
+		var bottom_right := vertices[base + 1] - Vector3.UP * thickness
+		var next_bottom_left := vertices[base + 2] - Vector3.UP * thickness
+		var next_bottom_right := vertices[base + 3] - Vector3.UP * thickness
+		var bottom_vertices := [bottom_left, next_bottom_left, bottom_right,
+			bottom_right, next_bottom_left, next_bottom_right]
+		var bottom_uvs := [Vector2(0.0, v0), Vector2(0.0, v1), Vector2(uv_width, v0),
+			Vector2(uv_width, v0), Vector2(0.0, v1), Vector2(uv_width, v1)]
+		for triangle_index in range(bottom_vertices.size()):
+			surface.set_uv(bottom_uvs[triangle_index])
+			surface.add_vertex(bottom_vertices[triangle_index])
+		var left_vertices := [vertices[base], bottom_left, vertices[base + 2],
+			bottom_left, next_bottom_left, vertices[base + 2]]
+		var right_vertices := [vertices[base + 1], vertices[base + 3], bottom_right,
+			bottom_right, vertices[base + 3], next_bottom_right]
+		var side_uvs := [Vector2(0.0, v0), Vector2(thickness, v0), Vector2(0.0, v1),
+			Vector2(thickness, v0), Vector2(thickness, v1), Vector2(0.0, v1)]
+		for triangle_index in range(left_vertices.size()):
+			surface.set_uv(side_uvs[triangle_index])
+			surface.add_vertex(left_vertices[triangle_index])
+			surface.set_uv(side_uvs[triangle_index])
+			surface.add_vertex(right_vertices[triangle_index])
+	var first_left := vertices[0]
+	var first_right := vertices[1]
+	var first_bottom_left := first_left - Vector3.UP * thickness
+	var first_bottom_right := first_right - Vector3.UP * thickness
+	var first_cap := [first_left, first_right, first_bottom_left,
+		first_right, first_bottom_right, first_bottom_left]
+	var last_left := vertices[-2]
+	var last_right := vertices[-1]
+	var last_bottom_left := last_left - Vector3.UP * thickness
+	var last_bottom_right := last_right - Vector3.UP * thickness
+	var last_cap := [last_left, last_bottom_left, last_right,
+		last_right, last_bottom_left, last_bottom_right]
+	for cap in [first_cap, last_cap]:
+		for vertex_index in range(cap.size()):
+			surface.set_uv(Vector2(float(vertex_index % 2) * uv_width,
+				float(vertex_index / 2) * thickness))
+			surface.add_vertex(cap[vertex_index])
+	# 焊接连续截面并生成切线，支持写实法线贴图。
+	surface.index()
+	surface.generate_normals()
+	surface.generate_tangents()
+	var array_mesh := surface.commit()
+	if _to_bool(data.get("visible", true), true):
+		var mesh_instance := MeshInstance3D.new()
+		mesh_instance.mesh = array_mesh
+		var path_material := _material_from_data(data, context, Color(0.4, 0.4, 0.4)).duplicate() as StandardMaterial3D
+		# 连续道路是封闭实体；双面显示用于防止极端弯道三角形在斜视角被误剔除。
+		path_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mesh_instance.material_override = path_material
+		body.add_child(mesh_instance)
+	if _collision_mode(data, "trimesh") != "none":
+		var collision := CollisionShape3D.new()
+		var path_shape := array_mesh.create_trimesh_shape()
+		if path_shape is ConcavePolygonShape3D:
+			(path_shape as ConcavePolygonShape3D).backface_collision = true
+		collision.shape = path_shape
+		body.add_child(collision)
 	return body
 
 static func _add_model(root: Node3D, data: Dictionary, context: Dictionary) -> StaticBody3D:

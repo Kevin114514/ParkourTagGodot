@@ -161,6 +161,11 @@ const OFFICIAL_MAPS = [
 		"name": "猴子旅馆走廊",
 		"path": "res://maps/monkey_hotel_corridors.json",
 		"description": "昏暗压抑的旅馆迷宫走廊：低环境光配暗红体积雾，沿路贴顶灯座投下昏黄点光，只照亮近处路径，灯与灯之间陷入黑暗。"
+	},
+	{
+		"name": "Dragon Palace · 龙馆道场",
+		"path": "res://maps/dragon_palace.json",
+		"description": "复刻《Mario Kart 8 Deluxe》对战场地：南侧双龙庭院连接北侧圆形道场；双屏风直达一层，左右耳形坡道直达二层，室内圆形回廊与回落坡道形成完整立体环路。"
 	}
 ]
 
