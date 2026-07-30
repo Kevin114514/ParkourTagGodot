@@ -24,6 +24,7 @@ const STEP_MAX_HEIGHT := 0.55
 const STEP_FORWARD_DISTANCE := 0.45
 const CAMERA_PIVOT_FROM_COLLISION := Vector3(0.0, 0.63, 0.0)
 const FIRST_PERSON_CAMERA_OFFSET := Vector3(0.0, 0.0, -0.08)
+const CAMERA_TOP_CLEARANCE := 0.03
 func _ready() -> void:
 	spawn_position = global_position
 	collision_layer = 2
@@ -374,7 +375,27 @@ func set_camera_mode(new_mode: String) -> void:
 func _get_camera_pivot_position() -> Vector3:
 	var collision := get_node_or_null("Collision") as CollisionShape3D
 	var collision_position := collision.position if collision != null else Vector3(0.0, 0.92, 0.0)
-	return collision_position + CAMERA_PIVOT_FROM_COLLISION
+	var desired_position := collision_position + CAMERA_PIVOT_FROM_COLLISION
+	desired_position.y = minf(desired_position.y, _get_collision_top_local_y() - CAMERA_TOP_CLEARANCE)
+	return desired_position
+
+func _get_collision_top_local_y() -> float:
+	var collision := get_node_or_null("Collision") as CollisionShape3D
+	if collision == null or collision.shape == null:
+		return 1.78
+	var half_height := 0.0
+	if collision.shape is CapsuleShape3D:
+		half_height = (collision.shape as CapsuleShape3D).height * 0.5
+	elif collision.shape is BoxShape3D:
+		half_height = (collision.shape as BoxShape3D).size.y * 0.5
+	elif collision.shape is SphereShape3D:
+		half_height = (collision.shape as SphereShape3D).radius
+	elif collision.shape is CylinderShape3D:
+		half_height = (collision.shape as CylinderShape3D).height * 0.5
+	return collision.position.y + half_height * absf(collision.scale.y)
+
+func _get_collision_top_global_y() -> float:
+	return to_global(Vector3(0.0, _get_collision_top_local_y(), 0.0)).y
 
 func _get_camera_collision_anchor() -> Vector3:
 	var collision := get_node_or_null("Collision") as CollisionShape3D
@@ -407,35 +428,12 @@ func _update_camera_collision() -> void:
 	if camera_mode != "third_person":
 		return
 	var desired_distance := 6.0
-	var min_distance := 0.55
 	var from := camera_pivot.global_position
-	var direction := camera_pivot.global_transform.basis.z.normalized()
-	var motion := direction * desired_distance
-	var space := get_world_3d().direct_space_state
-	var distance := desired_distance
-
-	var sphere := SphereShape3D.new()
-	sphere.radius = camera_radius
-	var shape_query := PhysicsShapeQueryParameters3D.new()
-	shape_query.shape = sphere
-	shape_query.transform = Transform3D(Basis(), from)
-	shape_query.motion = motion
-	shape_query.collision_mask = 1
-	shape_query.exclude = [get_rid()]
-	var cast_result := space.cast_motion(shape_query)
-	if cast_result.size() > 0:
-		distance = clampf(desired_distance * float(cast_result[0]) - padding, min_distance, desired_distance)
-
-	var ray_query := PhysicsRayQueryParameters3D.create(from, from + motion)
-	ray_query.collision_mask = 1
-	ray_query.exclude = [get_rid()]
-	var hit := space.intersect_ray(ray_query)
-	if not hit.is_empty():
-		distance = minf(distance, clampf(from.distance_to(hit["position"]) - padding, min_distance, desired_distance))
-	camera.position = _resolve_safe_camera_local_position(Vector3(0.0, 0.0, distance), from, camera_radius, padding)
+	camera.position = _resolve_safe_camera_local_position(Vector3(0.0, 0.0, desired_distance), from, camera_radius, padding)
 
 func _resolve_safe_camera_local_position(desired_local: Vector3, anchor: Vector3, camera_radius: float, padding: float) -> Vector3:
 	var target := camera_pivot.to_global(desired_local)
+	target.y = minf(target.y, _get_collision_top_global_y() - CAMERA_TOP_CLEARANCE)
 	var motion := target - anchor
 	if motion.length_squared() < 0.0001:
 		return desired_local
