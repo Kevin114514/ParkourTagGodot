@@ -10,10 +10,16 @@ const MapLoader = preload("res://scripts/map_loader.gd")
 const SkinAPI = preload("res://scripts/skin_api.gd")
 const NETHER_SKY_SHADER = preload("res://scripts/nether_sky.gdshader")
 const LAVA_FLOW_SHADER = preload("res://scripts/lava_flow.gdshader")
+const CatchAttackIconScript = preload("res://scripts/catch_attack_icon.gd")
 # 减速弹与药剂模型来自 Quaternius/Poly Pizza（CC0 1.0）；透视卡为项目内建立体模型。
 const THROWABLE_MODEL_PATH := "res://assets/throwables/scifi_slow_grenade.glb"
 const SPEED_BOOST_MODEL_PATH := "res://assets/throwables/speed_boost_potion.glb"
 const VISION_CARD_MODEL_PATH := "res://assets/throwables/vision_card.tscn"
+const CHASE_MUSIC_PATH := "res://assets/audio/chase_loop.ogg"
+const RUNNER_THROW_SOUND_PATH := "res://assets/audio/runner_throw.ogg"
+const SETTINGS_PATH := "user://settings.cfg"
+const DEFAULT_MUSIC_VOLUME := 100.0
+const DEFAULT_THROW_VOLUME := 100.0
 const ITEM_TYPE_SLOW_GRENADE := "slow_grenade"
 const ITEM_TYPE_SPEED_BOOST := "speed_boost"
 const ITEM_TYPE_VISION_CARD := "vision_card"
@@ -145,6 +151,7 @@ var hud_layer: CanvasLayer
 var hud_status_panel: PanelContainer
 var hud_status_margin: MarginContainer
 var hud_label: Label
+var round_time_label: Label
 var center_label: Label
 var throwable_notice_label: Label
 var runner_inventory_bar: HBoxContainer
@@ -155,7 +162,7 @@ var speed_boost_slot_label: Label
 var tagger_inventory_bar: HBoxContainer
 var vision_card_slot: PanelContainer
 var vision_card_slot_label: Label
-var catch_cd_label: Label
+var catch_cd_label: Control
 var direction_marker_label: Label
 var threat_overlay: ColorRect
 var minimap_panel: PanelContainer
@@ -176,6 +183,12 @@ var map_select_button: Button
 var map_list: ItemList
 var map_description_label: Label
 var settings_display_mode_option: OptionButton
+var settings_music_volume_slider: HSlider
+var settings_music_volume_value: Label
+var settings_throw_volume_slider: HSlider
+var settings_throw_volume_value: Label
+var music_volume_percent := DEFAULT_MUSIC_VOLUME
+var throw_volume_percent := DEFAULT_THROW_VOLUME
 var camera_mode_option: OptionButton
 var image_skin_file_dialog: FileDialog
 var pending_image_skin_role := "runner"
@@ -263,13 +276,18 @@ var last_seen_opponent_position := Vector3.ZERO
 var active_map_bgm_enabled := true
 var active_map_bgm_loop := true
 var active_map_bgm_path := DEFAULT_MAP_BGM_PATH
+var active_map_bgm_volume_db := 0.0
 @onready var chase_music: AudioStreamPlayer = $ChaseMusic
 @onready var menu_music: AudioStreamPlayer = $MenuMusic
+@onready var runner_throw_sound: AudioStreamPlayer = $RunnerThrowSound
 
 func _ready() -> void:
 	randomize()
+	_load_audio_settings()
 	_setup_chase_music()
 	_setup_menu_music()
+	_setup_runner_throw_sound()
+	_apply_audio_volumes()
 	_ensure_default_fullscreen()
 	_ensure_input_actions()
 	_connect_multiplayer_signals()
@@ -281,10 +299,104 @@ func _ready() -> void:
 	_show_title("")
 	_load_active_map()
 
+func _load_raw_ogg(path: String, should_loop: bool) -> AudioStreamOggVorbis:
+	if not FileAccess.file_exists(path):
+		push_error("音频文件不存在：%s" % path)
+		return null
+	var sound_data := FileAccess.get_file_as_bytes(path)
+	if sound_data.is_empty():
+		push_error("音频文件为空：%s" % path)
+		return null
+	var sound_stream := AudioStreamOggVorbis.load_from_buffer(sound_data)
+	if sound_stream == null:
+		push_error("无法读取音频：%s" % path)
+		return null
+	sound_stream.loop = should_loop
+	return sound_stream
+
 func _setup_chase_music() -> void:
+	chase_music.stop()
 	if not chase_music.finished.is_connected(_on_chase_music_finished):
 		chase_music.finished.connect(_on_chase_music_finished)
+
+func _setup_runner_throw_sound() -> void:
+	runner_throw_sound.stop()
+	runner_throw_sound.stream = _load_raw_ogg(RUNNER_THROW_SOUND_PATH, false)
+
+func _load_audio_settings() -> void:
+	var config := ConfigFile.new()
+	if config.load(SETTINGS_PATH) != OK:
+		music_volume_percent = DEFAULT_MUSIC_VOLUME
+		throw_volume_percent = DEFAULT_THROW_VOLUME
+		return
+	music_volume_percent = clampf(float(config.get_value("audio", "music_volume", DEFAULT_MUSIC_VOLUME)), 0.0, 100.0)
+	throw_volume_percent = clampf(float(config.get_value("audio", "throw_volume", DEFAULT_THROW_VOLUME)), 0.0, 100.0)
+
+func _save_audio_settings() -> void:
+	var config := ConfigFile.new()
+	config.set_value("audio", "music_volume", music_volume_percent)
+	config.set_value("audio", "throw_volume", throw_volume_percent)
+	var error := config.save(SETTINGS_PATH)
+	if error != OK:
+		push_error("保存音量设置失败：%s" % error_string(error))
+
+func _percent_to_volume_db(percent: float) -> float:
+	if percent <= 0.0:
+		return -80.0
+	return linear_to_db(percent / 100.0)
+
+func _apply_audio_volumes() -> void:
+	if chase_music != null:
+		chase_music.volume_db = _percent_to_volume_db(music_volume_percent)
+	if runner_throw_sound != null:
+		runner_throw_sound.volume_db = _percent_to_volume_db(throw_volume_percent)
+
+func _update_audio_settings_ui() -> void:
+	if settings_music_volume_slider != null:
+		settings_music_volume_slider.set_value_no_signal(music_volume_percent)
+	if settings_music_volume_value != null:
+		settings_music_volume_value.text = "%d%%" % roundi(music_volume_percent)
+	if settings_throw_volume_slider != null:
+		settings_throw_volume_slider.set_value_no_signal(throw_volume_percent)
+	if settings_throw_volume_value != null:
+		settings_throw_volume_value.text = "%d%%" % roundi(throw_volume_percent)
+
+func _on_music_volume_changed(value: float) -> void:
+	music_volume_percent = clampf(value, 0.0, 100.0)
+	_apply_audio_volumes()
+	_update_audio_settings_ui()
+	_save_audio_settings()
+
+func _on_throw_volume_changed(value: float) -> void:
+	throw_volume_percent = clampf(value, 0.0, 100.0)
+	_apply_audio_volumes()
+	_update_audio_settings_ui()
+	_save_audio_settings()
+
+func _ensure_audio_preview_stream(player: AudioStreamPlayer, path: String, should_loop: bool) -> bool:
+	if player == null:
+		return false
+	if player.stream == null:
+		player.stream = _load_raw_ogg(path, should_loop)
+	return player.stream != null
+
+func _on_test_music_pressed() -> void:
+	if not _ensure_audio_preview_stream(chase_music, CHASE_MUSIC_PATH, true):
+		return
 	chase_music.stop()
+	chase_music.play()
+
+func _on_test_throw_sound_pressed() -> void:
+	if not _ensure_audio_preview_stream(runner_throw_sound, RUNNER_THROW_SOUND_PATH, false):
+		return
+	runner_throw_sound.stop()
+	runner_throw_sound.play()
+
+func _stop_audio_previews() -> void:
+	if game_mode == "title":
+		chase_music.stop()
+	if runner_throw_sound != null:
+		runner_throw_sound.stop()
 
 func _on_chase_music_finished() -> void:
 	if active_map_bgm_loop:
@@ -324,7 +436,8 @@ func _apply_map_bgm(config: Dictionary) -> void:
 	active_map_bgm_path = String(config.get("path", "")).strip_edges()
 	if active_map_bgm_path.is_empty():
 		active_map_bgm_path = DEFAULT_MAP_BGM_PATH
-	chase_music.volume_db = clampf(float(config.get("volume_db", 0.0)), -80.0, 6.0)
+	active_map_bgm_volume_db = clampf(float(config.get("volume_db", 0.0)), -80.0, 6.0)
+	_apply_audio_volumes()
 	if not active_map_bgm_enabled:
 		chase_music.stream = null
 		return
@@ -481,7 +594,9 @@ func _update_round_hud() -> void:
 	if hud_label == null:
 		return
 	var remaining := maxf(ROUND_TIME_LIMIT_SECONDS - time_alive, 0.0)
-	var text := "剩余时间 %s\n命中进度 %d / %d" % [_format_round_time(remaining), tagger_hit_count, TAGGER_HITS_TO_WIN]
+	if round_time_label != null:
+		round_time_label.text = "剩余时间  %s" % _format_round_time(remaining)
+	var text := "命中进度 %d / %d" % [tagger_hit_count, TAGGER_HITS_TO_WIN]
 	var local_actor := _local_controlled_actor()
 	if local_actor != null:
 		var actor_position: Vector3 = local_actor.global_position
@@ -974,8 +1089,82 @@ func _build_title_ui() -> void:
 	settings_display_mode_option.item_selected.connect(Callable(self, "_on_display_mode_selected"))
 	display_mode_row.add_child(settings_display_mode_option)
 
+	var music_volume_row := HBoxContainer.new()
+	music_volume_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	music_volume_row.add_theme_constant_override("separation", 12)
+	box.add_child(music_volume_row)
+	settings_controls.append(music_volume_row)
+
+	var music_volume_label := Label.new()
+	music_volume_label.text = "背景音乐"
+	music_volume_label.custom_minimum_size = Vector2(105.0, 0.0)
+	_apply_label_style(music_volume_label)
+	music_volume_row.add_child(music_volume_label)
+
+	settings_music_volume_slider = HSlider.new()
+	settings_music_volume_slider.custom_minimum_size = Vector2(270.0, 36.0)
+	settings_music_volume_slider.min_value = 0.0
+	settings_music_volume_slider.max_value = 100.0
+	settings_music_volume_slider.step = 1.0
+	settings_music_volume_slider.value = music_volume_percent
+	settings_music_volume_slider.tooltip_text = "调节对局中的背景音乐音量"
+	settings_music_volume_slider.value_changed.connect(Callable(self, "_on_music_volume_changed"))
+	music_volume_row.add_child(settings_music_volume_slider)
+
+	settings_music_volume_value = Label.new()
+	settings_music_volume_value.custom_minimum_size = Vector2(58.0, 0.0)
+	settings_music_volume_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_apply_label_style(settings_music_volume_value, Color(0.1, 0.38, 0.7), 1)
+	music_volume_row.add_child(settings_music_volume_value)
+
+	var test_music_button := Button.new()
+	test_music_button.text = "测试"
+	test_music_button.custom_minimum_size = Vector2(74.0, 38.0)
+	test_music_button.tooltip_text = "按当前音量播放游戏中的背景音乐"
+	_style_button(test_music_button, Color(0.35, 0.76, 1.0), Color(0.05, 0.3, 0.55))
+	test_music_button.pressed.connect(Callable(self, "_on_test_music_pressed"))
+	music_volume_row.add_child(test_music_button)
+
+	var throw_volume_row := HBoxContainer.new()
+	throw_volume_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	throw_volume_row.add_theme_constant_override("separation", 12)
+	box.add_child(throw_volume_row)
+	settings_controls.append(throw_volume_row)
+
+	var throw_volume_label := Label.new()
+	throw_volume_label.text = "投掷音效"
+	throw_volume_label.custom_minimum_size = Vector2(105.0, 0.0)
+	_apply_label_style(throw_volume_label)
+	throw_volume_row.add_child(throw_volume_label)
+
+	settings_throw_volume_slider = HSlider.new()
+	settings_throw_volume_slider.custom_minimum_size = Vector2(270.0, 36.0)
+	settings_throw_volume_slider.min_value = 0.0
+	settings_throw_volume_slider.max_value = 100.0
+	settings_throw_volume_slider.step = 1.0
+	settings_throw_volume_slider.value = throw_volume_percent
+	settings_throw_volume_slider.tooltip_text = "调节逃跑者投掷时双方听到的音效音量"
+	settings_throw_volume_slider.value_changed.connect(Callable(self, "_on_throw_volume_changed"))
+	throw_volume_row.add_child(settings_throw_volume_slider)
+
+	settings_throw_volume_value = Label.new()
+	settings_throw_volume_value.custom_minimum_size = Vector2(58.0, 0.0)
+	settings_throw_volume_value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_apply_label_style(settings_throw_volume_value, Color(0.1, 0.38, 0.7), 1)
+	throw_volume_row.add_child(settings_throw_volume_value)
+
+	var test_throw_sound_button := Button.new()
+	test_throw_sound_button.text = "测试"
+	test_throw_sound_button.custom_minimum_size = Vector2(74.0, 38.0)
+	test_throw_sound_button.tooltip_text = "按当前音量播放 runner_throw.ogg"
+	_style_button(test_throw_sound_button, Color(0.35, 0.76, 1.0), Color(0.05, 0.3, 0.55))
+	test_throw_sound_button.pressed.connect(Callable(self, "_on_test_throw_sound_pressed"))
+	throw_volume_row.add_child(test_throw_sound_button)
+
+	_update_audio_settings_ui()
+
 	var settings_hint := Label.new()
-	settings_hint.text = "当前只支持切换全屏 / 窗口模式。"
+	settings_hint.text = "音量修改会立即生效，并在下次打开游戏时自动恢复。"
 	settings_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	settings_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_apply_label_style(settings_hint, Color(0.24, 0.25, 0.34), 1)
@@ -1029,6 +1218,7 @@ func _show_settings_page() -> void:
 	_set_map_page_visible(false)
 	_set_settings_page_visible(true)
 	_update_display_mode_ui()
+	_update_audio_settings_ui()
 	_update_camera_mode_ui()
 	if title_status != null:
 		title_status.text = "调整游戏设置。"
@@ -2843,6 +3033,23 @@ func _build_hud() -> void:
 	hud_layer.name = "HUD"
 	add_child(hud_layer)
 
+	round_time_label = Label.new()
+	round_time_label.anchor_left = 0.5
+	round_time_label.anchor_right = 0.5
+	round_time_label.offset_left = -190.0
+	round_time_label.offset_top = 10.0
+	round_time_label.offset_right = 190.0
+	round_time_label.offset_bottom = 58.0
+	round_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	round_time_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	round_time_label.add_theme_font_size_override("font_size", 32)
+	round_time_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	round_time_label.add_theme_color_override("font_outline_color", Color(0.025, 0.04, 0.1, 0.96))
+	round_time_label.add_theme_constant_override("outline_size", 7)
+	round_time_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	round_time_label.text = "剩余时间  05:00"
+	hud_layer.add_child(round_time_label)
+
 	hud_status_panel = PanelContainer.new()
 	hud_status_panel.position = Vector2(14.0, 14.0)
 	hud_status_panel.custom_minimum_size = Vector2(300.0, 82.0)
@@ -2895,23 +3102,18 @@ func _build_hud() -> void:
 	_build_runner_inventory_ui()
 	_build_tagger_inventory_ui()
 
-	# 追逐者抓捕冷却显示（右下角）
-	catch_cd_label = Label.new()
+	# 追逐者平 A 冷却显示（右下角大号透明图案）
+	catch_cd_label = CatchAttackIconScript.new()
 	catch_cd_label.anchor_left = 1.0
 	catch_cd_label.anchor_top = 1.0
 	catch_cd_label.anchor_right = 1.0
 	catch_cd_label.anchor_bottom = 1.0
-	catch_cd_label.offset_left = -210.0
-	catch_cd_label.offset_top = -66.0
-	catch_cd_label.offset_right = -18.0
-	catch_cd_label.offset_bottom = -18.0
-	catch_cd_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	catch_cd_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	catch_cd_label.add_theme_font_size_override("font_size", 26)
-	catch_cd_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55, 0.95))
-	catch_cd_label.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.03, 0.9))
-	catch_cd_label.add_theme_constant_override("outline_size", 4)
-	catch_cd_label.text = ""
+	catch_cd_label.offset_left = -166.0
+	catch_cd_label.offset_top = -166.0
+	catch_cd_label.offset_right = -22.0
+	catch_cd_label.offset_bottom = -22.0
+	catch_cd_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	catch_cd_label.z_index = 10
 	catch_cd_label.visible = false
 	hud_layer.add_child(catch_cd_label)
 
@@ -2969,6 +3171,18 @@ func _apply_hud_layout_scale() -> void:
 	if hud_label != null:
 		hud_label.add_theme_font_size_override("font_size", roundi(18.0 * scale))
 		hud_label.add_theme_constant_override("outline_size", roundi(2.0 * scale))
+	if round_time_label != null:
+		round_time_label.offset_left = -190.0 * scale
+		round_time_label.offset_top = 10.0 * scale
+		round_time_label.offset_right = 190.0 * scale
+		round_time_label.offset_bottom = 58.0 * scale
+		round_time_label.add_theme_font_size_override("font_size", roundi(32.0 * scale))
+		round_time_label.add_theme_constant_override("outline_size", roundi(7.0 * scale))
+	if catch_cd_label != null:
+		catch_cd_label.offset_left = -166.0 * scale
+		catch_cd_label.offset_top = -166.0 * scale
+		catch_cd_label.offset_right = -22.0 * scale
+		catch_cd_label.offset_bottom = -22.0 * scale
 	if runner_inventory_bar != null:
 		runner_inventory_bar.offset_left = 18.0 * scale
 		runner_inventory_bar.offset_top = -128.0 * scale
@@ -3256,14 +3470,12 @@ func _update_catch_crosshair() -> void:
 	if not show_cd:
 		return
 	if _tagger_catch_disabled_by_slow():
-		catch_cd_label.text = "减速中无法抓捕"
-		catch_cd_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0, 0.95))
+		catch_cd_label.set_cooldown_state(0.0, Color(0.45, 0.75, 1.0, 0.48), "减速中无法平 A", true)
 	elif catch_cooldown_remaining > 0.0:
-		catch_cd_label.text = "抓捕冷却 %.1fs" % catch_cooldown_remaining
-		catch_cd_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.3, 0.95))
+		var recovery := clampf(1.0 - catch_cooldown_remaining / CATCH_COOLDOWN, 0.0, 1.0)
+		catch_cd_label.set_cooldown_state(recovery, Color(1.0, 0.58, 0.25, 0.78), "平 A 冷却 %.1fs" % catch_cooldown_remaining)
 	else:
-		catch_cd_label.text = "抓捕就绪"
-		catch_cd_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.55, 0.95))
+		catch_cd_label.set_cooldown_state(1.0, Color(0.5, 1.0, 0.58, 0.9), "平 A 就绪")
 
 func _build_arena() -> void:
 	_add_box("Ground", Vector3(0.0, -0.15, 0.0), Vector3(64.0, 0.3, 64.0), Color(0.16, 0.18, 0.2))
@@ -4002,6 +4214,10 @@ func _spawn_flying_throwable(origin: Vector3, velocity: Vector3, projectile_id: 
 		"velocity": velocity,
 		"life": THROWABLE_PROJECTILE_LIFETIME
 	}
+	# 服务端与远端都会经过本函数生成同一个投掷物，因此双方各自在本地播放一次。
+	if runner_throw_sound != null and runner_throw_sound.stream != null:
+		runner_throw_sound.stop()
+		runner_throw_sound.play()
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
 		rpc_id(remote_peer_id, "_rpc_spawn_flying_throwable", resolved_id, origin, velocity)
 	return resolved_id
@@ -4261,16 +4477,28 @@ func _create_vision_card_visual() -> Node3D:
 	root.add_child(pickup_marker)
 	return root
 
+func _instantiate_model_with_raw_gltf_fallback(path: String) -> Node3D:
+	var model_resource := load(path)
+	if model_resource is PackedScene:
+		return (model_resource as PackedScene).instantiate() as Node3D
+	# Direct BAT launches may not have a populated .godot/imported cache yet.
+	# Parse the source GLB at runtime so the real model still appears.
+	if not FileAccess.file_exists(path):
+		return null
+	var document := GLTFDocument.new()
+	var state := GLTFState.new()
+	if document.append_from_file(path, state) != OK:
+		return null
+	return document.generate_scene(state)
+
 func _create_speed_boost_visual() -> Node3D:
 	var root := Node3D.new()
-	var model_resource := load(SPEED_BOOST_MODEL_PATH)
-	if model_resource is PackedScene:
-		var model := (model_resource as PackedScene).instantiate() as Node3D
-		if model != null:
-			model.name = "SpeedBoostPotionModel"
-			model.scale = Vector3.ONE * 0.34
-			root.add_child(model)
-			_style_speed_boost_model(model)
+	var model := _instantiate_model_with_raw_gltf_fallback(SPEED_BOOST_MODEL_PATH)
+	if model != null:
+		model.name = "SpeedBoostPotionModel"
+		model.scale = Vector3.ONE * 0.34
+		root.add_child(model)
+		_style_speed_boost_model(model)
 	else:
 		push_error("无法加载加速剂模型：%s" % SPEED_BOOST_MODEL_PATH)
 
@@ -4340,17 +4568,15 @@ func _style_speed_boost_model(node: Node) -> void:
 
 func _create_throwable_visual(is_projectile: bool) -> Node3D:
 	var root := Node3D.new()
-	var model_resource := load(THROWABLE_MODEL_PATH)
-	if model_resource is PackedScene:
-		var model := (model_resource as PackedScene).instantiate() as Node3D
-		if model != null:
-			model.name = "SlowGrenadeModel"
-			model.scale = Vector3.ONE * 1.35
-			# 手持和飞行状态沿投掷方向横置，地面拾取状态保持直立。
-			if is_projectile:
-				model.rotation.x = PI * 0.5
-			root.add_child(model)
-			_style_throwable_model(model)
+	var model := _instantiate_model_with_raw_gltf_fallback(THROWABLE_MODEL_PATH)
+	if model != null:
+		model.name = "SlowGrenadeModel"
+		model.scale = Vector3.ONE * 1.35
+		# 手持和飞行状态沿投掷方向横置，地面拾取状态保持直立。
+		if is_projectile:
+			model.rotation.x = PI * 0.5
+		root.add_child(model)
+		_style_throwable_model(model)
 	else:
 		push_error("无法加载减速弹模型：%s" % THROWABLE_MODEL_PATH)
 

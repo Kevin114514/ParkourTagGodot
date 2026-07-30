@@ -1,14 +1,17 @@
-[gd_scene load_steps=3 format=3 uid="uid://parkour_tag_main"]
+[gd_scene load_steps=2 format=3 uid="uid://parkour_tag_main"]
 
 [ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
-[ext_resource type="AudioStream" path="res://assets/audio/chase_loop.ogg" id="2_chase"]
 
 [node name="ParkourTag" type="Node3D"]
 script = ExtResource("1_game")
 
 [node name="ChaseMusic" type="AudioStreamPlayer" parent="."]
 process_mode = 3
-stream = ExtResource("2_chase")
+volume_db = 0.0
+bus = &"Master"
+
+[node name="RunnerThrowSound" type="AudioStreamPlayer" parent="."]
+process_mode = 3
 volume_db = 0.0
 bus = &"Master"
 

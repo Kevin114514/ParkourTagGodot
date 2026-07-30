@@ -13,7 +13,6 @@ if not defined GODOT_EXE goto no_godot
 echo Using: "%GODOT_EXE%"
 echo Project: "%PROJECT_DIR%"
 echo Launching game...
-
 "%GODOT_EXE%" --path "%PROJECT_DIR%"
 if errorlevel 1 goto run_failed
 exit /b 0
