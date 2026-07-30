@@ -877,11 +877,16 @@ func _build_title_ui() -> void:
 	title.add_theme_constant_override("outline_size", 8)
 	box.add_child(title)
 
+	# 仅在模式名称上方留白；下方的回合限时输入行紧跟模式名称。
+	var win_mode_margin := MarginContainer.new()
+	win_mode_margin.add_theme_constant_override("margin_top", 10)
+	box.add_child(win_mode_margin)
+	setup_controls.append(win_mode_margin)
+
 	var win_mode_selector := HBoxContainer.new()
 	win_mode_selector.alignment = BoxContainer.ALIGNMENT_CENTER
 	win_mode_selector.add_theme_constant_override("separation", 14)
-	box.add_child(win_mode_selector)
-	setup_controls.append(win_mode_selector)
+	win_mode_margin.add_child(win_mode_selector)
 
 	win_mode_previous_button = Button.new()
 	win_mode_previous_button.text = "◀"
@@ -911,27 +916,6 @@ func _build_title_ui() -> void:
 	win_mode_next_button.pressed.connect(Callable(self, "_switch_win_mode").bind(1))
 	win_mode_selector.add_child(win_mode_next_button)
 
-	win_target_row = HBoxContainer.new()
-	win_target_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	win_target_row.add_theme_constant_override("separation", 10)
-	box.add_child(win_target_row)
-	setup_controls.append(win_target_row)
-
-	win_target_label = Label.new()
-	_apply_label_style(win_target_label)
-	win_target_row.add_child(win_target_label)
-
-	win_target_spinbox = SpinBox.new()
-	win_target_spinbox.custom_minimum_size = Vector2(150.0, 48.0)
-	win_target_spinbox.add_theme_font_size_override("font_size", 24)
-	win_target_spinbox.get_line_edit().add_theme_font_size_override("font_size", 24)
-	win_target_spinbox.value_changed.connect(Callable(self, "_on_win_target_changed"))
-	win_target_row.add_child(win_target_spinbox)
-
-	win_target_unit_label = Label.new()
-	_apply_label_style(win_target_unit_label)
-	win_target_row.add_child(win_target_unit_label)
-
 	win_time_row = HBoxContainer.new()
 	win_time_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	win_time_row.add_theme_constant_override("separation", 10)
@@ -958,6 +942,33 @@ func _build_title_ui() -> void:
 	win_time_unit_label.text = "秒"
 	_apply_label_style(win_time_unit_label)
 	win_time_row.add_child(win_time_unit_label)
+
+	# 将模式差异占位放到回合限时输入行之后，保证限时输入紧跟模式名称，
+	# 同时保持下方地图、皮肤和视角选项在切换模式时位置不变。
+	var win_target_slot := CenterContainer.new()
+	win_target_slot.custom_minimum_size = Vector2(0.0, 48.0)
+	box.add_child(win_target_slot)
+	setup_controls.append(win_target_slot)
+
+	win_target_row = HBoxContainer.new()
+	win_target_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	win_target_row.add_theme_constant_override("separation", 10)
+	win_target_slot.add_child(win_target_row)
+
+	win_target_label = Label.new()
+	_apply_label_style(win_target_label)
+	win_target_row.add_child(win_target_label)
+
+	win_target_spinbox = SpinBox.new()
+	win_target_spinbox.custom_minimum_size = Vector2(150.0, 48.0)
+	win_target_spinbox.add_theme_font_size_override("font_size", 24)
+	win_target_spinbox.get_line_edit().add_theme_font_size_override("font_size", 24)
+	win_target_spinbox.value_changed.connect(Callable(self, "_on_win_target_changed"))
+	win_target_row.add_child(win_target_spinbox)
+
+	win_target_unit_label = Label.new()
+	_apply_label_style(win_target_unit_label)
+	win_target_row.add_child(win_target_unit_label)
 
 	var map_row := HBoxContainer.new()
 	map_row.alignment = BoxContainer.ALIGNMENT_CENTER
