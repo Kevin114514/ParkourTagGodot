@@ -22,6 +22,8 @@ var move_speed_effect_time := 0.0
 const VOID_Y := -12.0
 const STEP_MAX_HEIGHT := 0.55
 const STEP_FORWARD_DISTANCE := 0.45
+const CAMERA_PIVOT_FROM_COLLISION := Vector3(0.0, 0.63, 0.0)
+const FIRST_PERSON_CAMERA_OFFSET := Vector3(0.0, 0.0, -0.08)
 func _ready() -> void:
 	spawn_position = global_position
 	collision_layer = 2
@@ -349,7 +351,7 @@ func _build_body() -> void:
 
 	camera_pivot = Node3D.new()
 	camera_pivot.name = "CameraPivot"
-	camera_pivot.position = Vector3(0.0, 1.55, 0.0)
+	camera_pivot.position = _get_camera_pivot_position()
 	camera_pivot.rotation.x = deg_to_rad(-11.0)
 	add_child(camera_pivot)
 
@@ -364,17 +366,27 @@ func set_camera_mode(new_mode: String) -> void:
 	camera_mode = new_mode if new_mode == "first_person" else "third_person"
 	_apply_camera_mode()
 
+func _get_camera_pivot_position() -> Vector3:
+	var collision := get_node_or_null("Collision") as CollisionShape3D
+	var collision_position := collision.position if collision != null else Vector3(0.0, 0.92, 0.0)
+	return collision_position + CAMERA_PIVOT_FROM_COLLISION
+
+func _get_camera_collision_anchor() -> Vector3:
+	var collision := get_node_or_null("Collision") as CollisionShape3D
+	return collision.global_position if collision != null else global_position + Vector3.UP * 0.92
+
 func _apply_camera_mode() -> void:
 	_set_local_visuals_visible(camera_mode != "first_person")
 	if camera_pivot == null or camera == null:
 		return
+	var pivot_position := _get_camera_pivot_position()
 	if camera_mode == "first_person":
-		camera_pivot.position = Vector3(0.0, 1.55, -0.08)
+		camera_pivot.position = pivot_position + FIRST_PERSON_CAMERA_OFFSET
 		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x, deg_to_rad(-70.0), deg_to_rad(70.0))
 		camera.position = Vector3.ZERO
 		camera.near = 0.03
 	else:
-		camera_pivot.position = Vector3(0.0, 1.55, 0.0)
+		camera_pivot.position = pivot_position
 		camera.position = Vector3(0.0, 0.0, 6.0)
 		camera.near = 0.08
 	_update_camera_collision()
@@ -385,8 +397,7 @@ func _update_camera_collision() -> void:
 	var camera_radius := 0.28
 	var padding := 0.16
 	if camera_mode == "first_person":
-		var head_anchor := global_position + Vector3.UP * 1.05
-		camera.position = _resolve_safe_camera_local_position(Vector3.ZERO, head_anchor, camera_radius, padding)
+		camera.position = _resolve_safe_camera_local_position(Vector3.ZERO, _get_camera_collision_anchor(), camera_radius, padding)
 		return
 	if camera_mode != "third_person":
 		return
