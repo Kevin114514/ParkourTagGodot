@@ -27,7 +27,7 @@ const ITEM_TYPE_VISION_CARD := "vision_card"
 const PORT = 24591
 const BASKETBALL_SECRET_CODE := "0721"
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
-const GAME_VERSION := "1.5.1"
+const GAME_VERSION := "1.6.0"
 const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const USE_RL_POLICY_RUNNER := true
@@ -3641,9 +3641,13 @@ func _update_tagger_inventory_hud() -> void:
 	if not show_inventory:
 		return
 	var vision_active := tagger_vision_timer > 0.0
-	_update_inventory_slot(vision_card_slot, vision_card_slot_label, "透视卡", "E 使用", tagger_has_vision_card or vision_active, Color(0.78, 0.24, 1.0))
+	var normal_purple := Color(0.78, 0.24, 1.0)
+	var active_only_purple := Color(0.72, 0.58, 0.82)
+	var accent := normal_purple if tagger_has_vision_card else active_only_purple if vision_active else normal_purple
+	_update_inventory_slot(vision_card_slot, vision_card_slot_label, "透视卡", "E 使用", tagger_has_vision_card or vision_active, accent)
 	if vision_active:
-		vision_card_slot_label.text = "透视卡\n透视中 %.1fs\n目标位置已显现" % tagger_vision_timer
+		var reserve_text := "\n已携带备用卡" if tagger_has_vision_card else "\n目标位置已显现"
+		vision_card_slot_label.text = "透视卡\n透视中 %.1fs%s" % [tagger_vision_timer, reserve_text]
 
 func _update_inventory_slot(slot: PanelContainer, label: Label, item_name: String, action_hint: String, is_held: bool, accent: Color) -> void:
 	if slot == null or label == null:
