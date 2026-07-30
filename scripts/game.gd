@@ -744,7 +744,7 @@ func _style_item_list(item_list: ItemList) -> void:
 	item_list.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 1.0, 0.96, 0.98), Color(0.25, 0.33, 0.58), 3, 14, Vector2(0.0, 3.0), 10))
 	item_list.add_theme_stylebox_override("focus", _cartoon_style(Color(1.0, 0.98, 0.86, 0.98), Color(1.0, 0.55, 0.16), 3, 14, Vector2(0.0, 3.0), 10))
 	item_list.add_theme_color_override("font_color", Color(0.14, 0.16, 0.3))
-	item_list.add_theme_color_override("font_selected_color", Color.WHITE)
+	item_list.add_theme_color_override("font_selected_color", Color(0.32, 0.34, 0.4))
 	item_list.add_theme_color_override("guide_color", Color(1.0, 0.62, 0.18, 0.45))
 	item_list.add_theme_font_size_override("font_size", 18)
 
