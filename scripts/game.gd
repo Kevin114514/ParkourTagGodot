@@ -34,6 +34,7 @@ const DEFAULT_SKY_COLOR := Color(0.48, 0.78, 1.0)
 const DEFAULT_MAP_PATH = "res://maps/default_arena.json"
 const DEFAULT_MAP_BGM_PATH := "res://assets/audio/chase_loop.ogg"
 const MENU_BGM_PATH := "res://assets/audio/bgm_menu.mp3"
+const CUSTOM_FONT_PATH := "res://assets/fonts/FusionPixel12-Proportional-zh_hans.ttf"
 const USER_MAP_PATH = "user://maps/current_map.json"
 const NETWORK_SYNC_MAP_PATH = "user://network_sync/maps/host_map.json"
 const NETWORK_SYNC_SKIN_PREFIX = "network_host_"
@@ -89,8 +90,7 @@ const WIN_MODE_SURVIVAL := "survival"
 const DEFAULT_HITS_TO_WIN := 10
 const MIN_HITS_TO_WIN := 1
 const MAX_HITS_TO_WIN := 100
-const HITS_MODE_TIME_LIMIT_SECONDS := 300.0
-const DEFAULT_WIN_TIME_SECONDS := 60.0
+const DEFAULT_WIN_TIME_SECONDS := 300.0
 const MIN_WIN_TIME_SECONDS := 10.0
 const MAX_WIN_TIME_SECONDS := 3600.0
 const SLOW_PARTICLE_MOVE_THRESHOLD := 0.18
@@ -190,6 +190,8 @@ var win_target_row: HBoxContainer
 var win_target_label: Label
 var win_target_spinbox: SpinBox
 var win_target_unit_label: Label
+var win_time_row: HBoxContainer
+var win_time_spinbox: SpinBox
 var map_summary_label: Label
 var map_select_button: Button
 var map_list: ItemList
@@ -235,7 +237,7 @@ var local_round_load_ready := false
 var remote_round_load_ready := false
 var remote_peer_id := 0
 var host_is_runner := true
-var win_mode := WIN_MODE_SURVIVAL
+var win_mode := WIN_MODE_HITS
 var hits_to_win := DEFAULT_HITS_TO_WIN
 var win_time_seconds := DEFAULT_WIN_TIME_SECONDS
 var is_leaving_room := false
@@ -297,6 +299,7 @@ var active_map_bgm_volume_db := 0.0
 
 func _ready() -> void:
 	randomize()
+	_setup_runtime_font()
 	_load_audio_settings()
 	_setup_chase_music()
 	_setup_menu_music()
@@ -312,6 +315,18 @@ func _ready() -> void:
 	_build_map_loading_ui()
 	_show_title("")
 	_load_active_map()
+
+func _setup_runtime_font() -> void:
+	if not FileAccess.file_exists(CUSTOM_FONT_PATH):
+		push_warning("自定义字体文件不存在：%s" % CUSTOM_FONT_PATH)
+		return
+	var font_data := FileAccess.get_file_as_bytes(CUSTOM_FONT_PATH)
+	if font_data.is_empty():
+		push_warning("自定义字体文件为空：%s" % CUSTOM_FONT_PATH)
+		return
+	var font := FontFile.new()
+	font.data = font_data
+	ThemeDB.fallback_font = font
 
 func _load_raw_audio(path: String, should_loop: bool) -> AudioStream:
 	if not FileAccess.file_exists(path):
@@ -573,9 +588,8 @@ func _process(delta: float) -> void:
 		return
 
 	time_alive += delta
-	var round_time_limit := win_time_seconds if win_mode == WIN_MODE_SURVIVAL else HITS_MODE_TIME_LIMIT_SECONDS
 	if (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") \
-	and time_alive >= round_time_limit:
+	and time_alive >= win_time_seconds:
 		_on_runner_time_limit_survived()
 		return
 	ai_catch_cooldown = maxf(ai_catch_cooldown - delta, 0.0)
@@ -614,6 +628,8 @@ func _process(delta: float) -> void:
 			_request_local_catch_attempt()
 
 	if game_mode == "single" or ai_vs_ai_spectate:
+		if tagger.has_method("set_rl_match_context"):
+			tagger.set_rl_match_context(ai_catch_cooldown <= 0.0, tagger_hit_count, hits_to_win, maxf(win_time_seconds - time_alive, 0.0), win_time_seconds)
 		_try_ai_catch_attempt(distance)
 
 	if ai_vs_ai_spectate:
@@ -627,13 +643,12 @@ func _update_round_hud() -> void:
 	if hud_label == null:
 		return
 	var text := ""
+	var remaining := maxf(win_time_seconds - time_alive, 0.0)
 	if win_mode == WIN_MODE_SURVIVAL:
-		var remaining := maxf(win_time_seconds - time_alive, 0.0)
 		if round_time_label != null:
 			round_time_label.text = "剩余时间  %s" % _format_round_time(remaining)
 		text = "限时躲藏"
 	else:
-		var remaining := maxf(HITS_MODE_TIME_LIMIT_SECONDS - time_alive, 0.0)
 		if round_time_label != null:
 			round_time_label.text = "剩余时间  %s\n命中进度  %d / %d" % [_format_round_time(remaining), tagger_hit_count, hits_to_win]
 		text = "命中获胜"
@@ -798,13 +813,29 @@ func _build_title_ui() -> void:
 	bg.anchor_right = 1.0
 	bg.anchor_bottom = 1.0
 	var bg_path := "res://assets/title_bg/adapted/parkour_tag_cartoon.png"
-	if ResourceLoader.exists(bg_path):
-		bg.texture = ResourceLoader.load(bg_path) as Texture2D
-	elif FileAccess.file_exists(ProjectSettings.globalize_path(bg_path)):
-		var img := Image.load_from_file(ProjectSettings.globalize_path(bg_path))
+	var bg_file_path := ProjectSettings.globalize_path(bg_path)
+	# 优先直接读取高清源图，避免继续使用 .godot/imported 中旧的低分辨率缓存。
+	if FileAccess.file_exists(bg_file_path):
+		var img := Image.load_from_file(bg_file_path)
 		if img != null and not img.is_empty():
 			bg.texture = ImageTexture.create_from_image(img)
+	elif ResourceLoader.exists(bg_path):
+		bg.texture = ResourceLoader.load(bg_path) as Texture2D
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	title_layer.add_child(bg)
+
+	var version_label := Label.new()
+	version_label.text = "v%s" % GAME_VERSION
+	version_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	version_label.offset_right = -24.0
+	version_label.offset_bottom = -18.0
+	version_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	version_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
+	version_label.add_theme_font_size_override("font_size", 22)
+	_apply_label_style(version_label, Color(1.0, 1.0, 1.0, 1.0), 6)
+	version_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	version_label.z_index = 100
+	title_layer.add_child(version_label)
 
 	var center := CenterContainer.new()
 	center.anchor_right = 1.0
@@ -890,6 +921,33 @@ func _build_title_ui() -> void:
 	win_target_unit_label = Label.new()
 	_apply_label_style(win_target_unit_label)
 	win_target_row.add_child(win_target_unit_label)
+
+	win_time_row = HBoxContainer.new()
+	win_time_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	win_time_row.add_theme_constant_override("separation", 10)
+	box.add_child(win_time_row)
+	setup_controls.append(win_time_row)
+
+	var win_time_label := Label.new()
+	win_time_label.text = "回合限时"
+	_apply_label_style(win_time_label)
+	win_time_row.add_child(win_time_label)
+
+	win_time_spinbox = SpinBox.new()
+	win_time_spinbox.custom_minimum_size = Vector2(150.0, 48.0)
+	win_time_spinbox.min_value = MIN_WIN_TIME_SECONDS
+	win_time_spinbox.max_value = MAX_WIN_TIME_SECONDS
+	win_time_spinbox.step = 10.0
+	win_time_spinbox.value = win_time_seconds
+	win_time_spinbox.add_theme_font_size_override("font_size", 24)
+	win_time_spinbox.get_line_edit().add_theme_font_size_override("font_size", 24)
+	win_time_spinbox.value_changed.connect(Callable(self, "_on_win_time_changed"))
+	win_time_row.add_child(win_time_spinbox)
+
+	var win_time_unit_label := Label.new()
+	win_time_unit_label.text = "秒"
+	_apply_label_style(win_time_unit_label)
+	win_time_row.add_child(win_time_unit_label)
 
 	var map_row := HBoxContainer.new()
 	map_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1449,20 +1507,23 @@ func _on_win_target_changed(value: float) -> void:
 	if game_mode == "lobby" and not multiplayer.is_server():
 		_update_win_mode_ui()
 		return
-	if win_mode == WIN_MODE_SURVIVAL:
-		win_time_seconds = clampf(value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
-	else:
-		hits_to_win = clampi(int(round(value)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+	hits_to_win = clampi(int(round(value)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+	_sync_lobby_settings("房间规则已同步，等待房主开始游戏。")
+	_update_lobby_ui()
+
+func _on_win_time_changed(value: float) -> void:
+	if game_mode == "lobby" and not multiplayer.is_server():
+		_update_win_mode_ui()
+		return
+	win_time_seconds = clampf(value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
 	_sync_lobby_settings("房间规则已同步，等待房主开始游戏。")
 	_update_lobby_ui()
 
 func _refresh_win_target_from_ui() -> void:
-	if win_target_spinbox == null:
-		return
-	if win_mode == WIN_MODE_SURVIVAL:
-		win_time_seconds = clampf(win_target_spinbox.value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
-	else:
+	if win_target_spinbox != null:
 		hits_to_win = clampi(int(round(win_target_spinbox.value)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+	if win_time_spinbox != null:
+		win_time_seconds = clampf(win_time_spinbox.value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
 
 func _update_win_mode_ui() -> void:
 	var is_survival := win_mode == WIN_MODE_SURVIVAL
@@ -1473,23 +1534,31 @@ func _update_win_mode_ui() -> void:
 		win_mode_previous_button.disabled = not can_edit
 	if win_mode_next_button != null:
 		win_mode_next_button.disabled = not can_edit
+	if win_target_row != null:
+		win_target_row.visible = not is_survival
 	if win_target_label != null:
-		win_target_label.text = "躲藏时长" if is_survival else "目标命中"
+		win_target_label.text = "目标命中"
+		win_target_label.visible = not is_survival
 	if win_target_unit_label != null:
-		win_target_unit_label.text = "秒" if is_survival else "次"
+		win_target_unit_label.text = "次"
+		win_target_unit_label.visible = not is_survival
 	if win_target_spinbox != null:
 		win_target_spinbox.set_block_signals(true)
-		win_target_spinbox.min_value = MIN_WIN_TIME_SECONDS if is_survival else MIN_HITS_TO_WIN
-		win_target_spinbox.max_value = MAX_WIN_TIME_SECONDS if is_survival else MAX_HITS_TO_WIN
-		win_target_spinbox.step = 10.0 if is_survival else 1.0
-		win_target_spinbox.value = win_time_seconds if is_survival else hits_to_win
+		win_target_spinbox.min_value = MIN_HITS_TO_WIN
+		win_target_spinbox.max_value = MAX_HITS_TO_WIN
+		win_target_spinbox.step = 1.0
+		win_target_spinbox.value = hits_to_win
 		win_target_spinbox.set_block_signals(false)
 		win_target_spinbox.editable = can_edit
+		win_target_spinbox.visible = not is_survival
+	if win_time_spinbox != null:
+		win_time_spinbox.set_value_no_signal(win_time_seconds)
+		win_time_spinbox.editable = can_edit
 
 func _win_rule_display_text() -> String:
 	if win_mode == WIN_MODE_SURVIVAL:
 		return "躲藏者坚持 %d 秒不被抓到" % int(round(win_time_seconds))
-	return "躲藏者击中追逐者 %d 次，或坚持 300 秒" % hits_to_win
+	return "躲藏者击中追逐者 %d 次，或坚持 %d 秒可获胜" % [hits_to_win, int(round(win_time_seconds))]
 
 func _sync_lobby_settings(message: String) -> void:
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
@@ -2675,8 +2744,7 @@ func _on_runner_fell() -> void:
 	_finish_runner_failed("躲藏者掉出地图！")
 
 func _on_runner_time_limit_survived() -> void:
-	var survived_seconds := win_time_seconds if win_mode == WIN_MODE_SURVIVAL else HITS_MODE_TIME_LIMIT_SECONDS
-	_on_runner_survived("坚持 %d 秒没有被追逐者抓到" % int(round(survived_seconds)))
+	_on_runner_survived("坚持 %d 秒没有被追逐者抓到" % int(round(win_time_seconds)))
 
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
@@ -3839,6 +3907,8 @@ func _update_ai_runner_throwable_strategy(delta: float) -> void:
 		if pickup_id >= 0:
 			_pickup_throwable_on_authority(pickup_id)
 	if not runner_has_slow_grenade or ai_runner_throw_cooldown > 0.0:
+		return
+	if player.has_method("should_consume_ai_throw_attempt") and not player.should_consume_ai_throw_attempt():
 		return
 	var origin: Vector3 = _runner_throw_origin(player)
 	var to_tagger: Vector3 = tagger.global_position + Vector3.UP * 0.8 - origin

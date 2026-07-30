@@ -23,7 +23,14 @@ var rl_width := 28
 var rl_height := 28
 var rl_max_relative_cells := 14
 var rl_catch_action_index := 8
+var rl_version := 1
+var rl_move_action_count := 9
 var wants_catch_attempt := false
+var rl_catch_ready := true
+var rl_hit_progress := 0
+var rl_hits_to_win := 10
+var rl_time_remaining := 300.0
+var rl_round_seconds := 300.0
 var vertical_fallback_active := false
 var rl_stuck_timer := 0.0
 
@@ -67,10 +74,7 @@ func _physics_process(delta: float) -> void:
 		rl_stuck_timer += delta
 	else:
 		rl_stuck_timer = maxf(rl_stuck_timer - delta * 1.5, 0.0)
-	if _is_close_enough_for_catch() and not is_catch_disabled_by_slow():
-		wants_catch_attempt = true
-		move_dir = _direction_to_target()
-	elif wants_catch_attempt and not is_catch_disabled_by_slow():
+	if wants_catch_attempt and not is_catch_disabled_by_slow():
 		move_dir = _direction_to_target()
 	elif rl_stuck_timer > 0.7:
 		rl_stuck_timer = 0.0
@@ -136,9 +140,12 @@ func _load_policy() -> void:
 		return
 	var metadata: Dictionary = data.get("metadata", {})
 	var bounds: Dictionary = metadata.get("bounds", {})
+	rl_version = int(metadata.get("version", 1))
+	rl_move_action_count = int(metadata.get("move_action_count", 9))
 	rl_cell_size = float(metadata.get("cell_size", rl_cell_size))
 	rl_max_relative_cells = int(metadata.get("max_relative_cells", rl_max_relative_cells))
 	rl_catch_action_index = int(metadata.get("catch_action_index", rl_catch_action_index))
+	rl_round_seconds = float(metadata.get("round_seconds", rl_round_seconds))
 	rl_min_x = float(bounds.get("min_x", rl_min_x))
 	rl_min_z = float(bounds.get("min_z", rl_min_z))
 	rl_width = int(bounds.get("width", rl_width))
@@ -147,26 +154,68 @@ func _load_policy() -> void:
 
 func _policy_move_dir() -> Vector3:
 	wants_catch_attempt = false
-	# 使用"相对目标偏移量"查表，与训练时 target_cell - agent_cell 一致；
-	# 不再依赖单张地图的绝对边界，因此在所有官方地图上都能命中策略。
+	if rl_version < 2:
+		return _legacy_policy_move_dir()
+	var directions := _relative_directions()
+	var gap_cells := global_position.distance_to(target.global_position) / maxf(rl_cell_size, 0.1)
+	var dist_bucket := _distance_bucket(gap_cells)
+	var line_clear := int(_policy_line_clear())
+	var skill_ready := int(rl_catch_ready and not is_catch_disabled_by_slow())
+	var affected := int(is_catch_disabled_by_slow())
+	var progress_bucket := mini(3, int(float(rl_hit_progress) / maxf(float(rl_hits_to_win), 1.0) * 4.0))
+	var elapsed_ratio := 1.0 - clampf(rl_time_remaining / maxf(rl_round_seconds, 1.0), 0.0, 1.0)
+	var time_bucket := mini(3, int(elapsed_ratio * 4.0))
+	var key := "%d,%d,%d,%d,%d,%d,%d" % [dist_bucket, _blocked_mask(directions), line_clear, skill_ready, affected, progress_bucket, time_bucket]
+	if not rl_policy.has(key):
+		return Vector3.ZERO
+	var action_index := int(rl_policy[key])
+	var move_index := posmod(action_index, rl_move_action_count)
+	wants_catch_attempt = action_index >= rl_move_action_count and skill_ready == 1
+	if move_index < 0 or move_index >= directions.size():
+		return Vector3.ZERO
+	return directions[move_index]
+
+func _legacy_policy_move_dir() -> Vector3:
 	var offset := target.global_position - global_position
 	var dx := clampi(int(round(offset.x / rl_cell_size)), -rl_max_relative_cells, rl_max_relative_cells)
 	var dz := clampi(int(round(offset.z / rl_cell_size)), -rl_max_relative_cells, rl_max_relative_cells)
-	var key := "%d,%d,%d" % [dx, dz, _blocked_mask()]
+	var key := "%d,%d,%d" % [dx, dz, _legacy_blocked_mask()]
 	if not rl_policy.has(key):
 		return Vector3.ZERO
 	var action_index := int(rl_policy[key])
 	if action_index == rl_catch_action_index:
-		if is_catch_disabled_by_slow():
-			return _direction_to_target()
-		wants_catch_attempt = true
+		wants_catch_attempt = rl_catch_ready and not is_catch_disabled_by_slow()
 		return _direction_to_target()
 	if action_index < 0 or action_index >= ACTION_STEPS.size():
 		return Vector3.ZERO
 	var step: Vector2i = ACTION_STEPS[action_index]
 	return Vector3(float(step.x), 0.0, float(step.y)).normalized()
 
-func _blocked_mask() -> int:
+func _relative_directions() -> Array[Vector3]:
+	var toward := _direction_to_target()
+	var left := Vector3(-toward.z, 0.0, toward.x)
+	return [toward, -toward, left, -left, (toward + left).normalized(), (toward - left).normalized(), (-toward + left).normalized(), (-toward - left).normalized(), Vector3.ZERO]
+
+func _distance_bucket(gap_cells: float) -> int:
+	var limits := [1.3, 2.5, 4.0, 6.0, 9.0, 13.0]
+	for i in range(limits.size()):
+		if gap_cells <= float(limits[i]):
+			return i
+	return 6
+
+func _blocked_mask(directions: Array[Vector3]) -> int:
+	var mask := 0
+	var from := global_position + Vector3.UP * 0.65
+	var space := get_world_3d().direct_space_state
+	for i in range(mini(8, directions.size())):
+		var query := PhysicsRayQueryParameters3D.create(from, from + directions[i] * rl_cell_size * 0.85)
+		query.collision_mask = 1
+		query.exclude = [get_rid()]
+		if not space.intersect_ray(query).is_empty():
+			mask |= 1 << i
+	return mask
+
+func _legacy_blocked_mask() -> int:
 	var mask := 0
 	var from := global_position + Vector3.UP * 0.65
 	var space := get_world_3d().direct_space_state
@@ -179,6 +228,23 @@ func _blocked_mask() -> int:
 		if not space.intersect_ray(query).is_empty():
 			mask |= 1 << i
 	return mask
+
+func _policy_line_clear() -> bool:
+	if target == null or get_world_3d() == null:
+		return false
+	var from := global_position + Vector3.UP * 0.8
+	var to := target.global_position + Vector3.UP * 0.8
+	var query := PhysicsRayQueryParameters3D.create(from, to)
+	query.collision_mask = 1
+	query.exclude = [get_rid(), target.get_rid()]
+	return get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+func set_rl_match_context(catch_ready: bool, hit_progress: int, hit_target: int, time_remaining: float, round_seconds: float) -> void:
+	rl_catch_ready = catch_ready
+	rl_hit_progress = hit_progress
+	rl_hits_to_win = maxi(1, hit_target)
+	rl_time_remaining = maxf(time_remaining, 0.0)
+	rl_round_seconds = maxf(round_seconds, 1.0)
 
 func _world_to_policy_cell(pos: Vector3) -> Vector2i:
 	var gx := clampi(int(floor((pos.x - rl_min_x) / rl_cell_size)), 0, rl_width - 1)

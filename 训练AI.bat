@@ -10,15 +10,16 @@ echo.
 set PY=python
 where python >nul 2>nul || set PY=py
 
-echo [1/2] 训练追捕者 Tagger ...
-%PY% rl/train_pathfinder.py --map maps/ring_training.json --out rl/trained_policy.json
-if errorlevel 1 echo   （追捕者训练达标率未通过阈值，但策略文件已生成）
-
-echo.
-echo [2/2] 训练躲藏者 Runner ...
-%PY% rl/train_runner.py --map maps/ring_training.json --out rl/trained_runner_policy.json
-if errorlevel 1 echo   （躲藏者训练达标率未通过阈值，但策略文件已生成）
+echo [1/1] 双 AI 自博弈 RL v2（命中 10 次 / 限时 300 秒）...
+%PY% rl/train_selfplay.py --duration-seconds 300 --hits-to-win 10 --round-seconds 300 --progress-interval 15 --tagger-out rl/trained_policy.json --runner-out rl/trained_runner_policy.json
+if errorlevel 1 goto train_failed
 
 echo.
 echo 训练完成。策略文件位于 rl\ 目录，重新运行游戏即可生效。
 pause
+exit /b 0
+
+:train_failed
+echo 训练失败，错误代码 %errorlevel%。
+pause
+exit /b %errorlevel%
