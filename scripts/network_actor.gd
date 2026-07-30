@@ -327,12 +327,7 @@ func _build_body() -> void:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = float(skin.get("radius", 0.38 if role == "tagger" else 0.35))
 	capsule.height = float(skin.get("height", 1.82 if role == "tagger" else 1.72))
-	if String(skin.get("collision_shape", "capsule")) == "box":
-		var box := BoxShape3D.new()
-		box.size = skin.get("collision_size", Vector3(0.7, 1.2, 0.5)) as Vector3
-		collision.shape = box
-	else:
-		collision.shape = capsule
+	collision.shape = capsule
 	collision.position.y = float(skin.get("collision_y", 0.96 if role == "tagger" else 0.92))
 	add_child(collision)
 
