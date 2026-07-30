@@ -299,7 +299,7 @@ func _ready() -> void:
 	_show_title("")
 	_load_active_map()
 
-func _load_raw_ogg(path: String, should_loop: bool) -> AudioStreamOggVorbis:
+func _load_raw_audio(path: String, should_loop: bool) -> AudioStream:
 	if not FileAccess.file_exists(path):
 		push_error("音频文件不存在：%s" % path)
 		return null
@@ -307,11 +307,20 @@ func _load_raw_ogg(path: String, should_loop: bool) -> AudioStreamOggVorbis:
 	if sound_data.is_empty():
 		push_error("音频文件为空：%s" % path)
 		return null
-	var sound_stream := AudioStreamOggVorbis.load_from_buffer(sound_data)
+	var sound_stream: AudioStream
+	match path.get_extension().to_lower():
+		"ogg":
+			var ogg_stream := AudioStreamOggVorbis.load_from_buffer(sound_data)
+			if ogg_stream != null:
+				ogg_stream.loop = should_loop
+				sound_stream = ogg_stream
+		"mp3":
+			var mp3_stream := AudioStreamMP3.load_from_buffer(sound_data)
+			if mp3_stream != null:
+				mp3_stream.loop = should_loop
+				sound_stream = mp3_stream
 	if sound_stream == null:
 		push_error("无法读取音频：%s" % path)
-		return null
-	sound_stream.loop = should_loop
 	return sound_stream
 
 func _setup_chase_music() -> void:
@@ -321,7 +330,7 @@ func _setup_chase_music() -> void:
 
 func _setup_runner_throw_sound() -> void:
 	runner_throw_sound.stop()
-	runner_throw_sound.stream = _load_raw_ogg(RUNNER_THROW_SOUND_PATH, false)
+	runner_throw_sound.stream = _load_raw_audio(RUNNER_THROW_SOUND_PATH, false)
 
 func _load_audio_settings() -> void:
 	var config := ConfigFile.new()
@@ -346,8 +355,11 @@ func _percent_to_volume_db(percent: float) -> float:
 	return linear_to_db(percent / 100.0)
 
 func _apply_audio_volumes() -> void:
+	var music_volume_db := _percent_to_volume_db(music_volume_percent)
 	if chase_music != null:
-		chase_music.volume_db = _percent_to_volume_db(music_volume_percent)
+		chase_music.volume_db = clampf(active_map_bgm_volume_db + music_volume_db, -80.0, 6.0)
+	if menu_music != null:
+		menu_music.volume_db = music_volume_db
 	if runner_throw_sound != null:
 		runner_throw_sound.volume_db = _percent_to_volume_db(throw_volume_percent)
 
@@ -377,12 +389,15 @@ func _ensure_audio_preview_stream(player: AudioStreamPlayer, path: String, shoul
 	if player == null:
 		return false
 	if player.stream == null:
-		player.stream = _load_raw_ogg(path, should_loop)
+		player.stream = _load_raw_audio(path, should_loop)
 	return player.stream != null
 
 func _on_test_music_pressed() -> void:
-	if not _ensure_audio_preview_stream(chase_music, CHASE_MUSIC_PATH, true):
+	if chase_music.stream == null:
+		chase_music.stream = _load_map_bgm_stream(active_map_bgm_path)
+	if chase_music.stream == null:
 		return
+	_stop_menu_music()
 	chase_music.stop()
 	chase_music.play()
 
@@ -395,6 +410,7 @@ func _on_test_throw_sound_pressed() -> void:
 func _stop_audio_previews() -> void:
 	if game_mode == "title":
 		chase_music.stop()
+		_start_menu_music()
 	if runner_throw_sound != null:
 		runner_throw_sound.stop()
 
@@ -417,9 +433,8 @@ func _start_menu_music() -> void:
 	if menu_music == null:
 		return
 	if menu_music.stream == null:
-		if ResourceLoader.exists(MENU_BGM_PATH, "AudioStream"):
-			menu_music.stream = ResourceLoader.load(MENU_BGM_PATH, "AudioStream") as AudioStream
-		else:
+		menu_music.stream = _load_raw_audio(MENU_BGM_PATH, true)
+		if menu_music.stream == null:
 			push_warning("初始界面 BGM 资源未找到：%s" % MENU_BGM_PATH)
 			return
 	if not menu_music.playing:
@@ -449,17 +464,19 @@ func _apply_map_bgm(config: Dictionary) -> void:
 	chase_music.stream = stream
 
 func _load_map_bgm_stream(path: String) -> AudioStream:
-	var stream: AudioStream
-	if path.begins_with("res://") and ResourceLoader.exists(path, "AudioStream"):
+	var stream := _load_raw_audio(path, active_map_bgm_loop)
+	if stream != null:
+		return stream
+	# 为导出包中的其他 AudioStream 格式保留资源加载回退。
+	if ResourceLoader.exists(path, "AudioStream"):
 		stream = ResourceLoader.load(path, "AudioStream") as AudioStream
-	elif path.get_extension().to_lower() == "ogg" and FileAccess.file_exists(path):
-		var file_path := ProjectSettings.globalize_path(path) if path.begins_with("res://") or path.begins_with("user://") else path
-		stream = AudioStreamOggVorbis.load_from_file(file_path)
 	if stream == null:
 		return null
 	stream = stream.duplicate() as AudioStream
 	if stream is AudioStreamOggVorbis:
 		(stream as AudioStreamOggVorbis).loop = active_map_bgm_loop
+	elif stream is AudioStreamMP3:
+		(stream as AudioStreamMP3).loop = active_map_bgm_loop
 	return stream
 
 func _start_chase_music() -> void:
@@ -752,24 +769,19 @@ func _build_title_ui() -> void:
 	title_layer.name = "TitleUI"
 	add_child(title_layer)
 
-	var bg := ColorRect.new()
-	bg.color = Color(0.42, 0.78, 1.0, 0.98)
+	var bg := TextureRect.new()
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	bg.anchor_right = 1.0
 	bg.anchor_bottom = 1.0
+	var bg_path := "res://assets/title_bg/adapted/parkour_tag_cartoon.png"
+	if ResourceLoader.exists(bg_path):
+		bg.texture = ResourceLoader.load(bg_path) as Texture2D
+	elif FileAccess.file_exists(ProjectSettings.globalize_path(bg_path)):
+		var img := Image.load_from_file(ProjectSettings.globalize_path(bg_path))
+		if img != null and not img.is_empty():
+			bg.texture = ImageTexture.create_from_image(img)
 	title_layer.add_child(bg)
-
-	var grass := ColorRect.new()
-	grass.color = Color(0.34, 0.82, 0.38, 0.9)
-	grass.anchor_top = 0.83
-	grass.anchor_right = 1.0
-	grass.anchor_bottom = 1.0
-	title_layer.add_child(grass)
-
-	var sun := Panel.new()
-	sun.position = Vector2(54.0, 44.0)
-	sun.custom_minimum_size = Vector2(118.0, 118.0)
-	sun.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 0.86, 0.25, 0.95), Color(1.0, 0.58, 0.12), 5, 64, Vector2(0.0, 4.0)))
-	title_layer.add_child(sun)
 
 	var center := CenterContainer.new()
 	center.anchor_right = 1.0
