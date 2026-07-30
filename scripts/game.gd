@@ -27,7 +27,7 @@ const ITEM_TYPE_VISION_CARD := "vision_card"
 const PORT = 24591
 const BASKETBALL_SECRET_CODE := "0721"
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
-const GAME_VERSION := "1.5.1"
+const GAME_VERSION := "1.6.0"
 const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const USE_RL_POLICY_RUNNER := true
@@ -294,6 +294,8 @@ var throwable_trajectory: MeshInstance3D
 var throwable_trajectory_dots: Node3D
 var throwable_landing_marker: MeshInstance3D
 var held_throwable_visual: Node3D
+var held_speed_boost_visual: Node3D
+var held_vision_card_visual: Node3D
 var ground_throwables: Dictionary = {}
 var flying_throwables: Dictionary = {}
 var runner_has_slow_grenade := false
@@ -3644,9 +3646,13 @@ func _update_tagger_inventory_hud() -> void:
 	if not show_inventory:
 		return
 	var vision_active := tagger_vision_timer > 0.0
-	_update_inventory_slot(vision_card_slot, vision_card_slot_label, "透视卡", "E 使用", tagger_has_vision_card or vision_active, Color(0.78, 0.24, 1.0))
+	var normal_purple := Color(0.78, 0.24, 1.0)
+	var active_only_purple := Color(0.72, 0.58, 0.82)
+	var accent := normal_purple if tagger_has_vision_card else active_only_purple if vision_active else normal_purple
+	_update_inventory_slot(vision_card_slot, vision_card_slot_label, "透视卡", "E 使用", tagger_has_vision_card or vision_active, accent)
 	if vision_active:
-		vision_card_slot_label.text = "透视卡\n透视中 %.1fs\n目标位置已显现" % tagger_vision_timer
+		var reserve_text := "\n已携带备用卡" if tagger_has_vision_card else "\n目标位置已显现"
+		vision_card_slot_label.text = "透视卡\n透视中 %.1fs%s" % [tagger_vision_timer, reserve_text]
 
 func _update_inventory_slot(slot: PanelContainer, label: Label, item_name: String, action_hint: String, is_held: bool, accent: Color) -> void:
 	if slot == null or label == null:
@@ -3990,7 +3996,11 @@ func _is_runner_item_type(item_type: String) -> bool:
 func _is_tagger_item_type(item_type: String) -> bool:
 	return item_type == ITEM_TYPE_VISION_CARD
 
-func _local_can_see_item_type(item_type: String) -> bool:
+func _local_can_see_item_type(_item_type: String) -> bool:
+	# 对局中的双方都能看见全部地面道具；角色归属只影响外观和拾取权限。
+	return _local_is_runner() or _local_is_tagger()
+
+func _item_belongs_to_local_role(item_type: String) -> bool:
 	if _local_is_runner():
 		return _is_runner_item_type(item_type)
 	if _local_is_tagger():
@@ -4378,6 +4388,8 @@ func _spawn_ground_throwable(position: Vector3, item_id: int = -1, item_type: St
 	node.name = "GroundItem_%s_%d" % [resolved_type, resolved_id]
 	node.position = position
 	node.visible = _local_can_see_item_type(resolved_type)
+	if not _item_belongs_to_local_role(resolved_type):
+		_apply_opponent_item_ghost(node)
 	throwable_root.add_child(node)
 	ground_throwables[resolved_id] = {"id": resolved_id, "node": node, "position": position, "item_type": resolved_type}
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
@@ -4497,6 +4509,7 @@ func _pickup_tagger_card_on_authority(item_id: int) -> void:
 	_sync_tagger_card_state()
 
 func _sync_tagger_card_state() -> void:
+	_update_held_throwable_visual()
 	_update_tagger_inventory_hud()
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
 		rpc_id(remote_peer_id, "_rpc_set_tagger_card_state", tagger_has_vision_card)
@@ -5126,26 +5139,120 @@ func _ensure_held_throwable_visual() -> void:
 	if held_throwable_visual != null and is_instance_valid(held_throwable_visual):
 		return
 	held_throwable_visual = _create_throwable_visual(true)
-	held_throwable_visual.name = "HeldThrowable"
+	held_throwable_visual.name = "HeldSlowGrenade"
 	held_throwable_visual.scale = Vector3.ONE * 0.82
 	held_throwable_visual.visible = false
 	add_child(held_throwable_visual)
+	if not _local_is_runner():
+		_apply_opponent_item_ghost(held_throwable_visual)
+
+func _ensure_held_speed_boost_visual() -> void:
+	if held_speed_boost_visual != null and is_instance_valid(held_speed_boost_visual):
+		return
+	held_speed_boost_visual = _create_speed_boost_visual()
+	held_speed_boost_visual.name = "HeldSpeedBoost"
+	held_speed_boost_visual.scale = Vector3.ONE * 0.78
+	_hide_held_ground_effects(held_speed_boost_visual, ["BoostEnergyRing", "BoostPickupMarker"])
+	held_speed_boost_visual.visible = false
+	add_child(held_speed_boost_visual)
+	if not _local_is_runner():
+		_apply_opponent_item_ghost(held_speed_boost_visual)
+
+func _ensure_held_vision_card_visual() -> void:
+	if held_vision_card_visual != null and is_instance_valid(held_vision_card_visual):
+		return
+	held_vision_card_visual = _create_vision_card_visual()
+	held_vision_card_visual.name = "HeldVisionCard"
+	held_vision_card_visual.scale = Vector3.ONE * 0.38
+	_hide_held_ground_effects(held_vision_card_visual, ["VisionCardEnergyRing", "VisionCardPickupMarker"])
+	held_vision_card_visual.visible = false
+	add_child(held_vision_card_visual)
+	if not _local_is_tagger():
+		_apply_opponent_item_ghost(held_vision_card_visual)
+
+func _hide_held_ground_effects(root: Node, effect_names: Array[String]) -> void:
+	for effect_name in effect_names:
+		var effect := root.find_child(effect_name, true, false)
+		if effect is Node3D:
+			(effect as Node3D).visible = false
+
+func _apply_opponent_item_ghost(root: Node) -> void:
+	var ghost_material := StandardMaterial3D.new()
+	ghost_material.resource_local_to_scene = true
+	ghost_material.albedo_color = Color(0.48, 0.54, 0.62, 0.38)
+	ghost_material.metallic = 0.05
+	ghost_material.roughness = 0.92
+	ghost_material.emission_enabled = true
+	ghost_material.emission = Color(0.2, 0.28, 0.38)
+	ghost_material.emission_energy_multiplier = 0.45
+	ghost_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ghost_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_apply_ghost_material_recursive(root, ghost_material)
+
+func _apply_ghost_material_recursive(node: Node, ghost_material: StandardMaterial3D) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		mesh_instance.material_override = ghost_material.duplicate(true) as StandardMaterial3D
+		mesh_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for child in node.get_children():
+		_apply_ghost_material_recursive(child, ghost_material)
 
 func _hide_held_throwable_visual() -> void:
 	if held_throwable_visual != null and is_instance_valid(held_throwable_visual):
 		held_throwable_visual.visible = false
 
+func _hide_all_held_item_visuals() -> void:
+	for visual in [held_throwable_visual, held_speed_boost_visual, held_vision_card_visual]:
+		if visual != null and is_instance_valid(visual):
+			visual.visible = false
+
+func _destroy_held_item_visuals() -> void:
+	for visual in [held_throwable_visual, held_speed_boost_visual, held_vision_card_visual]:
+		if visual != null and is_instance_valid(visual):
+			visual.queue_free()
+	held_throwable_visual = null
+	held_speed_boost_visual = null
+	held_vision_card_visual = null
+
 func _update_held_throwable_visual() -> void:
-	if not _throwable_system_active() or not runner_has_slow_grenade or caught or player == null or not is_instance_valid(player):
+	if not _throwable_system_active() or caught:
+		_hide_all_held_item_visuals()
+		return
+
+	var runner_valid := player != null and is_instance_valid(player)
+	if runner_has_slow_grenade and runner_valid:
+		_ensure_held_throwable_visual()
+		if held_throwable_visual != null and is_instance_valid(held_throwable_visual):
+			held_throwable_visual.global_position = _runner_throw_origin(player)
+			held_throwable_visual.global_rotation = player.global_rotation
+			held_throwable_visual.visible = true
+	else:
 		_hide_held_throwable_visual()
-		return
-	_ensure_held_throwable_visual()
-	if held_throwable_visual == null or not is_instance_valid(held_throwable_visual):
-		return
-	var origin := _runner_throw_origin(player)
-	held_throwable_visual.global_position = origin
-	held_throwable_visual.global_rotation = player.global_rotation
-	held_throwable_visual.visible = true
+
+	if runner_has_speed_boost and runner_valid:
+		_ensure_held_speed_boost_visual()
+		if held_speed_boost_visual != null and is_instance_valid(held_speed_boost_visual):
+			held_speed_boost_visual.global_position = _held_item_origin(player, -1.0, 0.98, 0.13)
+			held_speed_boost_visual.global_rotation = player.global_rotation + Vector3(0.0, 0.0, deg_to_rad(10.0))
+			held_speed_boost_visual.visible = true
+	elif held_speed_boost_visual != null and is_instance_valid(held_speed_boost_visual):
+		held_speed_boost_visual.visible = false
+
+	var tagger_valid := tagger != null and is_instance_valid(tagger)
+	if tagger_has_vision_card and tagger_valid:
+		_ensure_held_vision_card_visual()
+		if held_vision_card_visual != null and is_instance_valid(held_vision_card_visual):
+			held_vision_card_visual.global_position = _held_item_origin(tagger, 1.0, 1.05, 0.16)
+			held_vision_card_visual.global_rotation = tagger.global_rotation + Vector3(0.0, 0.0, deg_to_rad(-12.0))
+			held_vision_card_visual.visible = true
+	elif held_vision_card_visual != null and is_instance_valid(held_vision_card_visual):
+		held_vision_card_visual.visible = false
+
+func _held_item_origin(actor: Node3D, side: float, height: float, forward_offset: float) -> Vector3:
+	if actor == null or not is_instance_valid(actor):
+		return Vector3.ZERO
+	var basis := actor.global_transform.basis
+	return actor.global_position + basis.x.normalized() * 0.44 * side + Vector3.UP * height - basis.z.normalized() * forward_offset
 
 func _runner_throw_origin(actor: Node3D) -> Vector3:
 	if actor == null or not is_instance_valid(actor):
