@@ -89,6 +89,7 @@ const WIN_MODE_SURVIVAL := "survival"
 const DEFAULT_HITS_TO_WIN := 10
 const MIN_HITS_TO_WIN := 1
 const MAX_HITS_TO_WIN := 100
+const HITS_MODE_TIME_LIMIT_SECONDS := 300.0
 const DEFAULT_WIN_TIME_SECONDS := 60.0
 const MIN_WIN_TIME_SECONDS := 10.0
 const MAX_WIN_TIME_SECONDS := 3600.0
@@ -555,9 +556,9 @@ func _process(delta: float) -> void:
 		return
 
 	time_alive += delta
-	if win_mode == WIN_MODE_SURVIVAL \
-	and (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") \
-	and time_alive >= win_time_seconds:
+	var round_time_limit := win_time_seconds if win_mode == WIN_MODE_SURVIVAL else HITS_MODE_TIME_LIMIT_SECONDS
+	if (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") \
+	and time_alive >= round_time_limit:
 		_on_runner_time_limit_survived()
 		return
 	ai_catch_cooldown = maxf(ai_catch_cooldown - delta, 0.0)
@@ -615,8 +616,9 @@ func _update_round_hud() -> void:
 			round_time_label.text = "剩余时间  %s" % _format_round_time(remaining)
 		text = "限时躲藏"
 	else:
+		var remaining := maxf(HITS_MODE_TIME_LIMIT_SECONDS - time_alive, 0.0)
 		if round_time_label != null:
-			round_time_label.text = "命中进度  %d / %d" % [tagger_hit_count, hits_to_win]
+			round_time_label.text = "剩余时间  %s\n命中进度  %d / %d" % [_format_round_time(remaining), tagger_hit_count, hits_to_win]
 		text = "命中获胜"
 	var local_actor := _local_controlled_actor()
 	if local_actor != null:
@@ -1475,7 +1477,7 @@ func _update_win_mode_ui() -> void:
 func _win_rule_display_text() -> String:
 	if win_mode == WIN_MODE_SURVIVAL:
 		return "躲藏者坚持 %d 秒不被抓到" % int(round(win_time_seconds))
-	return "躲藏者击中追逐者 %d 次" % hits_to_win
+	return "躲藏者击中追逐者 %d 次，或坚持 300 秒" % hits_to_win
 
 func _sync_lobby_settings(message: String) -> void:
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
@@ -2661,7 +2663,8 @@ func _on_runner_fell() -> void:
 	_finish_runner_failed("躲藏者掉出地图！")
 
 func _on_runner_time_limit_survived() -> void:
-	_on_runner_survived("坚持 %d 秒没有被追逐者抓到" % int(round(win_time_seconds)))
+	var survived_seconds := win_time_seconds if win_mode == WIN_MODE_SURVIVAL else HITS_MODE_TIME_LIMIT_SECONDS
+	_on_runner_survived("坚持 %d 秒没有被追逐者抓到" % int(round(survived_seconds)))
 
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
@@ -3168,7 +3171,7 @@ func _build_hud() -> void:
 	round_time_label.offset_left = -190.0
 	round_time_label.offset_top = 10.0
 	round_time_label.offset_right = 190.0
-	round_time_label.offset_bottom = 58.0
+	round_time_label.offset_bottom = 96.0
 	round_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	round_time_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	round_time_label.add_theme_font_size_override("font_size", 32)
