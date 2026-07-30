@@ -32,6 +32,8 @@ const STEP_MAX_HEIGHT := 0.55
 const STEP_FORWARD_DISTANCE := 0.45
 const CAMERA_PIVOT_FROM_COLLISION := Vector3(0.0, 0.63, 0.0)
 const FIRST_PERSON_CAMERA_OFFSET := Vector3(0.0, 0.0, -0.08)
+const FIRST_PERSON_CAMERA_RADIUS := 0.08
+const FIRST_PERSON_CAMERA_PADDING := 0.04
 const CAMERA_TOP_CLEARANCE := 0.03
 func configure(new_role: String, peer_id: int, new_skin_id: String = "default") -> void:
 	role = new_role
@@ -499,7 +501,13 @@ func _update_camera_collision() -> void:
 	var camera_radius := 0.28
 	var padding := 0.16
 	if camera_mode == "first_person":
-		camera.position = _resolve_safe_camera_local_position(Vector3.ZERO, _get_camera_collision_anchor(), camera_radius, padding)
+		camera.position = _resolve_safe_camera_local_position(
+			Vector3.ZERO,
+			_get_camera_collision_anchor(),
+			FIRST_PERSON_CAMERA_RADIUS,
+			FIRST_PERSON_CAMERA_PADDING,
+			FIRST_PERSON_CAMERA_RADIUS + CAMERA_TOP_CLEARANCE
+		)
 		return
 	if camera_mode != "third_person":
 		return
@@ -507,9 +515,15 @@ func _update_camera_collision() -> void:
 	var from := camera_pivot.global_position
 	camera.position = _resolve_safe_camera_local_position(Vector3(0.0, 0.0, desired_distance), from, camera_radius, padding)
 
-func _resolve_safe_camera_local_position(desired_local: Vector3, anchor: Vector3, camera_radius: float, padding: float) -> Vector3:
+func _resolve_safe_camera_local_position(
+	desired_local: Vector3,
+	anchor: Vector3,
+	camera_radius: float,
+	padding: float,
+	top_clearance: float = CAMERA_TOP_CLEARANCE
+) -> Vector3:
 	var target := camera_pivot.to_global(desired_local)
-	target.y = minf(target.y, _get_collision_top_global_y() - CAMERA_TOP_CLEARANCE)
+	target.y = minf(target.y, _get_collision_top_global_y() - top_clearance)
 	var motion := target - anchor
 	if motion.length_squared() < 0.0001:
 		return desired_local

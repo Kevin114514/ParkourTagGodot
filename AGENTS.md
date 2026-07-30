@@ -17,8 +17,9 @@
 3. 胶囊顶部按 `collision.position.y + CapsuleShape3D.height / 2` 计算；`height` 已包含上下半球，不得再次加 `radius`。
 4. `CapsuleShape3D`、`BoxShape3D`、`SphereShape3D` 和 `CylinderShape3D` 必须使用各自真实尺寸计算顶部。
 5. 高度限制必须在摄像头球形扫掠、射线回退和最终重叠检查之前应用，不能绕过防穿墙检测。
-6. `player.gd` 与 `network_actor.gd` 必须保持行为一致；联机远端角色不得创建活动摄像头。
-7. 不得静默恢复基于 `Vector3(0.0, 1.55, ...)` 等角色根节点的硬编码摄像头高度。
+6. 第一人称必须使用独立的 `FIRST_PERSON_CAMERA_RADIUS` 和 `FIRST_PERSON_CAMERA_PADDING`；镜头中心上限必须额外扣除安全体半径，避免顶天花板时检测球重叠并把镜头回退到碰撞体中心。
+7. `player.gd` 与 `network_actor.gd` 必须保持行为一致；联机远端角色不得创建活动摄像头。
+8. 不得静默恢复基于 `Vector3(0.0, 1.55, ...)` 等角色根节点的硬编码摄像头高度。
 
 ## 修改前必须报告
 
