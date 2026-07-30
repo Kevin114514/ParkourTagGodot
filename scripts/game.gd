@@ -78,8 +78,14 @@ const THROWABLE_AI_THROW_MIN_DISTANCE := 4.0
 const THROWABLE_AI_THROW_MAX_DISTANCE := 17.5
 const THROWABLE_NOTICE_DURATION := 2.2
 const THROWABLE_PICKUP_NOTICE_PROTECT := 1.15
-const TAGGER_HITS_TO_WIN := 10
-const ROUND_TIME_LIMIT_SECONDS := 300.0
+const WIN_MODE_HITS := "hits"
+const WIN_MODE_SURVIVAL := "survival"
+const DEFAULT_HITS_TO_WIN := 10
+const MIN_HITS_TO_WIN := 1
+const MAX_HITS_TO_WIN := 100
+const DEFAULT_WIN_TIME_SECONDS := 60.0
+const MIN_WIN_TIME_SECONDS := 10.0
+const MAX_WIN_TIME_SECONDS := 3600.0
 const SLOW_PARTICLE_MOVE_THRESHOLD := 0.18
 const ACTION_CONFIRM_DURATION := 2.0
 const OPPONENT_MINIMAP_MEMORY := 5.0
@@ -169,8 +175,13 @@ var map_loading_title: Label
 var map_loading_label: Label
 var title_status: Label
 var ip_input: LineEdit
-var win_time_row: HBoxContainer
-var win_time_spinbox: SpinBox
+var win_mode_label: Label
+var win_mode_previous_button: Button
+var win_mode_next_button: Button
+var win_target_row: HBoxContainer
+var win_target_label: Label
+var win_target_spinbox: SpinBox
+var win_target_unit_label: Label
 var map_summary_label: Label
 var map_select_button: Button
 var map_list: ItemList
@@ -210,7 +221,9 @@ var local_round_load_ready := false
 var remote_round_load_ready := false
 var remote_peer_id := 0
 var host_is_runner := true
-var win_time_seconds := 60.0
+var win_mode := WIN_MODE_SURVIVAL
+var hits_to_win := DEFAULT_HITS_TO_WIN
+var win_time_seconds := DEFAULT_WIN_TIME_SECONDS
 var is_leaving_room := false
 var round_transition_token := 0
 var map_root: Node3D
@@ -429,7 +442,9 @@ func _process(delta: float) -> void:
 		return
 
 	time_alive += delta
-	if (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") and time_alive >= ROUND_TIME_LIMIT_SECONDS:
+	if win_mode == WIN_MODE_SURVIVAL \
+	and (game_mode == "single" or game_mode == "single_chase" or game_mode == "host") \
+	and time_alive >= win_time_seconds:
 		_on_runner_time_limit_survived()
 		return
 	ai_catch_cooldown = maxf(ai_catch_cooldown - delta, 0.0)
@@ -480,8 +495,12 @@ func _format_round_time(seconds: float) -> String:
 func _update_round_hud() -> void:
 	if hud_label == null:
 		return
-	var remaining := maxf(ROUND_TIME_LIMIT_SECONDS - time_alive, 0.0)
-	var text := "剩余时间 %s\n命中进度 %d / %d" % [_format_round_time(remaining), tagger_hit_count, TAGGER_HITS_TO_WIN]
+	var text := ""
+	if win_mode == WIN_MODE_SURVIVAL:
+		var remaining := maxf(win_time_seconds - time_alive, 0.0)
+		text = "限时躲藏\n剩余时间 %s" % _format_round_time(remaining)
+	else:
+		text = "命中获胜\n命中进度 %d / %d" % [tagger_hit_count, hits_to_win]
 	var local_actor := _local_controlled_actor()
 	if local_actor != null:
 		var actor_position: Vector3 = local_actor.global_position
@@ -686,6 +705,61 @@ func _build_title_ui() -> void:
 	title.add_theme_constant_override("outline_size", 8)
 	box.add_child(title)
 
+	var win_mode_selector := HBoxContainer.new()
+	win_mode_selector.alignment = BoxContainer.ALIGNMENT_CENTER
+	win_mode_selector.add_theme_constant_override("separation", 14)
+	box.add_child(win_mode_selector)
+	setup_controls.append(win_mode_selector)
+
+	win_mode_previous_button = Button.new()
+	win_mode_previous_button.text = "◀"
+	win_mode_previous_button.tooltip_text = "上一个模式"
+	win_mode_previous_button.custom_minimum_size = Vector2(58.0, 52.0)
+	win_mode_previous_button.add_theme_font_size_override("font_size", 24)
+	_style_button(win_mode_previous_button, Color(0.15, 0.61, 1.0), Color(0.06, 0.29, 0.58))
+	win_mode_previous_button.pressed.connect(Callable(self, "_switch_win_mode").bind(-1))
+	win_mode_selector.add_child(win_mode_previous_button)
+
+	win_mode_label = Label.new()
+	win_mode_label.custom_minimum_size = Vector2(330.0, 52.0)
+	win_mode_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	win_mode_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	win_mode_label.add_theme_font_size_override("font_size", 30)
+	win_mode_label.add_theme_color_override("font_color", Color(0.92, 0.27, 0.12))
+	win_mode_label.add_theme_color_override("font_outline_color", Color(1.0, 0.91, 0.62))
+	win_mode_label.add_theme_constant_override("outline_size", 5)
+	win_mode_selector.add_child(win_mode_label)
+
+	win_mode_next_button = Button.new()
+	win_mode_next_button.text = "▶"
+	win_mode_next_button.tooltip_text = "下一个模式"
+	win_mode_next_button.custom_minimum_size = Vector2(58.0, 52.0)
+	win_mode_next_button.add_theme_font_size_override("font_size", 24)
+	_style_button(win_mode_next_button, Color(1.0, 0.52, 0.17), Color(0.64, 0.23, 0.06))
+	win_mode_next_button.pressed.connect(Callable(self, "_switch_win_mode").bind(1))
+	win_mode_selector.add_child(win_mode_next_button)
+
+	win_target_row = HBoxContainer.new()
+	win_target_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	win_target_row.add_theme_constant_override("separation", 10)
+	box.add_child(win_target_row)
+	setup_controls.append(win_target_row)
+
+	win_target_label = Label.new()
+	_apply_label_style(win_target_label)
+	win_target_row.add_child(win_target_label)
+
+	win_target_spinbox = SpinBox.new()
+	win_target_spinbox.custom_minimum_size = Vector2(150.0, 48.0)
+	win_target_spinbox.add_theme_font_size_override("font_size", 24)
+	win_target_spinbox.get_line_edit().add_theme_font_size_override("font_size", 24)
+	win_target_spinbox.value_changed.connect(Callable(self, "_on_win_target_changed"))
+	win_target_row.add_child(win_target_spinbox)
+
+	win_target_unit_label = Label.new()
+	_apply_label_style(win_target_unit_label)
+	win_target_row.add_child(win_target_unit_label)
+
 	var map_row := HBoxContainer.new()
 	map_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	map_row.add_theme_constant_override("separation", 10)
@@ -750,6 +824,7 @@ func _build_title_ui() -> void:
 	camera_mode_option.item_selected.connect(Callable(self, "_on_camera_mode_selected"))
 	camera_row.add_child(camera_mode_option)
 
+	_update_win_mode_ui()
 	_refresh_skin_options()
 
 	var preview_row := HBoxContainer.new()
@@ -1038,6 +1113,7 @@ func _close_settings_page() -> void:
 	_set_setup_visible(true)
 	_set_menu_visible(true)
 	_update_map_ui()
+	_update_win_mode_ui()
 	if title_status != null:
 		title_status.text = "选择模式开始游戏"
 
@@ -1066,7 +1142,7 @@ func _on_camera_mode_selected(index: int) -> void:
 	_update_camera_mode_ui()
 	_apply_camera_mode_to_local_actor()
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "房主已切换视角为：%s，等待房主开始游戏。" % _camera_mode_display_name())
+		rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "房主已切换视角为：%s，等待房主开始游戏。" % _camera_mode_display_name())
 	if title_status != null:
 		title_status.text = "已选择视角：%s。" % _camera_mode_display_name()
 
@@ -1114,6 +1190,7 @@ func _close_map_page() -> void:
 	else:
 		_set_menu_visible(true)
 		_update_map_ui()
+	_update_win_mode_ui()
 	if title_status != null:
 		title_status.text = "当前地图：%s" % map_name
 
@@ -1136,7 +1213,7 @@ func _select_official_map(index: int, should_sync: bool) -> bool:
 		title_status.text = "已选择官方地图：%s" % map_name if loaded else "地图加载失败，已保留当前选择。"
 	if loaded and should_sync and game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
 		_configure_network_peer_timeout(remote_peer_id, true)
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "地图已切换为：%s，等待房主开始游戏。" % map_name)
+		rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "地图已切换为：%s，等待房主开始游戏。" % map_name)
 	return loaded
 
 func _update_map_ui() -> void:
@@ -1152,15 +1229,65 @@ func _update_map_ui() -> void:
 		var info: Dictionary = OFFICIAL_MAPS[map_preview_index]
 		map_description_label.text = "%s\n%s" % [String(info.get("name", "官方地图")), String(info.get("description", ""))]
 
-func _on_win_time_changed(value: float) -> void:
-	win_time_seconds = value
-	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "房间规则已同步，等待房主开始游戏。")
+func _switch_win_mode(_direction: int) -> void:
+	if game_mode == "lobby" and not multiplayer.is_server():
+		_update_win_mode_ui()
+		return
+	_refresh_win_target_from_ui()
+	win_mode = WIN_MODE_HITS if win_mode == WIN_MODE_SURVIVAL else WIN_MODE_SURVIVAL
+	_update_win_mode_ui()
+	_sync_lobby_settings("房间规则已同步，等待房主开始游戏。")
 	_update_lobby_ui()
 
-func _refresh_win_time_from_ui() -> void:
-	if win_time_spinbox != null:
-		win_time_seconds = win_time_spinbox.value
+func _on_win_target_changed(value: float) -> void:
+	if game_mode == "lobby" and not multiplayer.is_server():
+		_update_win_mode_ui()
+		return
+	if win_mode == WIN_MODE_SURVIVAL:
+		win_time_seconds = clampf(value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	else:
+		hits_to_win = clampi(int(round(value)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+	_sync_lobby_settings("房间规则已同步，等待房主开始游戏。")
+	_update_lobby_ui()
+
+func _refresh_win_target_from_ui() -> void:
+	if win_target_spinbox == null:
+		return
+	if win_mode == WIN_MODE_SURVIVAL:
+		win_time_seconds = clampf(win_target_spinbox.value, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
+	else:
+		hits_to_win = clampi(int(round(win_target_spinbox.value)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+
+func _update_win_mode_ui() -> void:
+	var is_survival := win_mode == WIN_MODE_SURVIVAL
+	var can_edit := game_mode != "lobby" or multiplayer.is_server()
+	if win_mode_label != null:
+		win_mode_label.text = "限时躲藏" if is_survival else "命中获胜"
+	if win_mode_previous_button != null:
+		win_mode_previous_button.disabled = not can_edit
+	if win_mode_next_button != null:
+		win_mode_next_button.disabled = not can_edit
+	if win_target_label != null:
+		win_target_label.text = "躲藏时长" if is_survival else "目标命中"
+	if win_target_unit_label != null:
+		win_target_unit_label.text = "秒" if is_survival else "次"
+	if win_target_spinbox != null:
+		win_target_spinbox.set_block_signals(true)
+		win_target_spinbox.min_value = MIN_WIN_TIME_SECONDS if is_survival else MIN_HITS_TO_WIN
+		win_target_spinbox.max_value = MAX_WIN_TIME_SECONDS if is_survival else MAX_HITS_TO_WIN
+		win_target_spinbox.step = 10.0 if is_survival else 1.0
+		win_target_spinbox.value = win_time_seconds if is_survival else hits_to_win
+		win_target_spinbox.set_block_signals(false)
+		win_target_spinbox.editable = can_edit
+
+func _win_rule_display_text() -> String:
+	if win_mode == WIN_MODE_SURVIVAL:
+		return "躲藏者坚持 %d 秒不被抓到" % int(round(win_time_seconds))
+	return "躲藏者击中追逐者 %d 次" % hits_to_win
+
+func _sync_lobby_settings(message: String) -> void:
+	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
+		rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, message)
 
 func _refresh_skin_options() -> void:
 	available_skin_ids = SkinAPI.list_available_skin_ids()
@@ -1214,7 +1341,7 @@ func _on_runner_skin_selected(index: int) -> void:
 	runner_skin_id = available_skin_ids[index]
 	_update_skin_previews()
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
+		rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
 	_update_lobby_ui()
 
 func _on_tagger_skin_selected(index: int) -> void:
@@ -1223,7 +1350,7 @@ func _on_tagger_skin_selected(index: int) -> void:
 	tagger_skin_id = available_skin_ids[index]
 	_update_skin_previews()
 	if game_mode == "lobby" and multiplayer.is_server() and remote_peer_id != 0:
-		rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
+		rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "皮肤已更新，等待房主开始游戏。")
 	_update_lobby_ui()
 
 func _open_image_skin_dialog() -> void:
@@ -1277,17 +1404,13 @@ func _show_title(message: String) -> void:
 	_update_display_mode_ui()
 	_update_camera_mode_ui()
 	_refresh_skin_options()
-	if win_time_row != null:
-		win_time_row.visible = true
-	if win_time_spinbox != null:
-		win_time_spinbox.editable = false
-		win_time_spinbox.set_value_no_signal(ROUND_TIME_LIMIT_SECONDS)
+	_update_win_mode_ui()
 	if title_status != null:
 		title_status.text = message
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _start_single_game() -> void:
-	_refresh_win_time_from_ui()
+	_refresh_win_target_from_ui()
 	_close_network()
 	_clear_characters()
 	if not _load_active_map():
@@ -1321,7 +1444,7 @@ func _start_ai_vs_ai_game() -> void:
 	_begin_single_chase_round()
 
 func _begin_single_chase_round() -> void:
-	_refresh_win_time_from_ui()
+	_refresh_win_target_from_ui()
 	_close_network()
 	_clear_characters()
 	if not _load_active_map():
@@ -1346,7 +1469,7 @@ func _begin_single_chase_round() -> void:
 	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED if not ai_vs_ai_spectate else Input.MOUSE_MODE_VISIBLE)
 
 func _start_host_game() -> void:
-	_refresh_win_time_from_ui()
+	_refresh_win_target_from_ui()
 	is_leaving_room = false
 	_close_network()
 	_clear_characters()
@@ -1401,7 +1524,7 @@ func _on_peer_connected(peer_id: int) -> void:
 	_configure_network_peer_timeout(peer_id)
 	network_started = true
 	_enter_lobby("玩家已加入。双方可在房间内切换角色，房主点击开始游戏。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "已加入房间。双方可在房间内切换角色，等待房主开始游戏。")
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	if multiplayer.is_server() and remote_peer_id != 0 and peer_id != remote_peer_id:
@@ -1453,10 +1576,8 @@ func _update_lobby_ui() -> void:
 		return
 	var local_role := _local_lobby_role_text()
 	var other_role := "追逐者" if local_role == "躲藏者" else "躲藏者"
-	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n通关条件：躲藏者击中追逐者 %d 次，或坚持 5 分钟没被抓到\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, TAGGER_HITS_TO_WIN, map_name, _camera_mode_display_name()]
-	if win_time_spinbox != null:
-		win_time_spinbox.editable = false
-		win_time_spinbox.set_value_no_signal(ROUND_TIME_LIMIT_SECONDS)
+	lobby_role_label.text = "你的角色：%s\n对方角色：%s\n通关条件：%s\n地图：%s\n视角：%s（房主选择）\n按 Q 退出房间" % [local_role, other_role, _win_rule_display_text(), map_name, _camera_mode_display_name()]
+	_update_win_mode_ui()
 	if start_game_button != null:
 		start_game_button.visible = multiplayer.is_server()
 		start_game_button.disabled = not multiplayer.is_server() or remote_peer_id == 0
@@ -1479,7 +1600,7 @@ func _return_to_lobby_after_round() -> void:
 		return
 	host_is_runner = not host_is_runner
 	_enter_lobby("上一局结算完成，已自动交换追/被追。房主可继续切换角色、地图或开始下一局。")
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "上一局结算完成，已自动交换追/被追。等待房主开始下一局。")
 
 func _return_active_round_to_lobby(message: String) -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0:
@@ -1490,7 +1611,7 @@ func _return_active_round_to_lobby(message: String) -> void:
 	time_alive = 0.0
 	tagger_hit_count = 0
 	_enter_lobby(message)
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, message)
+	rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, message)
 
 @rpc("any_peer", "reliable")
 func _rpc_request_return_to_lobby() -> void:
@@ -1512,12 +1633,12 @@ func _toggle_lobby_roles() -> void:
 		host_is_runner = not host_is_runner
 		_update_lobby_ui()
 		if remote_peer_id != 0:
-			rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
+			rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
 	else:
 		rpc_id(1, "_rpc_request_role_switch")
 
 func _start_lobby_game() -> void:
-	_refresh_win_time_from_ui()
+	_refresh_win_target_from_ui()
 	if not multiplayer.is_server() or remote_peer_id == 0:
 		return
 	_start_synced_network_round()
@@ -1530,19 +1651,20 @@ func _rpc_request_role_switch() -> void:
 		return
 	host_is_runner = not host_is_runner
 	_update_lobby_ui()
-	rpc("_rpc_sync_lobby", host_is_runner, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
+	rpc("_rpc_sync_lobby", host_is_runner, win_mode, hits_to_win, win_time_seconds, selected_map_index, runner_skin_id, tagger_skin_id, selected_camera_mode, "角色已切换，等待房主开始游戏。")
 
 @rpc("call_remote", "reliable")
-func _rpc_sync_lobby(new_host_is_runner: bool, _new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String, message: String) -> void:
+func _rpc_sync_lobby(new_host_is_runner: bool, new_win_mode: String, new_hits_to_win: int, new_win_time_seconds: float, new_map_index: int, new_runner_skin_id: String, new_tagger_skin_id: String, new_camera_mode: String, message: String) -> void:
 	host_is_runner = new_host_is_runner
-	win_time_seconds = ROUND_TIME_LIMIT_SECONDS
+	win_mode = WIN_MODE_SURVIVAL if new_win_mode == WIN_MODE_SURVIVAL else WIN_MODE_HITS
+	hits_to_win = clampi(new_hits_to_win, MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+	win_time_seconds = clampf(new_win_time_seconds, MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
 	runner_skin_id = new_runner_skin_id
 	tagger_skin_id = new_tagger_skin_id
 	selected_camera_mode = "first_person" if new_camera_mode == "first_person" else "third_person"
 	if new_map_index != selected_map_index:
 		_select_official_map(new_map_index, false)
-	if win_time_spinbox != null:
-		win_time_spinbox.set_value_no_signal(win_time_seconds)
+	_update_win_mode_ui()
 	network_started = true
 	_enter_lobby(message)
 	_configure_network_peer_timeout(1)
@@ -1557,7 +1679,7 @@ func _rpc_network_lobby_ready(_load_token: int) -> void:
 func _start_synced_network_round() -> void:
 	if not multiplayer.is_server() or remote_peer_id == 0 or network_round_loading:
 		return
-	_refresh_win_time_from_ui()
+	_refresh_win_target_from_ui()
 	network_round_load_token += 1
 	var load_token := network_round_load_token
 	network_round_loading = true
@@ -1591,6 +1713,8 @@ func _build_network_start_payload() -> Dictionary:
 	return {
 		"client_id": remote_peer_id,
 		"host_is_runner": host_is_runner,
+		"win_mode": win_mode,
+		"hits_to_win": hits_to_win,
 		"win_time_seconds": win_time_seconds,
 		"selected_camera_mode": selected_camera_mode,
 		"selected_map_index": selected_map_index,
@@ -1779,7 +1903,9 @@ func _activate_loaded_network_round(load_token: int) -> void:
 func _apply_network_start_payload(payload: Dictionary) -> void:
 	remote_peer_id = int(payload.get("client_id", remote_peer_id))
 	host_is_runner = bool(payload.get("host_is_runner", host_is_runner))
-	win_time_seconds = float(payload.get("win_time_seconds", win_time_seconds))
+	win_mode = WIN_MODE_SURVIVAL if String(payload.get("win_mode", win_mode)) == WIN_MODE_SURVIVAL else WIN_MODE_HITS
+	hits_to_win = clampi(int(payload.get("hits_to_win", hits_to_win)), MIN_HITS_TO_WIN, MAX_HITS_TO_WIN)
+	win_time_seconds = clampf(float(payload.get("win_time_seconds", win_time_seconds)), MIN_WIN_TIME_SECONDS, MAX_WIN_TIME_SECONDS)
 	selected_camera_mode = "first_person" if String(payload.get("selected_camera_mode", selected_camera_mode)) == "first_person" else "third_person"
 	selected_map_index = int(payload.get("selected_map_index", selected_map_index))
 	var map_payload = payload.get("map", {})
@@ -1792,8 +1918,7 @@ func _apply_network_start_payload(payload: Dictionary) -> void:
 	if tagger_skin_payload is Dictionary:
 		tagger_skin_id = _apply_network_skin_payload(tagger_skin_payload as Dictionary)
 	_refresh_skin_options()
-	if win_time_spinbox != null:
-		win_time_spinbox.set_value_no_signal(win_time_seconds)
+	_update_win_mode_ui()
 	network_started = true
 
 func _apply_network_map_payload(payload: Dictionary) -> void:
@@ -2319,11 +2444,11 @@ func _on_runner_survived(reason: String = "") -> void:
 		center_label.text = "本局结束\n躲藏者胜利！\n%s\n用时 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [result_detail, time_alive, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
-		rpc("_rpc_runner_survived", time_alive, tagger_hit_count)
+		rpc("_rpc_runner_survived", time_alive, tagger_hit_count, result_detail)
 		_schedule_return_to_lobby_after_round()
 
 @rpc("call_remote", "reliable")
-func _rpc_runner_survived(final_time: float, final_hit_count: int) -> void:
+func _rpc_runner_survived(final_time: float, final_hit_count: int, result_detail: String) -> void:
 	caught = true
 	_stop_chase_music()
 	_update_catch_crosshair()
@@ -2334,7 +2459,7 @@ func _rpc_runner_survived(final_time: float, final_hit_count: int) -> void:
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "本局结束\n躲藏者胜利！\n已击中追逐者 %d 次\n用时 %.2f 秒\n等待房主返回房间并自动换边" % [tagger_hit_count, final_time]
+	center_label.text = "本局结束\n躲藏者胜利！\n%s\n用时 %.2f 秒\n等待房主返回房间并自动换边" % [result_detail, final_time]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _on_player_caught() -> void:
@@ -2344,7 +2469,7 @@ func _on_runner_fell() -> void:
 	_finish_runner_failed("躲藏者掉出地图！")
 
 func _on_runner_time_limit_survived() -> void:
-	_on_runner_survived("坚持 5 分钟没有被追逐者抓到")
+	_on_runner_survived("坚持 %d 秒没有被追逐者抓到" % int(round(win_time_seconds)))
 
 func _finish_runner_failed(reason: String) -> void:
 	caught = true
@@ -2352,30 +2477,32 @@ func _finish_runner_failed(reason: String) -> void:
 	_clear_tagger_slow_particles()
 	player.is_control_locked = true
 	tagger.is_active = false
+	var progress_detail := "坚持了 %.2f / %.0f 秒" % [time_alive, win_time_seconds] if win_mode == WIN_MODE_SURVIVAL else "命中进度 %d / %d" % [tagger_hit_count, hits_to_win]
 	if ai_vs_ai_spectate:
-		center_label.text = "%s\n追逐 AI 获胜！\n本局耗时 %.2f 秒\n按 R 再看一局" % [reason, time_alive]
+		center_label.text = "%s\n追逐 AI 获胜！\n%s\n按 R 再看一局" % [reason, progress_detail]
 	elif game_mode == "single":
-		center_label.text = "%s\n追逐者胜利\n本局耗时 %.2f 秒\n按 R 重新开始" % [reason, time_alive]
+		center_label.text = "%s\n追逐者胜利\n%s\n按 R 重新开始" % [reason, progress_detail]
 	elif game_mode == "single_chase":
-		center_label.text = "%s\n追逐方获胜！\n本局耗时 %.2f 秒\n按 R 重新挑战" % [reason, time_alive]
+		center_label.text = "%s\n追逐方获胜！\n%s\n按 R 重新挑战" % [reason, progress_detail]
 	else:
-		center_label.text = "本局结束\n%s\n追逐者胜利\n坚持了 %.2f 秒\n%.0f 秒后返回房间并自动换边" % [reason, time_alive, MULTIPLAYER_RESULT_DELAY]
+		center_label.text = "本局结束\n%s\n追逐者胜利\n%s\n%.0f 秒后返回房间并自动换边" % [reason, progress_detail, MULTIPLAYER_RESULT_DELAY]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	if game_mode == "host":
-		rpc("_rpc_runner_failed", time_alive, reason)
+		rpc("_rpc_runner_failed", time_alive, tagger_hit_count, reason, progress_detail)
 		_schedule_return_to_lobby_after_round()
 
 @rpc("call_remote", "reliable")
-func _rpc_runner_failed(final_time: float, reason: String) -> void:
+func _rpc_runner_failed(final_time: float, final_hit_count: int, reason: String, progress_detail: String) -> void:
 	caught = true
 	_stop_chase_music()
 	_update_catch_crosshair()
 	time_alive = final_time
+	tagger_hit_count = final_hit_count
 	if player != null and is_instance_valid(player):
 		player.is_control_locked = true
 	if tagger != null and is_instance_valid(tagger):
 		tagger.is_active = false
-	center_label.text = "本局结束\n%s\n追逐者胜利\n坚持了 %.2f 秒\n等待房主返回房间并自动换边" % [reason, final_time]
+	center_label.text = "本局结束\n%s\n追逐者胜利\n%s\n等待房主返回房间并自动换边" % [reason, progress_detail]
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 func _setup_world() -> void:
@@ -3477,7 +3604,7 @@ func _update_ai_runner_throwable_strategy(delta: float) -> void:
 		return
 	ai_runner_throw_cooldown = maxf(ai_runner_throw_cooldown - delta, 0.0)
 	if player.has_method("set_throwable_context"):
-		player.set_throwable_context(_ground_pickup_positions_for_runner(), _runner_inventory_full(), tagger_hit_count, TAGGER_HITS_TO_WIN)
+		player.set_throwable_context(_ground_pickup_positions_for_runner(), _runner_inventory_full(), tagger_hit_count, hits_to_win)
 	if not _runner_inventory_full():
 		var pickup_id := _find_pickup_candidate_for_actor(player, THROWABLE_AI_PICKUP_RANGE)
 		if pickup_id >= 0:
@@ -4061,7 +4188,7 @@ func _register_tagger_hit(impact_position: Vector3) -> void:
 		return
 	tagger_hit_count += 1
 	_apply_tagger_slow_effect(THROWABLE_SLOW_MULTIPLIER, THROWABLE_SLOW_DURATION, impact_position, tagger_hit_count)
-	if tagger_hit_count >= TAGGER_HITS_TO_WIN:
+	if win_mode == WIN_MODE_HITS and tagger_hit_count >= hits_to_win:
 		_on_runner_survived()
 
 func _apply_tagger_slow_effect(multiplier: float, duration: float, impact_position: Vector3, current_hit_count: int = -1) -> void:
@@ -4072,9 +4199,11 @@ func _apply_tagger_slow_effect(multiplier: float, duration: float, impact_positi
 		_start_tagger_slow_particles(duration)
 	_play_throwable_hit_effect(impact_position)
 	if _local_is_runner():
-		_show_throwable_notice("命中追逐者！%d / %d" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(0.34, 1.0, 0.58), true)
+		var runner_notice := "命中追逐者！%d / %d" % [tagger_hit_count, hits_to_win] if win_mode == WIN_MODE_HITS else "命中追逐者，已使其暂时减速"
+		_show_throwable_notice(runner_notice, Color(0.34, 1.0, 0.58), true)
 	elif _local_is_tagger():
-		_show_throwable_notice("被击中 %d / %d 次，暂时减速" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(1.0, 0.46, 0.32), true)
+		var tagger_notice := "被击中 %d / %d 次，暂时减速" % [tagger_hit_count, hits_to_win] if win_mode == WIN_MODE_HITS else "被击中，暂时减速"
+		_show_throwable_notice(tagger_notice, Color(1.0, 0.46, 0.32), true)
 	if multiplayer.multiplayer_peer != null and multiplayer.is_server() and remote_peer_id != 0:
 		rpc_id(remote_peer_id, "_rpc_apply_tagger_slow_effect", multiplier, duration, impact_position, tagger_hit_count)
 
@@ -4666,6 +4795,8 @@ func _rpc_apply_tagger_slow_effect(multiplier: float, duration: float, impact_po
 		_start_tagger_slow_particles(duration)
 	_play_throwable_hit_effect(impact_position)
 	if _local_is_runner():
-		_show_throwable_notice("命中追逐者！%d / %d" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(0.34, 1.0, 0.58), true)
+		var runner_notice := "命中追逐者！%d / %d" % [tagger_hit_count, hits_to_win] if win_mode == WIN_MODE_HITS else "命中追逐者，已使其暂时减速"
+		_show_throwable_notice(runner_notice, Color(0.34, 1.0, 0.58), true)
 	elif _local_is_tagger():
-		_show_throwable_notice("被击中 %d / %d 次，暂时减速" % [tagger_hit_count, TAGGER_HITS_TO_WIN], Color(1.0, 0.46, 0.32), true)
+		var tagger_notice := "被击中 %d / %d 次，暂时减速" % [tagger_hit_count, hits_to_win] if win_mode == WIN_MODE_HITS else "被击中，暂时减速"
+		_show_throwable_notice(tagger_notice, Color(1.0, 0.46, 0.32), true)
