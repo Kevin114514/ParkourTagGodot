@@ -1,19 +1,10 @@
-"""Self-play reinforcement learning for ParkourTag.
+"""ParkourTag dual-agent self-play RL v2.
 
-Unlike ``train_pathfinder.py`` (which behaviour-clones a BFS expert for a
-*static* target), this script pits the chasing AI (tagger) and the hiding AI
-(runner) against each other and lets *both* learn simultaneously with tabular
-Q-learning. The two agents share the same grid world, take turns acting, and
-receive opposing rewards, so each one keeps adapting to the other's improving
-behaviour ("对着打一会").
-
-The exported policies reuse the exact state/action convention consumed by the
-game side (``scripts/rl_policy_tagger.gd`` / ``scripts/rl_policy_runner.gd``):
-
-    state  = (clamped dx, clamped dz, 8-neighbour blocked mask)
-    action = 8 move directions + 1 "catch/hold" action (index 8)
-
-so no changes to the runtime lookup format are required.
+This trainer models the current hit-win mode: the runner wins after ten grenade
+hits or by surviving 300 seconds; the tagger wins by a valid active catch.
+Both agents learn movement and a separate skill decision with Double Q-learning.
+The exported relative policies are consumed by rl_policy_tagger.gd and
+rl_policy_runner.gd, while the game's navigation safety layer remains active.
 """
 
 import argparse
@@ -24,52 +15,23 @@ import time
 from collections import defaultdict, deque
 from pathlib import Path
 
-MOVE_ACTIONS = [
-    (1, 0),
-    (-1, 0),
-    (0, 1),
-    (0, -1),
-    (1, 1),
-    (1, -1),
-    (-1, 1),
-    (-1, -1),
+# Target-relative movement: toward, away, left, right, diagonals, hold.
+MOVE_NAMES = [
+    "toward", "away", "left", "right",
+    "toward_left", "toward_right", "away_left", "away_right", "hold",
 ]
-CATCH_ACTION = (0, 0)
-ACTIONS = MOVE_ACTIONS + [CATCH_ACTION]
-CATCH_ACTION_INDEX = len(ACTIONS) - 1
-MAX_RELATIVE_CELLS = 14
-CATCH_DISTANCE_CELLS = 1.0
-RUNNER_HITS_TO_WIN = 10
-
-DEFAULT_REWARD_CONFIG = {
-    "tagger_speed_advantage": 0.08,
-    "tagger_step_penalty": 0.025,
-    "runner_step_reward": 0.01,
-    "tagger_gap_gain_scale": 1.25,
-    "tagger_gap_loss_scale": 0.25,
-    "runner_gap_gain_scale": 0.55,
-    "runner_pressure_scale": 0.8,
-    "pressure_radius": 4.75,
-    "tagger_pressure_bonus": 0.22,
-    "runner_pressure_penalty": 0.28,
-    "throw_min_distance": 2.0,
-    "throw_max_distance": 9.0,
-    "throw_ideal_distance": 5.25,
-    "throw_cooldown_steps": 2,
-    "throw_window_reward": 1.25,
-    "runner_hit_reward": 14.0,
-    "tagger_hit_penalty": 5.0,
-    "runner_hit_win_reward": 65.0,
-    "tagger_hit_win_penalty": 28.0,
-    "catch_reward": 36.0,
-    "caught_penalty": 30.0,
-    "timeout_runner_reward": 18.0,
-    "timeout_tagger_penalty": 18.0,
-    "bad_catch_penalty": 0.65,
-    "runner_hold_penalty": 0.3,
-    "runner_bad_throw_penalty": 0.9,
-    "runner_panic_hold_penalty": 0.75,
-}
+MOVE_COUNT = len(MOVE_NAMES)
+ACTION_COUNT = MOVE_COUNT * 2  # move + optional role skill
+DEFAULT_HITS_TO_WIN = 10
+DEFAULT_ROUND_SECONDS = 300.0
+DEFAULT_DECISION_SECONDS = 1.0
+CATCH_DISTANCE_CELLS = 1.3
+CATCH_COOLDOWN_STEPS = 2
+THROW_COOLDOWN_STEPS = 2
+SLOW_STEPS = 3
+THROW_MIN_CELLS = 2.0
+THROW_MAX_CELLS = 9.0
+THROW_IDEAL_CELLS = 5.25
 
 DEFAULT_MAPS = [
     "maps/default_arena.json",
@@ -77,106 +39,132 @@ DEFAULT_MAPS = [
     "maps/two_story_villa.json",
     "maps/woodland_mansion.json",
     "maps/desert_temple.json",
+    "maps/forest_island_map.json",
+    "maps/nether_fortress.json",
+    "maps/winter_town.json",
+    "maps/urban_training_site.json",
+    "maps/monkey_hotel_corridors.json",
 ]
 
+REWARD = {
+    "tagger_step": -0.02,
+    "runner_step": 0.018,
+    "tagger_close": 0.72,
+    "runner_open": 0.38,
+    "pressure": 0.16,
+    "catch": 90.0,
+    "caught": -90.0,
+    "bad_catch": -1.1,
+    "hit": 17.0,
+    "hit_against": -11.0,
+    "bad_throw": -1.25,
+    "hit_win": 125.0,
+    "hit_loss": -110.0,
+    "timeout_win": 48.0,
+    "timeout_loss": -48.0,
+    "wall": -0.8,
+    "hold_pressure": -0.7,
+}
 
-# --------------------------------------------------------------------------
-# Map / grid helpers (kept identical to train_pathfinder.py so both policies
-# operate on the same discretisation).
-# --------------------------------------------------------------------------
+
 def load_map(path: Path) -> dict:
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
+    with path.open("r", encoding="utf-8") as stream:
+        return json.load(stream)
+
+
+def _bool_value(value, default=True) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() not in ("false", "0", "no", "off")
 
 
 def object_bounds(obj: dict):
     pos = obj.get("position", [0.0, 0.0, 0.0])
-    x, _, z = float(pos[0]), float(pos[1]), float(pos[2])
-    typ = str(obj.get("type", "box"))
+    x, z = float(pos[0]), float(pos[2])
+    typ = str(obj.get("type", "box")).lower()
     if typ == "box":
         size = obj.get("size", [1.0, 1.0, 1.0])
-        return x - float(size[0]) * 0.5, x + float(size[0]) * 0.5, z - float(size[2]) * 0.5, z + float(size[2]) * 0.5
-    if typ in ("cylinder", "sphere", "capsule"):
+        sx, sz = float(size[0]), float(size[2])
+        rotation = obj.get("rotation_degrees", obj.get("rotation", [0.0, 0.0, 0.0]))
+        yaw = math.radians(float(rotation[1])) if "rotation_degrees" in obj else float(rotation[1])
+        half_x = abs(math.cos(yaw)) * sx * 0.5 + abs(math.sin(yaw)) * sz * 0.5
+        half_z = abs(math.sin(yaw)) * sx * 0.5 + abs(math.cos(yaw)) * sz * 0.5
+        return x - half_x, x + half_x, z - half_z, z + half_z
+    if typ in ("cylinder", "csg_cylinder", "sphere", "capsule"):
         radius = float(obj.get("radius", 0.5))
-        if typ == "capsule":
-            height = float(obj.get("height", radius * 2.0))
-            radius = max(radius, height * 0.5)
         return x - radius, x + radius, z - radius, z + radius
     return None
 
 
 def build_grid(map_data: dict, cell_size: float, agent_radius: float):
-    ground_bounds = None
-    for obj in map_data.get("objects", []):
-        if obj.get("type") != "box":
+    objects = map_data.get("objects", [])
+    floor_candidates = []
+    all_bounds = []
+    for obj in objects:
+        bounds = object_bounds(obj)
+        if bounds is not None:
+            all_bounds.append(bounds)
+        if str(obj.get("type", "")).lower() != "box":
             continue
         name = str(obj.get("name", "")).lower()
         size = obj.get("size", [0.0, 0.0, 0.0])
-        if "ground" in name or (len(size) >= 3 and float(size[1]) <= 0.35 and float(size[0]) > 10.0 and float(size[2]) > 10.0):
-            ground_bounds = object_bounds(obj)
-            break
-    if ground_bounds is None:
-        all_bounds = [b for b in (object_bounds(o) for o in map_data.get("objects", [])) if b is not None]
-        if not all_bounds:
-            return None
-        min_x = min(b[0] for b in all_bounds) - 2.0
-        max_x = max(b[1] for b in all_bounds) + 2.0
-        min_z = min(b[2] for b in all_bounds) - 2.0
-        max_z = max(b[3] for b in all_bounds) + 2.0
-    else:
+        y = float(obj.get("position", [0.0, 0.0, 0.0])[1])
+        if len(size) >= 3 and ("ground" in name or "floor" in name or "terrain" in name or (float(size[1]) <= 0.45 and float(size[0]) >= 8.0 and float(size[2]) >= 8.0)):
+            floor_candidates.append((abs(y), float(size[0]) * float(size[2]), bounds))
+    if floor_candidates:
+        # Prefer the largest low floor. Upper floors must not collapse into L1.
+        low = [item for item in floor_candidates if item[0] <= 3.0] or floor_candidates
+        _, _, ground_bounds = max(low, key=lambda item: item[1])
         min_x, max_x, min_z, max_z = ground_bounds
+    elif all_bounds:
+        min_x = min(v[0] for v in all_bounds) - 2.0
+        max_x = max(v[1] for v in all_bounds) + 2.0
+        min_z = min(v[2] for v in all_bounds) - 2.0
+        max_z = max(v[3] for v in all_bounds) + 2.0
+    else:
+        return None
 
     width = int(math.floor((max_x - min_x) / cell_size)) + 1
     height = int(math.floor((max_z - min_z) / cell_size)) + 1
-    if width < 3 or height < 3:
+    if width < 3 or height < 3 or width * height > 35000:
         return None
-    blocked = [[False for _ in range(height)] for _ in range(width)]
-
-    obstacle_bounds = []
-    for obj in map_data.get("objects", []):
+    blocked = [[False] * height for _ in range(width)]
+    obstacles = []
+    floor_words = ("ground", "floor", "terrain", "ramp", "slope", "stair", "step", "bridge", "platform")
+    for obj in objects:
+        if not _bool_value(obj.get("collision", True)):
+            continue
         name = str(obj.get("name", "")).lower()
-        typ = str(obj.get("type", "box"))
+        typ = str(obj.get("type", "box")).lower()
         size = obj.get("size", [0.0, 0.0, 0.0])
-        y = float(obj.get("position", [0.0, 0.0, 0.0])[1])
-        if "ground" in name or "pad" in name:
+        pos = obj.get("position", [0.0, 0.0, 0.0])
+        y = float(pos[1])
+        sy = float(size[1]) if len(size) >= 3 else float(obj.get("height", 1.0))
+        if any(word in name for word in floor_words):
             continue
-        if typ == "box" and len(size) >= 3 and float(size[1]) <= 0.25:
+        if typ == "box" and sy <= 0.55:
             continue
-        if typ == "box" and y < 0.15 and float(size[1]) < 0.65:
+        # Ignore structures wholly above the base navigation layer.
+        if y - sy * 0.5 > 2.2:
             continue
         bounds = object_bounds(obj)
         if bounds is not None:
-            obstacle_bounds.append(bounds)
-
+            obstacles.append(bounds)
     for gx in range(width):
+        x = min_x + gx * cell_size
         for gz in range(height):
-            x = min_x + gx * cell_size
             z = min_z + gz * cell_size
-            for bx0, bx1, bz0, bz1 in obstacle_bounds:
-                if bx0 - agent_radius <= x <= bx1 + agent_radius and bz0 - agent_radius <= z <= bz1 + agent_radius:
-                    blocked[gx][gz] = True
-                    break
-
+            blocked[gx][gz] = any(
+                x0 - agent_radius <= x <= x1 + agent_radius
+                and z0 - agent_radius <= z <= z1 + agent_radius
+                for x0, x1, z0, z1 in obstacles
+            )
     return {
-        "min_x": min_x,
-        "max_x": max_x,
-        "min_z": min_z,
-        "max_z": max_z,
-        "width": width,
-        "height": height,
-        "blocked": blocked,
-        "cell_size": cell_size,
+        "min_x": min_x, "min_z": min_z, "width": width, "height": height,
+        "blocked": blocked, "cell_size": cell_size,
     }
-
-
-def world_to_cell(grid: dict, pos):
-    gx = int(math.floor((float(pos[0]) - grid["min_x"]) / grid["cell_size"]))
-    gz = int(math.floor((float(pos[2]) - grid["min_z"]) / grid["cell_size"]))
-    return clamp_cell(grid, (gx, gz))
-
-
-def clamp_cell(grid: dict, cell):
-    return max(0, min(grid["width"] - 1, cell[0])), max(0, min(grid["height"] - 1, cell[1]))
 
 
 def is_free(grid: dict, cell) -> bool:
@@ -184,583 +172,458 @@ def is_free(grid: dict, cell) -> bool:
     return 0 <= x < grid["width"] and 0 <= z < grid["height"] and not grid["blocked"][x][z]
 
 
+def legal_step(grid: dict, start, step) -> bool:
+    dx, dz = step
+    end = (start[0] + dx, start[1] + dz)
+    if not is_free(grid, end):
+        return False
+    if dx and dz:
+        return is_free(grid, (start[0] + dx, start[1])) and is_free(grid, (start[0], start[1] + dz))
+    return True
+
+
 def nearest_free(grid: dict, start):
+    start = (max(0, min(grid["width"] - 1, start[0])), max(0, min(grid["height"] - 1, start[1])))
     if is_free(grid, start):
         return start
-    q = deque([start])
-    seen = {start}
-    while q:
-        cell = q.popleft()
-        for dx, dz in MOVE_ACTIONS:
-            nxt = (cell[0] + dx, cell[1] + dz)
+    queue, seen = deque([start]), {start}
+    while queue:
+        cell = queue.popleft()
+        for step in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nxt = (cell[0] + step[0], cell[1] + step[1])
             if nxt in seen or not (0 <= nxt[0] < grid["width"] and 0 <= nxt[1] < grid["height"]):
                 continue
             if is_free(grid, nxt):
                 return nxt
             seen.add(nxt)
-            q.append(nxt)
+            queue.append(nxt)
     raise RuntimeError("map has no free cell")
 
 
-def compute_components(grid: dict):
-    labels = [[-1 for _ in range(grid["height"])] for _ in range(grid["width"])]
-    comps = []
-    cid = 0
-    for sx in range(grid["width"]):
-        for sz in range(grid["height"]):
-            if not is_free(grid, (sx, sz)) or labels[sx][sz] != -1:
+def world_to_cell(grid: dict, pos):
+    return nearest_free(grid, (
+        int(round((float(pos[0]) - grid["min_x"]) / grid["cell_size"])),
+        int(round((float(pos[2]) - grid["min_z"]) / grid["cell_size"])),
+    ))
+
+
+def components(grid: dict):
+    result, seen = [], set()
+    for x in range(grid["width"]):
+        for z in range(grid["height"]):
+            start = (x, z)
+            if start in seen or not is_free(grid, start):
                 continue
-            cells = []
-            q = deque([(sx, sz)])
-            labels[sx][sz] = cid
-            while q:
-                c = q.popleft()
-                cells.append(c)
-                for dx, dz in MOVE_ACTIONS:
-                    nx, nz = c[0] + dx, c[1] + dz
-                    if 0 <= nx < grid["width"] and 0 <= nz < grid["height"] and is_free(grid, (nx, nz)) and labels[nx][nz] == -1:
-                        labels[nx][nz] = cid
-                        q.append((nx, nz))
-            comps.append(cells)
-            cid += 1
-    return comps
+            comp, queue = [], deque([start])
+            seen.add(start)
+            while queue:
+                cell = queue.popleft()
+                comp.append(cell)
+                for step in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)):
+                    nxt = (cell[0] + step[0], cell[1] + step[1])
+                    if nxt not in seen and legal_step(grid, cell, step):
+                        seen.add(nxt)
+                        queue.append(nxt)
+            if len(comp) >= 8:
+                result.append(comp)
+    return result
 
 
 def distance(a, b) -> float:
     return math.hypot(a[0] - b[0], a[1] - b[1])
 
 
-def blocked_mask(grid: dict, agent) -> int:
-    mask = 0
-    for i, (dx, dz) in enumerate(MOVE_ACTIONS):
-        if not is_free(grid, (agent[0] + dx, agent[1] + dz)):
-            mask |= 1 << i
-    return mask
-
-
-def state_key(agent, target, grid) -> tuple:
-    dx = max(-MAX_RELATIVE_CELLS, min(MAX_RELATIVE_CELLS, target[0] - agent[0]))
-    dz = max(-MAX_RELATIVE_CELLS, min(MAX_RELATIVE_CELLS, target[1] - agent[1]))
-    return dx, dz, blocked_mask(grid, agent)
-
-
-def geodesic_field(grid: dict, source):
-    field = {source: 0}
-    q = deque([source])
-    while q:
-        c = q.popleft()
-        d = field[c]
-        for dx, dz in MOVE_ACTIONS:
-            nxt = (c[0] + dx, c[1] + dz)
-            if nxt in field or not is_free(grid, nxt):
-                continue
-            field[nxt] = d + 1
-            q.append(nxt)
-    return field
-
-
 def line_clear(grid: dict, a, b) -> bool:
-    steps = max(abs(a[0] - b[0]), abs(a[1] - b[1]))
-    if steps <= 1:
-        return True
-    for i in range(1, steps):
-        t = i / steps
+    count = max(abs(a[0] - b[0]), abs(a[1] - b[1]))
+    for index in range(1, count):
+        t = index / max(1, count)
         cell = (round(a[0] + (b[0] - a[0]) * t), round(a[1] + (b[1] - a[1]) * t))
         if not is_free(grid, cell):
             return False
     return True
 
 
-def legal_moves(grid: dict, agent):
-    """Indices of move actions that stay on a free cell (plus the hold action)."""
-    moves = []
-    for i, (dx, dz) in enumerate(MOVE_ACTIONS):
-        if is_free(grid, (agent[0] + dx, agent[1] + dz)):
-            moves.append(i)
-    moves.append(CATCH_ACTION_INDEX)
-    return moves
+def _quantize_vector(x: float, z: float):
+    length = math.hypot(x, z)
+    if length < 1e-6:
+        return 0, 0
+    x, z = x / length, z / length
+    return (1 if x > 0.35 else -1 if x < -0.35 else 0, 1 if z > 0.35 else -1 if z < -0.35 else 0)
 
 
-def step_cell(grid: dict, agent, action_index):
-    if action_index == CATCH_ACTION_INDEX:
-        return agent
-    dx, dz = ACTIONS[action_index]
-    nxt = (agent[0] + dx, agent[1] + dz)
-    return nxt if is_free(grid, nxt) else agent
+def relative_steps(agent, target):
+    tx, tz = target[0] - agent[0], target[1] - agent[1]
+    length = math.hypot(tx, tz)
+    if length < 1e-6:
+        tx, tz, length = 1.0, 0.0, 1.0
+    tx, tz = tx / length, tz / length
+    lx, lz = -tz, tx
+    vectors = [
+        (tx, tz), (-tx, -tz), (lx, lz), (-lx, -lz),
+        (tx + lx, tz + lz), (tx - lx, tz - lz),
+        (-tx + lx, -tz + lz), (-tx - lx, -tz - lz), (0.0, 0.0),
+    ]
+    return [_quantize_vector(x, z) for x, z in vectors]
 
 
-# --------------------------------------------------------------------------
-# Self-play Q-learning
-# --------------------------------------------------------------------------
-class QTable:
-    def __init__(self, epsilon: float, alpha: float, gamma: float):
-        self.q = defaultdict(lambda: [0.0] * len(ACTIONS))
-        self.epsilon = epsilon
+def blocked_mask(grid: dict, agent, target) -> int:
+    mask = 0
+    for index, step in enumerate(relative_steps(agent, target)[:-1]):
+        if not legal_step(grid, agent, step):
+            mask |= 1 << index
+    return mask
+
+
+def distance_bucket(value: float) -> int:
+    for index, limit in enumerate((1.3, 2.5, 4.0, 6.0, 9.0, 13.0)):
+        if value <= limit:
+            return index
+    return 6
+
+
+def progress_bucket(hits: int, target: int) -> int:
+    ratio = hits / max(1, target)
+    return min(3, int(ratio * 4.0))
+
+
+def time_bucket(step: int, max_steps: int) -> int:
+    return min(3, int(step / max(1, max_steps) * 4.0))
+
+
+def state_key(role: str, agent, target, grid, skill_ready: bool, affected: bool, hits: int, hits_to_win: int, step: int, max_steps: int):
+    gap = distance(agent, target)
+    return (
+        distance_bucket(gap),
+        blocked_mask(grid, agent, target),
+        int(line_clear(grid, agent, target)),
+        int(skill_ready),
+        int(affected),
+        progress_bucket(hits, hits_to_win),
+        time_bucket(step, max_steps),
+    )
+
+
+def legal_actions(grid: dict, agent, target):
+    result = []
+    steps = relative_steps(agent, target)
+    for skill in (0, 1):
+        for move_index, move in enumerate(steps):
+            if move_index == MOVE_COUNT - 1 or legal_step(grid, agent, move):
+                result.append(move_index + skill * MOVE_COUNT)
+    return result
+
+
+def move_agent(grid: dict, agent, target, action: int):
+    move_index = action % MOVE_COUNT
+    step = relative_steps(agent, target)[move_index]
+    if move_index == MOVE_COUNT - 1:
+        return agent, False
+    if legal_step(grid, agent, step):
+        return (agent[0] + step[0], agent[1] + step[1]), False
+    return agent, True
+
+
+class DoubleQ:
+    def __init__(self, alpha: float, gamma: float):
+        self.a = defaultdict(lambda: [0.0] * ACTION_COUNT)
+        self.b = defaultdict(lambda: [0.0] * ACTION_COUNT)
         self.alpha = alpha
         self.gamma = gamma
 
-    def choose(self, key, legal, greedy=False):
-        if not greedy and random.random() < self.epsilon:
+    def choose(self, state, legal, epsilon: float):
+        if random.random() < epsilon:
             return random.choice(legal)
-        values = self.q[key]
-        best = legal[0]
-        best_v = values[best]
-        for a in legal[1:]:
-            if values[a] > best_v:
-                best_v = values[a]
-                best = a
-        return best
+        return max(legal, key=lambda action: self.a[state][action] + self.b[state][action])
 
-    def update(self, key, action, reward, next_key, next_legal, done):
-        cur = self.q[key][action]
-        if done or not next_legal:
+    def update(self, state, action, reward, next_state, next_legal, done):
+        qa, qb = (self.a, self.b) if random.random() < 0.5 else (self.b, self.a)
+        current = qa[state][action]
+        if done:
             target = reward
         else:
-            nxt_vals = self.q[next_key]
-            target = reward + self.gamma * max(nxt_vals[a] for a in next_legal)
-        self.q[key][action] = cur + self.alpha * (target - cur)
+            best = max(next_legal, key=lambda candidate: qa[next_state][candidate])
+            target = reward + self.gamma * qb[next_state][best]
+        qa[state][action] = current + self.alpha * (target - current)
+
+    def policy(self):
+        keys = set(self.a) | set(self.b)
+        return {key: max(range(ACTION_COUNT), key=lambda action: self.a[key][action] + self.b[key][action]) for key in keys}
 
 
-def sample_start_pair(grid: dict, components, min_dist: float):
-    big = [c for c in components if len(c) >= 8] or [c for c in components if len(c) >= 2]
-    if not big:
+def sample_pair(comps, min_distance):
+    if not comps:
         return None
-    comp = random.choices(big, weights=[len(c) for c in big])[0]
-    for _ in range(64):
-        a = random.choice(comp)
-        b = random.choice(comp)
-        if distance(a, b) >= min_dist:
-            return a, b
+    comp = random.choices(comps, weights=[len(item) for item in comps])[0]
+    for _ in range(80):
+        tagger, runner = random.choice(comp), random.choice(comp)
+        if distance(tagger, runner) >= min_distance:
+            return tagger, runner
     return None
 
 
-def run_episode(grid, components, tagger_q, runner_q, max_steps, reward_cfg, min_start_dist, greedy=False):
-    """Play one chase episode. Returns (caught, runner_hit_win, steps, runner_hits)."""
-    pair = sample_start_pair(grid, components, min_dist=min_start_dist)
+def run_episode(map_info, tagger_q, runner_q, max_steps, hits_to_win, epsilon, learn_role=None):
+    pair = sample_pair(map_info["components"], random.uniform(3.0, 8.0))
     if pair is None:
         return None
+    grid = map_info["grid"]
     tagger, runner = pair
-
-    caught = False
-    runner_hit_win = False
-    runner_hits = 0
-    runner_throw_cooldown = 0
+    hits = 0
+    catch_cd = throw_cd = slow_left = 0
+    runner_has_item = random.random() < 0.75
+    item_reload = 0 if runner_has_item else random.randint(2, 6)
     tagger_speed_credit = 0.0
+    outcome = "timeout"
+
     for step in range(max_steps):
-        if distance(tagger, runner) <= CATCH_DISTANCE_CELLS:
-            caught = True
-            break
+        catch_ready = catch_cd <= 0 and slow_left <= 0
+        throw_ready = runner_has_item and throw_cd <= 0
+        t_state = state_key("tagger", tagger, runner, grid, catch_ready, slow_left > 0, hits, hits_to_win, step, max_steps)
+        r_state = state_key("runner", runner, tagger, grid, throw_ready, False, hits, hits_to_win, step, max_steps)
+        t_legal = legal_actions(grid, tagger, runner)
+        r_legal = legal_actions(grid, runner, tagger)
+        tagger_epsilon = epsilon if learn_role == "tagger" else min(0.08, epsilon)
+        runner_epsilon = epsilon if learn_role == "runner" else min(0.08, epsilon)
+        t_action = tagger_q.choose(t_state, t_legal, tagger_epsilon)
+        r_action = runner_q.choose(r_state, r_legal, runner_epsilon)
 
-        prev_gap = distance(tagger, runner)
-
-        t_key = state_key(tagger, runner, grid)
-        t_legal = legal_moves(grid, tagger)
-        t_action = tagger_q.choose(t_key, t_legal, greedy)
-
-        r_key = state_key(runner, tagger, grid)
-        r_legal = legal_moves(grid, runner)
-        r_action = runner_q.choose(r_key, r_legal, greedy)
-
-        new_tagger = step_cell(grid, tagger, t_action)
-        new_runner = step_cell(grid, runner, r_action)
-        tagger_speed_credit += reward_cfg["tagger_speed_advantage"]
-        if tagger_speed_credit >= 1.0 and new_tagger != new_runner:
-            extra_tagger = step_cell(grid, new_tagger, t_action)
-            if distance(extra_tagger, new_runner) < distance(new_tagger, new_runner):
-                new_tagger = extra_tagger
+        old_gap = distance(tagger, runner)
+        new_tagger, tagger_wall = move_agent(grid, tagger, runner, t_action)
+        new_runner, runner_wall = move_agent(grid, runner, tagger, r_action)
+        tagger_speed_credit += 0.10 if slow_left <= 0 else -0.42
+        if tagger_speed_credit >= 1.0:
+            extra, _ = move_agent(grid, new_tagger, new_runner, t_action)
+            if distance(extra, new_runner) < distance(new_tagger, new_runner):
+                new_tagger = extra
             tagger_speed_credit -= 1.0
+        elif tagger_speed_credit <= -1.0:
+            new_tagger = tagger
+            tagger_speed_credit += 1.0
 
+        catch_cd = max(0, catch_cd - 1)
+        throw_cd = max(0, throw_cd - 1)
+        slow_left = max(0, slow_left - 1)
+        if not runner_has_item:
+            item_reload -= 1
+            if item_reload <= 0:
+                runner_has_item = True
+
+        gap = distance(new_tagger, new_runner)
+        clear = line_clear(grid, new_tagger, new_runner)
+        t_skill = t_action >= MOVE_COUNT
+        r_skill = r_action >= MOVE_COUNT
+        caught = hit = False
+        bad_catch = bad_throw = False
+
+        if t_skill:
+            if catch_ready:
+                catch_cd = CATCH_COOLDOWN_STEPS
+                caught = gap <= CATCH_DISTANCE_CELLS and clear
+                bad_catch = not caught
+            else:
+                bad_catch = True
+
+        if r_skill and not caught:
+            if throw_ready:
+                throw_cd = THROW_COOLDOWN_STEPS
+                runner_has_item = False
+                item_reload = random.randint(3, 7)
+                valid = THROW_MIN_CELLS <= gap <= THROW_MAX_CELLS and clear
+                accuracy = max(0.30, 0.96 - abs(gap - THROW_IDEAL_CELLS) * 0.075)
+                hit = valid and random.random() <= accuracy
+                bad_throw = not hit
+                if hit:
+                    hits += 1
+                    slow_left = SLOW_STEPS
+            else:
+                bad_throw = True
+
+        hit_win = hits >= hits_to_win
+        timeout = step == max_steps - 1
+        done = caught or hit_win or timeout
         new_gap = distance(new_tagger, new_runner)
-        now_caught = new_gap <= CATCH_DISTANCE_CELLS
-        throw_ready = runner_throw_cooldown <= 0
-        in_throw_range = reward_cfg["throw_min_distance"] <= new_gap <= reward_cfg["throw_max_distance"]
-        can_hit_tagger = throw_ready and in_throw_range and line_clear(grid, new_runner, new_tagger)
-        runner_scored_hit = False
-        if can_hit_tagger and not now_caught:
-            # Runtime throwing is handled by game.gd's AI throwable strategy, not
-            # directly by the movement policy. In training, treat a clear throw
-            # window as an automatic hit opportunity so the runner learns to keep
-            # the right distance and line of sight for scoring 10 hits.
-            runner_hits += 1
-            runner_scored_hit = True
-            runner_throw_cooldown = int(reward_cfg["throw_cooldown_steps"])
-        else:
-            runner_throw_cooldown = max(0, runner_throw_cooldown - 1)
+        gap_delta = old_gap - new_gap
+        pressure = max(0.0, 4.5 - new_gap)
 
-        runner_hit_win = runner_hits >= RUNNER_HITS_TO_WIN
-        done = now_caught or runner_hit_win or step == max_steps - 1
+        t_reward = REWARD["tagger_step"] + gap_delta * REWARD["tagger_close"] + pressure * REWARD["pressure"]
+        r_reward = REWARD["runner_step"] - gap_delta * REWARD["runner_open"] - pressure * REWARD["pressure"]
+        if tagger_wall:
+            t_reward += REWARD["wall"]
+        if runner_wall:
+            r_reward += REWARD["wall"]
+        if t_action % MOVE_COUNT == MOVE_COUNT - 1 and gap > CATCH_DISTANCE_CELLS:
+            t_reward += REWARD["hold_pressure"]
+        if r_action % MOVE_COUNT == MOVE_COUNT - 1 and gap < 4.5:
+            r_reward += REWARD["hold_pressure"]
+        if bad_catch:
+            t_reward += REWARD["bad_catch"]
+        if bad_throw:
+            r_reward += REWARD["bad_throw"]
+        if hit:
+            r_reward += REWARD["hit"] + hits * 0.35
+            t_reward += REWARD["hit_against"]
+        if caught:
+            t_reward += REWARD["catch"]
+            r_reward += REWARD["caught"]
+            outcome = "catch"
+        elif hit_win:
+            r_reward += REWARD["hit_win"]
+            t_reward += REWARD["hit_loss"]
+            outcome = "hits"
+        elif timeout:
+            r_reward += REWARD["timeout_win"]
+            t_reward += REWARD["timeout_loss"]
 
-        gap_gain = prev_gap - new_gap
-        gap_loss = new_gap - prev_gap
-        close_pressure = max(0.0, reward_cfg["pressure_radius"] - new_gap)
-        throw_error = abs(new_gap - reward_cfg["throw_ideal_distance"])
-
-        tagger_reward = -reward_cfg["tagger_step_penalty"]
-        runner_reward = reward_cfg["runner_step_reward"]
-
-        if gap_gain > 0.0:
-            tagger_reward += gap_gain * reward_cfg["tagger_gap_gain_scale"]
-            runner_reward -= gap_gain * reward_cfg["runner_pressure_scale"]
-        elif gap_loss > 0.0:
-            tagger_reward -= gap_loss * reward_cfg["tagger_gap_loss_scale"]
-            runner_reward += gap_loss * reward_cfg["runner_gap_gain_scale"]
-
-        if in_throw_range and line_clear(grid, new_runner, new_tagger):
-            runner_reward += max(0.0, reward_cfg["throw_window_reward"] - throw_error * 0.08)
-            tagger_reward -= 0.08
-
-        if close_pressure > 0.0:
-            tagger_reward += close_pressure * reward_cfg["tagger_pressure_bonus"]
-            runner_reward -= close_pressure * reward_cfg["runner_pressure_penalty"]
-
-        if runner_scored_hit:
-            runner_reward += reward_cfg["runner_hit_reward"] + runner_hits * 0.2
-            tagger_reward -= reward_cfg["tagger_hit_penalty"]
-        elif r_action == CATCH_ACTION_INDEX:
-            runner_reward -= reward_cfg["runner_bad_throw_penalty"]
-            if new_gap <= reward_cfg["pressure_radius"] + 1.0:
-                runner_reward -= reward_cfg["runner_panic_hold_penalty"]
-
-        if runner_hit_win:
-            runner_reward += reward_cfg["runner_hit_win_reward"]
-            tagger_reward -= reward_cfg["tagger_hit_win_penalty"]
-        elif now_caught:
-            tagger_reward += reward_cfg["catch_reward"]
-            runner_reward -= reward_cfg["caught_penalty"]
-        elif done:
-            runner_reward += reward_cfg["timeout_runner_reward"]
-            tagger_reward -= reward_cfg["timeout_tagger_penalty"]
-
-        if t_action == CATCH_ACTION_INDEX and not now_caught:
-            tagger_reward -= reward_cfg["bad_catch_penalty"]
-
-        if not greedy:
-            nt_key = state_key(new_tagger, new_runner, grid)
-            nt_legal = legal_moves(grid, new_tagger)
-            tagger_q.update(t_key, t_action, tagger_reward, nt_key, nt_legal, done)
-
-            nr_key = state_key(new_runner, new_tagger, grid)
-            nr_legal = legal_moves(grid, new_runner)
-            runner_q.update(r_key, r_action, runner_reward, nr_key, nr_legal, done)
+        next_catch_ready = max(0, catch_cd) <= 0 and slow_left <= 0
+        next_throw_ready = runner_has_item and throw_cd <= 0
+        nt_state = state_key("tagger", new_tagger, new_runner, grid, next_catch_ready, slow_left > 0, hits, hits_to_win, step + 1, max_steps)
+        nr_state = state_key("runner", new_runner, new_tagger, grid, next_throw_ready, False, hits, hits_to_win, step + 1, max_steps)
+        if learn_role == "tagger":
+            tagger_q.update(t_state, t_action, t_reward, nt_state, legal_actions(grid, new_tagger, new_runner), done)
+        elif learn_role == "runner":
+            runner_q.update(r_state, r_action, r_reward, nr_state, legal_actions(grid, new_runner, new_tagger), done)
 
         tagger, runner = new_tagger, new_runner
-        if now_caught:
-            caught = True
-            break
-        if runner_hit_win:
-            break
-
-    return caught, runner_hit_win, step + 1, runner_hits
+        if done:
+            return outcome, step + 1, hits
+    return outcome, max_steps, hits
 
 
-def _format_seconds(seconds: float) -> str:
-    minutes = int(seconds // 60)
-    secs = int(seconds % 60)
-    return f"{minutes:02d}:{secs:02d}"
-
-
-def _print_progress(elapsed, interval_elapsed, interval_played, interval_catches, interval_runner_hit_wins, interval_hit_sum, total_played) -> None:
-    if interval_played <= 0:
-        print(f"[progress {_format_seconds(elapsed)}] last_{interval_elapsed:.0f}s_episodes=0 total_episodes={total_played}", flush=True)
-        return
-    interval_timeouts = interval_played - interval_catches - interval_runner_hit_wins
-    runner_total_wins = interval_runner_hit_wins + interval_timeouts
-    print(
-        f"[progress {_format_seconds(elapsed)}] "
-        f"last_{interval_elapsed:.0f}s_episodes={interval_played} "
-        f"runner_total_win_rate={runner_total_wins / interval_played:.2%} "
-        f"tagger_catch_win_rate={interval_catches / interval_played:.2%} "
-        f"runner_10hit_win_rate={interval_runner_hit_wins / interval_played:.2%} "
-        f"runner_timeout_win_rate={interval_timeouts / interval_played:.2%} "
-        f"avg_runner_hits={interval_hit_sum / interval_played:.2f} "
-        f"total_episodes={total_played}",
-        flush=True,
-    )
-
-
-def train(
-    maps,
-    episodes,
-    max_steps,
-    seed,
-    alpha,
-    gamma,
-    epsilon_start,
-    epsilon_end,
-    reward_cfg,
-    start_min_dist,
-    end_min_dist,
-    duration_seconds=0.0,
-    progress_interval=0.0,
-):
-    random.seed(seed)
-    tagger_q = QTable(epsilon_start, alpha, gamma)
-    runner_q = QTable(epsilon_start, alpha, gamma)
-
-    catches = 0
-    runner_hit_wins = 0
-    hit_sum = 0
-    played = 0
-    ep = 0
-    start_time = time.monotonic()
-    last_progress_time = start_time
-    interval_played = 0
-    interval_catches = 0
-    interval_runner_hit_wins = 0
-    interval_hit_sum = 0
-
-    while True:
-        now = time.monotonic()
-        elapsed = now - start_time
-        if duration_seconds > 0.0:
-            if elapsed >= duration_seconds:
-                break
-            frac = min(1.0, elapsed / max(duration_seconds, 0.001))
-        else:
-            if ep >= episodes:
-                break
-            frac = ep / max(1, episodes - 1)
-        ep += 1
-
-        eps = epsilon_start + (epsilon_end - epsilon_start) * frac
-        min_start_dist = start_min_dist + (end_min_dist - start_min_dist) * frac
-        tagger_q.epsilon = eps
-        runner_q.epsilon = eps
-
-        m = random.choice(maps)
-        result = run_episode(
-            m["grid"],
-            m["components"],
-            tagger_q,
-            runner_q,
-            max_steps,
-            reward_cfg,
-            min_start_dist,
-        )
+def evaluate(maps, tagger_q, runner_q, max_steps, hits_to_win, episodes=300):
+    counts = {"catch": 0, "hits": 0, "timeout": 0}
+    hit_sum = step_sum = 0
+    for _ in range(episodes):
+        result = run_episode(random.choice(maps), tagger_q, runner_q, max_steps, hits_to_win, 0.0, None)
         if result is None:
             continue
-        caught, runner_hit_win, _, runner_hits = result
-        played += 1
-        interval_played += 1
-        hit_sum += runner_hits
-        interval_hit_sum += runner_hits
-        if caught:
-            catches += 1
-            interval_catches += 1
-        if runner_hit_win:
-            runner_hit_wins += 1
-            interval_runner_hit_wins += 1
-
-        now = time.monotonic()
-        if progress_interval > 0.0 and now - last_progress_time >= progress_interval:
-            interval_elapsed = now - last_progress_time
-            _print_progress(now - start_time, interval_elapsed, interval_played, interval_catches, interval_runner_hit_wins, interval_hit_sum, played)
-            last_progress_time = now
-            interval_played = 0
-            interval_catches = 0
-            interval_runner_hit_wins = 0
-            interval_hit_sum = 0
-
-    total_train_seconds = time.monotonic() - start_time
-    if progress_interval > 0.0 and interval_played > 0:
-        _print_progress(total_train_seconds, time.monotonic() - last_progress_time, interval_played, interval_catches, interval_runner_hit_wins, interval_hit_sum, played)
-
-    tagger_policy = greedy_policy(tagger_q)
-    runner_policy = greedy_policy(runner_q)
-    metrics = evaluate(maps, tagger_q, runner_q, max_steps, reward_cfg, end_min_dist, seed + 7)
-    metrics["train_seconds"] = total_train_seconds
-    metrics["train_episodes"] = played
-    train_timeouts = played - catches - runner_hit_wins
-    metrics["train_runner_total_win_rate"] = ((runner_hit_wins + train_timeouts) / played) if played else 0.0
-    metrics["train_catch_rate"] = (catches / played) if played else 0.0
-    metrics["train_runner_hit_win_rate"] = (runner_hit_wins / played) if played else 0.0
-    metrics["train_runner_timeout_win_rate"] = (train_timeouts / played) if played else 0.0
-    metrics["train_avg_runner_hits"] = (hit_sum / played) if played else 0.0
-    metrics["tagger_states"] = len(tagger_policy)
-    metrics["runner_states"] = len(runner_policy)
-    return tagger_policy, runner_policy, metrics
-
-
-def greedy_policy(qtable: QTable) -> dict:
-    """Freeze the learned Q-table into a deterministic best-action table.
-
-    We drop states whose best action is a wall move (mask bit set) so the game
-    side falls back to its safe navigation instead of steering into geometry.
-    """
-    policy = {}
-    for key, values in qtable.q.items():
-        mask = key[2]
-        best = None
-        best_v = -1e18
-        for a in range(len(ACTIONS)):
-            if a != CATCH_ACTION_INDEX and (mask >> a) & 1:
-                continue
-            if values[a] > best_v:
-                best_v = values[a]
-                best = a
-        if best is None:
-            continue
-        if abs(best_v) < 1e-9:
-            continue  # never actually learned anything useful for this state
-        policy[key] = best
-    return policy
-
-
-def evaluate(maps, tagger_q, runner_q, max_steps, reward_cfg, min_start_dist, seed) -> dict:
-    random.seed(seed)
-    total = 0
-    caught_count = 0
-    runner_hit_win_count = 0
-    step_sum = 0
-    hit_sum = 0
-    per_map = 40
-    for m in maps:
-        for _ in range(per_map):
-            result = run_episode(
-                m["grid"],
-                m["components"],
-                tagger_q,
-                runner_q,
-                max_steps,
-                reward_cfg,
-                min_start_dist,
-                greedy=True,
-            )
-            if result is None:
-                continue
-            caught, runner_hit_win, steps, runner_hits = result
-            total += 1
-            step_sum += steps
-            hit_sum += runner_hits
-            if caught:
-                caught_count += 1
-            if runner_hit_win:
-                runner_hit_win_count += 1
-    timeout_count = total - caught_count - runner_hit_win_count
+        outcome, steps, hits = result
+        counts[outcome] += 1
+        hit_sum += hits
+        step_sum += steps
+    total = sum(counts.values())
     return {
         "eval_episodes": total,
-        "eval_runner_total_win_rate": ((runner_hit_win_count + timeout_count) / total) if total else 0.0,
-        "eval_tagger_catch_rate": (caught_count / total) if total else 0.0,
-        "eval_runner_hit_win_rate": (runner_hit_win_count / total) if total else 0.0,
-        "eval_runner_timeout_win_rate": (timeout_count / total) if total else 0.0,
-        "eval_avg_runner_hits": (hit_sum / total) if total else 0.0,
-        "eval_avg_chase_steps": (step_sum / total) if total else 0.0,
+        "eval_tagger_catch_rate": counts["catch"] / total if total else 0.0,
+        "eval_runner_hit_win_rate": counts["hits"] / total if total else 0.0,
+        "eval_runner_timeout_win_rate": counts["timeout"] / total if total else 0.0,
+        "eval_avg_runner_hits": hit_sum / total if total else 0.0,
+        "eval_avg_steps": step_sum / total if total else 0.0,
     }
 
 
-def export_policy(path: Path, maps, grid, policy, metrics, seed, role, reward_cfg, training_cfg) -> None:
-    policy_str = {",".join(str(v) for v in key): action for key, action in policy.items()}
-    out = {
+def train(maps, args):
+    random.seed(args.seed)
+    tagger_q = DoubleQ(args.alpha, args.gamma)
+    runner_q = DoubleQ(args.alpha, args.gamma)
+    start = last_report = time.monotonic()
+    episode = 0
+    recent = deque(maxlen=500)
+    while True:
+        elapsed = time.monotonic() - start
+        if args.duration_seconds > 0 and elapsed >= args.duration_seconds:
+            break
+        if args.duration_seconds <= 0 and episode >= args.episodes:
+            break
+        progress = min(1.0, elapsed / args.duration_seconds) if args.duration_seconds > 0 else episode / max(1, args.episodes - 1)
+        epsilon = args.epsilon_start + (args.epsilon_end - args.epsilon_start) * progress
+        learn_role = "tagger" if episode % 2 == 0 else "runner"
+        result = run_episode(random.choice(maps), tagger_q, runner_q, args.max_steps, args.hits_to_win, epsilon, learn_role)
+        if result is not None:
+            recent.append(result)
+            episode += 1
+        now = time.monotonic()
+        if args.progress_interval > 0 and now - last_report >= args.progress_interval:
+            outcomes = [item[0] for item in recent]
+            print(
+                f"[selfplay-v2 {elapsed:7.1f}s] episodes={episode} epsilon={epsilon:.3f} "
+                f"catch={outcomes.count('catch') / max(1, len(outcomes)):.1%} "
+                f"hit_win={outcomes.count('hits') / max(1, len(outcomes)):.1%} "
+                f"timeout={outcomes.count('timeout') / max(1, len(outcomes)):.1%}",
+                flush=True,
+            )
+            last_report = now
+    metrics = evaluate(maps, tagger_q, runner_q, args.max_steps, args.hits_to_win)
+    metrics.update({
+        "train_seconds": time.monotonic() - start,
+        "train_episodes": episode,
+        "tagger_states": len(tagger_q.policy()),
+        "runner_states": len(runner_q.policy()),
+    })
+    return tagger_q.policy(), runner_q.policy(), metrics
+
+
+def export_policy(path: Path, policy: dict, maps, args, role: str, metrics: dict):
+    output = {
         "metadata": {
-            "algorithm": "selfplay_q_learning_relative_obstacle_mask_multimap",
+            "version": 2,
+            "algorithm": "alternating_double_q_selfplay",
             "role": role,
-            "source_maps": [m["path"] for m in maps],
-            "map_names": [m["name"] for m in maps],
-            "seed": seed,
-            "cell_size": grid["cell_size"],
-            "max_relative_cells": MAX_RELATIVE_CELLS,
-            "catch_action_index": CATCH_ACTION_INDEX,
-            "catch_distance_cells": CATCH_DISTANCE_CELLS,
-            "runner_hits_to_win": RUNNER_HITS_TO_WIN,
-            "relative_state": True,
-            "actions": ACTIONS,
-            "reward_config": reward_cfg,
-            "training_config": training_cfg,
+            "relative_actions": True,
+            "move_names": MOVE_NAMES,
+            "move_action_count": MOVE_COUNT,
+            "skill_action_offset": MOVE_COUNT,
+            "state_fields": ["distance_bucket", "blocked_mask", "line_clear", "skill_ready", "affected", "hit_progress_bucket", "time_bucket"],
+            "cell_size": args.cell_size,
+            "hits_to_win": args.hits_to_win,
+            "round_seconds": args.round_seconds,
+            "decision_seconds": args.decision_seconds,
+            "source_maps": [item["path"] for item in maps],
             "metrics": metrics,
+            "reward_config": REWARD,
         },
-        "policy": policy_str,
+        "policy": {",".join(map(str, key)): action for key, action in policy.items()},
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    with path.open("w", encoding="utf-8") as stream:
+        json.dump(output, stream, ensure_ascii=False, separators=(",", ":"))
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Self-play RL: tagger vs runner learn against each other.")
+def main():
+    parser = argparse.ArgumentParser(description="ParkourTag dual-agent self-play RL v2")
     parser.add_argument("--maps", default=",".join(DEFAULT_MAPS))
     parser.add_argument("--tagger-out", default="rl/trained_policy.json")
     parser.add_argument("--runner-out", default="rl/trained_runner_policy.json")
-    parser.add_argument("--episodes", type=int, default=8500)
-    parser.add_argument("--max-steps", type=int, default=80)
+    parser.add_argument("--episodes", type=int, default=30000)
+    parser.add_argument("--duration-seconds", type=float, default=0.0)
+    parser.add_argument("--round-seconds", type=float, default=DEFAULT_ROUND_SECONDS)
+    parser.add_argument("--decision-seconds", type=float, default=DEFAULT_DECISION_SECONDS)
+    parser.add_argument("--max-steps", type=int, default=0, help="0 derives steps from round/decision seconds")
+    parser.add_argument("--hits-to-win", type=int, default=DEFAULT_HITS_TO_WIN)
     parser.add_argument("--cell-size", type=float, default=2.0)
     parser.add_argument("--agent-radius", type=float, default=0.5)
-    parser.add_argument("--alpha", type=float, default=0.18)
-    parser.add_argument("--gamma", type=float, default=0.95)
-    parser.add_argument("--epsilon-start", type=float, default=0.95)
-    parser.add_argument("--epsilon-end", type=float, default=0.02)
-    parser.add_argument("--start-min-dist", type=float, default=3.0)
-    parser.add_argument("--end-min-dist", type=float, default=7.0)
-    parser.add_argument("--duration-seconds", type=float, default=0.0, help="Train by wall-clock time; 0 means use --episodes.")
-    parser.add_argument("--progress-interval", type=float, default=0.0, help="Print interval training stats every N seconds; 0 disables progress output.")
+    parser.add_argument("--alpha", type=float, default=0.17)
+    parser.add_argument("--gamma", type=float, default=0.97)
+    parser.add_argument("--epsilon-start", type=float, default=0.90)
+    parser.add_argument("--epsilon-end", type=float, default=0.025)
+    parser.add_argument("--progress-interval", type=float, default=10.0)
     parser.add_argument("--seed", type=int, default=114514)
     args = parser.parse_args()
+    args.max_steps = args.max_steps or max(1, int(math.ceil(args.round_seconds / args.decision_seconds)))
 
     root = Path(__file__).resolve().parents[1]
-    tagger_out = (root / args.tagger_out).resolve()
-    runner_out = (root / args.runner_out).resolve()
-
     maps = []
-    for rel in [s.strip() for s in args.maps.split(",") if s.strip()]:
-        map_path = (root / rel).resolve()
-        if not map_path.exists():
-            print(f"[skip] map not found: {rel}")
+    for relative in (item.strip() for item in args.maps.split(",") if item.strip()):
+        path = (root / relative).resolve()
+        if not path.exists():
+            print(f"[skip] missing map: {relative}")
             continue
-        map_data = load_map(map_path)
-        grid = build_grid(map_data, args.cell_size, args.agent_radius)
+        data = load_map(path)
+        grid = build_grid(data, args.cell_size, args.agent_radius)
         if grid is None:
-            print(f"[skip] cannot build navigation grid for: {rel}")
+            print(f"[skip] cannot build safe grid: {relative}")
             continue
-        try:
-            runner_spawn = nearest_free(grid, world_to_cell(grid, map_data.get("runner_spawn", [0.0, 0.0, 0.0])))
-            tagger_spawn = nearest_free(grid, world_to_cell(grid, map_data.get("tagger_spawn", [0.0, 0.0, 0.0])))
-        except RuntimeError:
-            print(f"[skip] map has no free cell: {rel}")
+        comps = components(grid)
+        if not comps:
+            print(f"[skip] no navigable component: {relative}")
             continue
-        maps.append({
-            "path": map_path.relative_to(root).as_posix(),
-            "name": map_data.get("name", map_path.stem),
-            "grid": grid,
-            "runner_spawn": runner_spawn,
-            "tagger_spawn": tagger_spawn,
-            "components": compute_components(grid),
-        })
-
+        maps.append({"path": path.relative_to(root).as_posix(), "name": data.get("name", path.stem), "grid": grid, "components": comps})
     if not maps:
         raise SystemExit("no trainable maps")
 
-    reward_cfg = dict(DEFAULT_REWARD_CONFIG)
-    training_cfg = {
-        "episodes": args.episodes,
-        "max_steps": args.max_steps,
-        "alpha": args.alpha,
-        "gamma": args.gamma,
-        "epsilon_start": args.epsilon_start,
-        "epsilon_end": args.epsilon_end,
-        "start_min_dist": args.start_min_dist,
-        "end_min_dist": args.end_min_dist,
-        "duration_seconds": args.duration_seconds,
-        "progress_interval": args.progress_interval,
-    }
-
-    print(f"self-play training on {len(maps)} maps: {[m['name'] for m in maps]}")
-    print(json.dumps({"training_config": training_cfg, "reward_config": reward_cfg}, ensure_ascii=False, indent=2))
-    tagger_policy, runner_policy, metrics = train(
-        maps,
-        args.episodes,
-        args.max_steps,
-        args.seed,
-        args.alpha,
-        args.gamma,
-        args.epsilon_start,
-        args.epsilon_end,
-        reward_cfg,
-        args.start_min_dist,
-        args.end_min_dist,
-        args.duration_seconds,
-        args.progress_interval,
-    )
-    export_policy(tagger_out, maps, maps[0]["grid"], tagger_policy, metrics, args.seed, "tagger", reward_cfg, training_cfg)
-    export_policy(runner_out, maps, maps[0]["grid"], runner_policy, metrics, args.seed, "runner", reward_cfg, training_cfg)
+    print(f"self-play RL v2 maps={len(maps)} rules={args.hits_to_win} hits/{args.round_seconds:.0f}s max_steps={args.max_steps}")
+    print("maps:", ", ".join(item["name"] for item in maps))
+    tagger_policy, runner_policy, metrics = train(maps, args)
+    export_policy((root / args.tagger_out).resolve(), tagger_policy, maps, args, "tagger", metrics)
+    export_policy((root / args.runner_out).resolve(), runner_policy, maps, args, "runner", metrics)
     print(json.dumps(metrics, ensure_ascii=False, indent=2))
 
 

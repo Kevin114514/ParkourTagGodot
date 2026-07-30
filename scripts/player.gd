@@ -30,6 +30,7 @@ func _ready() -> void:
 	collision_mask = 1
 	floor_max_angle = deg_to_rad(50.0)
 	floor_snap_length = 0.45
+	floor_constant_speed = true
 	_build_body()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -211,6 +212,10 @@ func _try_step_ray(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vecto
 	low_params.exclude = [rid]
 	var low_hit := space.intersect_ray(low_params)
 	if low_hit.is_empty():
+		return Vector3.ZERO
+	# 低位射线直接命中可行走表面时是斜坡，不应触发台阶传送。
+	var low_normal: Vector3 = low_hit["normal"]
+	if low_normal.angle_to(Vector3.UP) <= floor_max_angle:
 		return Vector3.ZERO
 
 	# 高位射线检测是否为墙壁
