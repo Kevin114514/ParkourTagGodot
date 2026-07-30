@@ -159,15 +159,15 @@ static func load_skin_texture(skin_id: String, relative_path: String) -> Texture
 		return null
 	for root in _search_roots():
 		var full_path := "%s/%s/%s" % [root, skin_id, rel]
-		if ResourceLoader.exists(full_path):
-			var tex := load(full_path)
-			if tex is Texture2D:
-				return tex
 		var os_path := full_path.replace("res://", ProjectSettings.globalize_path("res://"))
 		if FileAccess.file_exists(os_path):
 			var image := Image.load_from_file(os_path)
 			if image != null and not image.is_empty():
 				return ImageTexture.create_from_image(image)
+		if ResourceLoader.exists(full_path):
+			var tex := load(full_path)
+			if tex is Texture2D:
+				return tex
 	return null
 
 static func get_skin_preview_texture(skin_id: String, role: String = "runner") -> Texture2D:

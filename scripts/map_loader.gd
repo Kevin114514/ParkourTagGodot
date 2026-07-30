@@ -605,19 +605,20 @@ static func _material_from_data(data: Dictionary, context: Dictionary, default_c
 static func _load_texture(path: String) -> Texture2D:
 	if path.is_empty():
 		return null
+	var resource_path := path
 	if path.begins_with("res://") or path.begins_with("user://"):
-		if ResourceLoader.exists(path):
-			var resource := load(path)
-			if resource is Texture2D:
-				return resource as Texture2D
 		path = ProjectSettings.globalize_path(path)
 	var image := Image.new()
 	var error := image.load(path)
-	if error != OK:
-		return null
-	# 关键：生成 mipmap，否则中远处/斜视角下的高频纹理（墙纸、地毯花纹）会剧烈闪烁抖动。
-	image.generate_mipmaps()
-	return ImageTexture.create_from_image(image)
+	if error == OK:
+		# 关键：生成 mipmap，否则中远处/斜视角下的高频纹理（墙纸、地毯花纹）会剧烈闪烁抖动。
+		image.generate_mipmaps()
+		return ImageTexture.create_from_image(image)
+	if ResourceLoader.exists(resource_path):
+		var resource := load(resource_path)
+		if resource is Texture2D:
+			return resource as Texture2D
+	return null
 
 static func _collision_mode(data: Dictionary, default_mode: String) -> String:
 	var value = data.get("collision", default_mode)
