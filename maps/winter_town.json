@@ -475,7 +475,7 @@
 
     {"type": "box", "name": "CatRugBorder", "position": [-2.8, -6.98, 11.4], "size": [6.6, 0.04, 9.6], "material_id": "treasure_gold", "collision": "hard"},
     {"type": "box", "name": "CatRugBase", "position": [-2.8, -6.9625, 11.4], "size": [6.2, 0.045, 9.2], "material_id": "snow", "collision": "hard"},
-    {"type": "decal", "name": "CatRugDecal", "position": [-2.8, -6.2, 11.4], "rotation_degrees": [0.0, 180.0, 0.0], "size": [6.0, 2.0, 9.0], "albedo_texture": "textures/winter_town/catgirl_poster_cute.png", "color": [1.0, 1.0, 1.0], "albedo_mix": 1.0},
+    {"type": "decal", "name": "CatRugDecal", "position": [-2.8, -6.94, 11.4], "rotation_degrees": [0.0, 180.0, 0.0], "size": [6.0, 0.01, 9.0], "albedo_texture": "textures/winter_town/catgirl_poster_cute.png", "color": [1.0, 1.0, 1.0], "albedo_mix": 1.0},
     {"type": "light", "light_type": "omni", "name": "CatRugLight", "position": [-2.8, -4.0, 11.4], "color": [1.0, 0.95, 0.85], "energy": 1.6, "range": 8.0, "shadow": false},
 
     {"type": "box", "name": "GiftHeapA1", "position": [-8.0, -6.15, 8.0], "size": [1.5, 1.5, 1.5], "material_id": "gift_red", "collision": "hard"},
@@ -567,6 +567,9 @@
       "underground_treasure": [6.0, -6.5, 14.5],
       "oasis": [0.0, -6.5, -12.0],
       "oasis_exit": [-14.0, -6.5, -7.0]
-    }
+    },
+    "no_item_spawn_zones": [
+      { "name": "CatgirlRugNoSpawn", "center": [-2.8, 0.0, 11.4], "size": [6.8, 24.0, 9.8] }
+    ]
   }
 }
