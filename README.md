@@ -1,7 +1,7 @@
-# 椅子大逃亡 2.0
+# 椅子大逃亡 2
 
 <p align="center">
-  <img src="assets/title_bg/adapted/parkour_tag_cartoon.png" alt="椅子大逃亡 2.0 标题图" width="100%">
+  <img src="assets/title_bg/adapted/parkour_tag_cartoon.png" alt="椅子大逃亡 2 标题图" width="100%">
 </p>
 
 <p align="center">

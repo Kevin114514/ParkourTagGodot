@@ -869,7 +869,7 @@ func _build_title_ui() -> void:
 	margin.add_child(box)
 
 	var title := Label.new()
-	title.text = "椅子大逃亡 2.0"
+	title.text = "椅子大逃亡 2"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 52)
 	title.add_theme_color_override("font_color", Color(1.0, 0.43, 0.14))
