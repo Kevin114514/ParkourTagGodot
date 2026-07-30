@@ -27,7 +27,7 @@ const ITEM_TYPE_VISION_CARD := "vision_card"
 const PORT = 24591
 const BASKETBALL_SECRET_CODE := "0721"
 # 发布/功能变更时请同步更新该版本号；主界面右下角会显示它。
-const GAME_VERSION := "1.6.0"
+const GAME_VERSION := "1.6.1"
 const CUSTOM_SKIN_OPTION_ID := "__custom_image_skin__"
 const USE_RL_POLICY_TAGGER := true
 const USE_RL_POLICY_RUNNER := true
@@ -765,8 +765,13 @@ func _style_input(control: Control) -> void:
 func _style_item_list(item_list: ItemList) -> void:
 	item_list.add_theme_stylebox_override("panel", _cartoon_style(Color(1.0, 1.0, 0.96, 0.98), Color(0.25, 0.33, 0.58), 3, 14, Vector2(0.0, 3.0), 10))
 	item_list.add_theme_stylebox_override("focus", _cartoon_style(Color(1.0, 0.98, 0.86, 0.98), Color(1.0, 0.55, 0.16), 3, 14, Vector2(0.0, 3.0), 10))
-	item_list.add_theme_color_override("font_color", Color(0.14, 0.16, 0.3))
-	item_list.add_theme_color_override("font_selected_color", Color(0.32, 0.34, 0.4))
+	var normal_item_color := Color(0.14, 0.16, 0.3)
+	var selected_item_color := Color(0.92, 0.16, 0.14)
+	var hovered_item_color := Color(0.68, 0.3, 0.3)
+	item_list.add_theme_color_override("font_color", normal_item_color)
+	item_list.add_theme_color_override("font_selected_color", selected_item_color)
+	item_list.add_theme_color_override("font_hovered_color", hovered_item_color)
+	item_list.add_theme_color_override("font_hovered_selected_color", hovered_item_color)
 	item_list.add_theme_color_override("guide_color", Color(1.0, 0.62, 0.18, 0.45))
 	item_list.add_theme_font_size_override("font_size", 18)
 

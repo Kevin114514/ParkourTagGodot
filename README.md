@@ -238,7 +238,7 @@ project.godot  Godot 项目入口
 
 - 引擎：Godot 4.7 / Forward Plus
 - 推荐开发版本：Godot 4.7.1 Stable
-- 当前游戏内版本：v1.6.0
+- 当前游戏内版本：v1.6.1
 - 联机：Godot ENet，UDP `24591`
 - 主场景：`scenes/main.tscn`
 
